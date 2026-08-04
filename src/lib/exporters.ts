@@ -1,5 +1,4 @@
-import { EVENT_TYPE_LABEL, ROLE_LABEL, type SeasonData } from '@/domain/types'
-import { tierById } from '@/domain/parts'
+import { EVENT_TYPE_LABEL, ROLE_LABEL, type PartItem, type SeasonData } from '@/domain/types'
 import { fromIso } from './date'
 import { money } from './format'
 
@@ -28,30 +27,111 @@ export function toCsv(rows: (string | number)[][]): string {
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n')
 }
 
+export const PARTS_HEADER = ['Category', 'Part', 'Part number', 'Vendor', 'Qty', 'Unit', 'Line total', 'Owned'] as const
+
 export function partsCsv(season: SeasonData): string {
-  const tier = tierById(season.partsTier)
-  const owned = season.partsOwned[tier.id] ?? {}
-  const rows: (string | number)[][] = [
-    ['Group', 'Part', 'Part number', 'Vendor', 'Qty', 'Unit', 'Line total', 'Owned'],
-  ]
-  for (const item of tier.items) {
+  const rows: (string | number)[][] = [[...PARTS_HEADER]]
+  for (const item of season.parts) {
     rows.push([
-      item.group,
+      item.category,
       item.name,
       item.partNumber,
       item.vendor,
       item.qty,
       item.unit,
       item.qty * item.unit,
-      owned[item.id] ? 'yes' : 'no',
+      item.owned ? 'yes' : 'no',
     ])
   }
-  const stillNeeded = tier.items
-    .filter((i) => !owned[i.id])
-    .reduce((sum, i) => sum + i.qty * i.unit, 0)
+  const stillNeeded = season.parts.filter((i) => !i.owned).reduce((sum, i) => sum + i.qty * i.unit, 0)
   rows.push([])
   rows.push(['', '', '', '', '', '', stillNeeded, 'STILL NEEDED'])
   return toCsv(rows)
+}
+
+/** RFC 4180 reader: handles quoted cells containing commas, quotes and newlines. */
+export function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let quoted = false
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"'
+          i++
+        } else quoted = false
+      } else cell += ch
+      continue
+    }
+    if (ch === '"') quoted = true
+    else if (ch === ',') {
+      row.push(cell)
+      cell = ''
+    } else if (ch === '\n') {
+      row.push(cell)
+      rows.push(row)
+      row = []
+      cell = ''
+    } else if (ch !== '\r') cell += ch
+  }
+  if (cell || row.length) {
+    row.push(cell)
+    rows.push(row)
+  }
+  return rows.filter((r) => r.some((c) => c.trim()))
+}
+
+/**
+ * Reads a parts CSV back in. Column order follows the export, but the header is
+ * matched by name so a sheet a team has rearranged still imports.
+ */
+export function parseParts(text: string): Omit<PartItem, 'id' | 'updatedAt'>[] {
+  const rows = parseCsv(text)
+  if (!rows.length) return []
+
+  const header = rows[0].map((h) => h.trim().toLowerCase())
+  const looksLikeHeader = header.some((h) => h.includes('part') || h.includes('qty') || h.includes('name'))
+  const body = looksLikeHeader ? rows.slice(1) : rows
+
+  /**
+   * With a header present, an unmatched column is *absent* — falling back to a
+   * position would silently read whatever happens to sit there (a "Part" column
+   * becoming the category, say). Positional defaults apply only to headerless files.
+   */
+  const at = (names: string[], fallback: number) => {
+    if (!looksLikeHeader) return fallback
+    return header.findIndex((h) => names.some((n) => h === n || h.includes(n)))
+  }
+  const iCategory = at(['category', 'group'], 0)
+  const iName = at(['part', 'name', 'item'], 1)
+  const iPn = at(['part number', 'sku', 'partnumber'], 2)
+  const iVendor = at(['vendor', 'supplier'], 3)
+  const iQty = at(['qty', 'quantity'], 4)
+  const iUnit = at(['unit', 'price', 'cost'], 5)
+  const iOwned = at(['owned', 'have'], 7)
+
+  const cell = (row: string[], idx: number) => (idx < 0 ? '' : (row[idx] ?? '').trim())
+  const num = (v: string) => {
+    const parsed = Number(v.replace(/[^0-9.-]/g, ''))
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  return body
+    .map((r) => ({
+      category: cell(r, iCategory) || 'Uncategorised',
+      name: cell(r, iName),
+      partNumber: cell(r, iPn),
+      vendor: cell(r, iVendor),
+      qty: Math.max(1, Math.round(num(cell(r, iQty)) || 1)),
+      unit: num(cell(r, iUnit)),
+      owned: /^(y|yes|true|1)$/i.test(cell(r, iOwned)),
+    }))
+    // A row with no name is a spacer or the STILL NEEDED footer, not a part.
+    .filter((p) => p.name.length > 0)
 }
 
 export function rosterCsv(season: SeasonData, includeContact: boolean): string {

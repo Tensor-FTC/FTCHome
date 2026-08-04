@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { backupJson, calendarIcs, parseBackup, partsCsv, rosterCsv, toCsv } from './exporters'
+import { backupJson, calendarIcs, parseBackup, parseParts, partsCsv, rosterCsv, toCsv } from './exporters'
 import { fixtureSeason } from '@/test/fixtures'
 
 const season = fixtureSeason('2026-01-10')
@@ -15,11 +15,50 @@ describe('CSV', () => {
   })
 
   it('keeps owned parts in the export so it stays a complete bill of materials', () => {
-    const withOwned = { ...season, partsOwned: { ...season.partsOwned, rookie: { 'Control:REV-31-1595': true } } }
-    const csv = partsCsv(withOwned)
+    const withParts = {
+      ...season,
+      parts: [
+        { id: 'p1', updatedAt: '', name: 'Control Hub', partNumber: 'REV-31-1595', vendor: 'REV', category: 'Control', qty: 1, unit: 299, owned: true },
+        { id: 'p2', updatedAt: '', name: 'Servo', partNumber: 'S-1', vendor: 'goBILDA', category: 'Manipulator', qty: 4, unit: 24, owned: false },
+      ],
+    }
+    const csv = partsCsv(withParts)
     expect(csv).toContain('REV-31-1595')
     expect(csv).toContain('yes')
     expect(csv).toContain('STILL NEEDED')
+    // 4 x 24, with the owned hub excluded.
+    expect(csv).toContain('96')
+  })
+
+  it('round-trips parts through export and import', () => {
+    const parts = [
+      { id: 'p1', updatedAt: '', name: 'Yellow Jacket, 312 RPM', partNumber: '5203-2402-0019', vendor: 'goBILDA', category: 'Drivetrain', qty: 4, unit: 44, owned: false },
+      { id: 'p2', updatedAt: '', name: 'Control Hub', partNumber: 'REV-31-1595', vendor: 'REV', category: 'Control', qty: 1, unit: 299, owned: true },
+    ]
+    const reimported = parseParts(partsCsv({ ...season, parts }))
+    expect(reimported).toHaveLength(2)
+    // The comma inside the part name must survive the quoting round trip.
+    expect(reimported[0]).toMatchObject({ name: 'Yellow Jacket, 312 RPM', qty: 4, unit: 44, owned: false })
+    expect(reimported[1]).toMatchObject({ name: 'Control Hub', owned: true })
+  })
+
+  it('imports a vendor CSV whose columns are in a different order', () => {
+    const csv = ['Part,Qty,Unit,Vendor', 'Servo,6,24,goBILDA'].join('\r\n')
+    expect(parseParts(csv)).toEqual([
+      { category: 'Uncategorised', name: 'Servo', partNumber: '', vendor: 'goBILDA', qty: 6, unit: 24, owned: false },
+    ])
+  })
+
+  it('tolerates currency symbols and blank quantities', () => {
+    const csv = ['Category,Part,Part number,Vendor,Qty,Unit', 'Kit,Widget,W-1,Acme,,"$1,299.50"'].join('\r\n')
+    const [part] = parseParts(csv)
+    expect(part.unit).toBe(1299.5)
+    expect(part.qty).toBe(1)
+  })
+
+  it('drops the STILL NEEDED footer and spacer rows on import', () => {
+    const parts = [{ id: 'p1', updatedAt: '', name: 'Only part', partNumber: '', vendor: '', category: 'Kit', qty: 1, unit: 10, owned: false }]
+    expect(parseParts(partsCsv({ ...season, parts }))).toHaveLength(1)
   })
 
   it('omits contact columns entirely when the exporter is not allowed them', () => {

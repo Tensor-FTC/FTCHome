@@ -34,6 +34,12 @@ once somebody has scrolled past them twice.
 | Competitions, dates, venues | Build sessions, deadlines, outreach |
 | Match schedule, scores, W-L-T | Tasks, purchase approvals |
 | Rankings and OPR (event and season, with world rank) | Photos, video, CAD, weekly write-ups |
+| | Parts and prices (no catalogue is bundled — vendor prices go stale) |
+
+**First run** walks you through it: look up your team number, add your coach, then a getting-started
+checklist on Today tracks the five things only your team can supply. Each step ticks itself off when
+the thing genuinely exists and the whole card disappears once you are running — no fake progress and
+nothing to dismiss and re-find. **How this works** in the rail explains the rest.
 
 ---
 
@@ -54,15 +60,17 @@ Nineteen screens, all backed by real state rather than fixtures.
 | 09 | Live event | Rank, record, match queue, scouting cards with editable pit notes |
 | 10 | Competition Mode | Pit board: pure black, 92px clock (260px on desktop), wake lock, rankings and schedule |
 | 11 | States | The live outbox — what is queued, how big, when it goes |
-| 01–03 | Guest onboarding · Starter parts · Team identity | No-account hub, three-tier BOM with CSV export, registry lookup |
+| 01–03 | Guest onboarding · Parts · Team identity | No-account hub, your own bill of materials with CSV import/export, FTCScout lookup |
+| — | Help | How it works: the five tabs, where numbers come from, what your role can do |
 | — | Settings | Sync, live data, alerts, backup/restore, role preview |
 
 ### Beyond the prototype
 
 - **PWA** — installable, service worker, offline-first, `navigator.storage.persist()` so a season is
   not treated as a disposable cache.
-- **Export & import** — parts and roster and budget to CSV, calendar to `.ics` (folded, escaped,
-  with `RRULE`), weekly dashboard to markdown, whole season to JSON and back.
+- **Export & import** — parts to and from CSV (RFC 4180, so a vendor sheet with commas in part names
+  imports cleanly), roster and budget to CSV, calendar to `.ics` (folded, escaped, with `RRULE`),
+  weekly dashboard to markdown, whole season to JSON and back.
 - **Match alerts** — Web Notifications at the lead time, at one minute, and at zero. Never repeat;
   an alert you learn to swipe away is worse than none.
 - **Desktop layouts** — the tab bar becomes a 240px rail, Today goes three columns, the weekly
@@ -78,11 +86,11 @@ Nineteen screens, all backed by real state rather than fixtures.
 
 ```
 src/
-  domain/     types, capability matrix, parts catalogue, season construction
+  domain/     types, capability matrix, season construction
   lib/        ftcScout · idb · sync · supabase · crypto · media · exporters · notifications
   store/      one zustand store; every mutation stamps, persists and queues
   components/ shell, nav, countdown, media thumb, ui primitives
-  screens/    the nineteen
+  screens/    the nineteen, plus Help and Settings
   styles/     tokens · base · components · shell · auth · print
 supabase/     migration + RLS
 design/       the imported source of truth

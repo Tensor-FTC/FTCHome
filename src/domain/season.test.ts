@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { calendarFromScout, emptySeason, isConfigured, mergeScoutEvents, teamFromScout } from './season'
+import {
+  calendarFromScout,
+  emptySeason,
+  isConfigured,
+  mergeScoutEvents,
+  migrateSeason,
+  teamFromScout,
+} from './season'
 import { SCOUT_TEAM_11138 } from '@/test/fixtures'
 import type { ScoutEvent, TeamParticipation } from '@/lib/ftcScout'
 import type { CalendarEvent } from './types'
@@ -21,6 +28,28 @@ describe('season construction', () => {
     expect(season.tasks).toHaveLength(0)
     expect(season.allocations).toHaveLength(0)
     expect(season.competition.source).toBe('none')
+    // No bundled parts catalogue either — vendor prices go stale within a season.
+    expect(season.parts).toHaveLength(0)
+  })
+
+  it('migrates a season saved before a field existed instead of resetting it', () => {
+    const stored = {
+      team: { number: '11138', name: 'Robo Eclipse', syncedAt: '2026-01-01T00:00:00.000Z' },
+      members: [{ id: 'm1', updatedAt: '', name: 'Someone', role: 'coach' }],
+    } as never
+
+    const migrated = migrateSeason(stored)
+    // The roster survives …
+    expect(migrated.members).toHaveLength(1)
+    expect(migrated.team.number).toBe('11138')
+    // … and newly added collections are present rather than undefined.
+    expect(migrated.parts).toEqual([])
+    expect(migrated.scouting).toEqual([])
+    expect(migrated.settings.season).toBeGreaterThan(2018)
+  })
+
+  it('migrates an absent season to a clean empty one', () => {
+    expect(migrateSeason(undefined).members).toHaveLength(0)
   })
 
   it('takes team identity verbatim from FTCScout', () => {

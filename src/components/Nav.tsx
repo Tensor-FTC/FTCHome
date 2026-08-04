@@ -54,7 +54,7 @@ const MANAGE = [
   { to: '/roster', label: 'Roster' },
   { to: '/budget', label: 'Budget & sponsors' },
   { to: '/calendar/edit', label: 'Edit calendar', capability: 'calendar.edit' as const },
-  { to: '/parts', label: 'Starter parts' },
+  { to: '/parts', label: 'Parts' },
 ]
 
 export function Rail() {
@@ -93,6 +93,7 @@ export function Rail() {
       {MANAGE.filter((m) => !m.capability || can(session.role, m.capability)).map((m) => item(m.to, m.label))}
 
       <div className="rail-group">App</div>
+      {item('/help', 'How this works')}
       {item('/states', 'States & sync')}
       {item('/settings', 'Settings')}
 

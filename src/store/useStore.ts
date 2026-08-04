@@ -4,10 +4,10 @@ import {
   emptySeason,
   isConfigured,
   mergeScoutEvents,
+  migrateSeason,
   statsFromQuickStats,
   teamFromScout,
 } from '@/domain/season'
-import { tierById } from '@/domain/parts'
 import {
   getEvent,
   getEventSnapshot,
@@ -29,6 +29,7 @@ import type {
   SeasonData,
   Session,
   Settings,
+  PartItem,
   Sponsor,
   Task,
   WeeklyReport,
@@ -79,6 +80,7 @@ interface StoreState {
   browseAsGuest: () => void
   signOut: () => void
   setRole: (role: Role) => void
+  dismissOnboarding: () => void
   setMemberPassword: (memberId: string, password: string) => Promise<void>
   verifyTeamCode: (code: string) => Promise<boolean>
   setTeamCode: (code: string) => Promise<void>
@@ -111,10 +113,12 @@ interface StoreState {
   addApproval: (approval: Omit<Approval, 'id' | 'updatedAt'>) => Approval
   decideApproval: (id: string, state: Approval['state'], deciderId: string) => void
 
-  // parts
-  setPartsTier: (tier: SeasonData['partsTier']) => void
-  togglePart: (itemId: string) => void
-  resetParts: () => void
+  // parts — the team's own bill of materials
+  addPart: (part: Omit<PartItem, 'id' | 'updatedAt'>) => PartItem
+  updatePart: (id: string, patch: Partial<PartItem>) => void
+  togglePart: (id: string) => void
+  removePart: (id: string) => void
+  importParts: (parts: Omit<PartItem, 'id' | 'updatedAt'>[]) => number
 
   // media
   addMedia: (item: Omit<MediaItem, 'id' | 'updatedAt'>) => MediaItem
@@ -199,8 +203,10 @@ export const useStore = create<StoreState>((set, get) => {
 
     async hydrate() {
       const [season, session] = await Promise.all([loadSeason(), loadSession()])
-      const next = season ?? emptySeason()
-      if (!season) await saveSeason(next)
+      // Migrate rather than reset: a stored season predating a model change
+      // must not cost a team its roster.
+      const next = migrateSeason(season)
+      await saveSeason(next)
       set({ season: next, session: session ?? GUEST_SESSION, ready: true })
       // Identity and competition dates go stale; refresh quietly on open.
       if (isConfigured(next)) void get().refreshTeam()
@@ -268,6 +274,12 @@ export const useStore = create<StoreState>((set, get) => {
 
     setRole(role) {
       const session = { ...get().session, role }
+      set({ session })
+      void saveSession(session)
+    },
+
+    dismissOnboarding() {
+      const session = { ...get().session, onboardingDismissed: true }
       set({ session })
       void saveSession(session)
     },
@@ -549,34 +561,52 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     // ── parts ───────────────────────────────────────────────
-    setPartsTier(tier) {
-      commit((d) => {
-        d.partsTier = tier
+    addPart(part) {
+      const record: PartItem = { ...part, id: uid('part-'), updatedAt: now() }
+      commit((d) => void d.parts.push(record), {
+        table: 'parts_state',
+        op: 'upsert',
+        record,
+        label: `Part · ${record.name}`,
       })
+      return record
     },
 
-    togglePart(itemId) {
-      const tier = get().season.partsTier
+    updatePart(id, patch) {
+      const next = stamped({ ...get().season.parts.find((p) => p.id === id)!, ...patch })
       commit(
         (d) => {
-          const owned = { ...(d.partsOwned[tier] ?? {}) }
-          owned[itemId] = !owned[itemId]
-          d.partsOwned = { ...d.partsOwned, [tier]: owned }
+          const i = d.parts.findIndex((p) => p.id === id)
+          if (i >= 0) d.parts[i] = next
         },
-        {
-          table: 'parts_state',
-          op: 'upsert',
-          record: { id: 'parts', updatedAt: now() },
-          label: 'Parts list',
-        },
+        { table: 'parts_state', op: 'upsert', record: next, label: `Part · ${next.name}` },
       )
     },
 
-    resetParts() {
-      const tier = get().season.partsTier
-      commit((d) => {
-        d.partsOwned = { ...d.partsOwned, [tier]: {} }
+    togglePart(id) {
+      const part = get().season.parts.find((p) => p.id === id)
+      if (!part) return
+      get().updatePart(id, { owned: !part.owned })
+    },
+
+    removePart(id) {
+      const part = get().season.parts.find((p) => p.id === id)
+      if (!part) return
+      commit((d) => void (d.parts = d.parts.filter((p) => p.id !== id)), {
+        table: 'parts_state',
+        op: 'delete',
+        record: part,
+        label: `Removed ${part.name}`,
       })
+    },
+
+    importParts(rows) {
+      const records: PartItem[] = rows.map((r) => ({ ...r, id: uid('part-'), updatedAt: now() }))
+      commit((d) => void d.parts.push(...records))
+      for (const record of records) {
+        void enqueue('parts_state', 'upsert', record, `Part · ${record.name}`)
+      }
+      return records.length
     },
 
     // ── media ───────────────────────────────────────────────
@@ -722,9 +752,20 @@ export const useStore = create<StoreState>((set, get) => {
       set({ scoutBusy: true })
       try {
         const { team: scout } = await getTeam(teamNumber)
-        const season = structuredClone(get().season)
+        const previousNumber = get().season.team.number
+        const switching = Boolean(previousNumber) && previousNumber !== String(scout.number)
+
+        // Switching teams starts clean. Another team's roster, schedule, budget
+        // and scouting notes are not yours, and silently inheriting them is how
+        // an app ends up showing numbers nobody can account for.
+        const season = switching ? emptySeason() : structuredClone(get().season)
         season.team = teamFromScout(scout, season.team)
-        season.settings = { ...season.settings, region: season.team.region, lastScoutSyncAt: now() }
+        season.settings = {
+          ...season.settings,
+          season: get().season.settings.season,
+          region: season.team.region,
+          lastScoutSyncAt: now(),
+        }
 
         const scoutSeason = season.settings.season as ScoutSeason
         season.team.seasonStats = statsFromQuickStats(await getQuickStats(scout.number, scoutSeason))
@@ -739,6 +780,11 @@ export const useStore = create<StoreState>((set, get) => {
         set({ season })
         await saveSeason(season)
         void enqueue('teams', 'upsert', season.team, `Team · ${season.team.number}`)
+
+        if (switching) {
+          set({ session: GUEST_SESSION })
+          await saveSession(GUEST_SESSION)
+        }
 
         return {
           ok: true,
@@ -931,20 +977,18 @@ export function currentMember(state: { season: SeasonData; session: Session }): 
   return state.season.members.find((m) => m.id === state.session.memberId) ?? null
 }
 
-/** Still-needed subtotal for the active parts tier. */
+/** Still-needed subtotal for the team's bill of materials. */
 export function partsTotals(season: SeasonData) {
-  const tier = tierById(season.partsTier)
-  const owned = season.partsOwned[tier.id] ?? {}
   let need = 0
   let all = 0
   let haveCount = 0
-  for (const item of tier.items) {
+  for (const item of season.parts) {
     const line = item.qty * item.unit
     all += line
-    if (owned[item.id]) haveCount++
+    if (item.owned) haveCount++
     else need += line
   }
-  return { need, all, haveCount, allCount: tier.items.length, tier, owned }
+  return { need, all, haveCount, allCount: season.parts.length }
 }
 
 export function budgetTotals(season: SeasonData) {

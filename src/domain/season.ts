@@ -58,7 +58,6 @@ export function emptyTeam(): Team {
     syncedAt: null,
     code: null,
     goal: 0,
-    storageQuotaGb: 50,
   }
 }
 
@@ -99,9 +98,35 @@ export function emptySeason(): SeasonData {
     weekly: [],
     scouting: [],
     competition: emptyCompetition(),
-    partsOwned: { bare: {}, rookie: {}, comp: {} },
-    partsTier: 'rookie',
+    parts: [],
     settings: emptySettings(),
+  }
+}
+
+/**
+ * Fills in fields added after a season was first saved, so an existing device
+ * upgrades instead of crashing on a missing array.
+ */
+export function migrateSeason(stored: Partial<SeasonData> | undefined): SeasonData {
+  const base = emptySeason()
+  if (!stored) return base
+  return {
+    ...base,
+    ...stored,
+    team: { ...base.team, ...stored.team },
+    settings: { ...base.settings, ...stored.settings },
+    competition: { ...base.competition, ...stored.competition },
+    members: stored.members ?? [],
+    events: stored.events ?? [],
+    rsvps: stored.rsvps ?? [],
+    tasks: stored.tasks ?? [],
+    sponsors: stored.sponsors ?? [],
+    allocations: stored.allocations ?? [],
+    approvals: stored.approvals ?? [],
+    media: stored.media ?? [],
+    weekly: stored.weekly ?? [],
+    scouting: stored.scouting ?? [],
+    parts: stored.parts ?? [],
   }
 }
 

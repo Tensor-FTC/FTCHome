@@ -65,7 +65,8 @@ export function BuildLogScreen() {
   }, [visible])
 
   const usedBytes = season.media.reduce((sum, m) => sum + m.size, 0)
-  const quotaBytes = season.team.storageQuotaGb * 1024 ** 3
+  // The browser's actual grant, not an invented team quota.
+  const quotaBytes = estimate?.quota || 0
   const byKind = (kind: MediaKind) =>
     season.media.filter((m) => m.kind === kind).reduce((sum, m) => sum + m.size, 0)
   const queued = season.media.filter((m) => m.queued)
@@ -127,7 +128,8 @@ export function BuildLogScreen() {
               <div className="section-head" style={{ marginBottom: 9 }}>
                 <span className="label">Team storage</span>
                 <span className="num" style={{ font: '500 12px var(--font-mono)', color: 'var(--ink-2)' }}>
-                  {bytes(usedBytes)} / {season.team.storageQuotaGb} GB
+                  {bytes(usedBytes)}
+                  {quotaBytes ? ` / ${bytes(quotaBytes)}` : ''}
                 </span>
               </div>
               <Meter
@@ -146,7 +148,8 @@ export function BuildLogScreen() {
               </div>
               {estimate && estimate.quota > 0 && (
                 <div className="meta" style={{ marginTop: 8, color: 'var(--ink-rail)' }}>
-                  This browser has allowed {bytes(estimate.quota)} on this device; {bytes(estimate.usage)} used.
+                  This browser has allowed {bytes(estimate.quota)} on this device; {bytes(estimate.usage)} used
+                  in total.
                 </div>
               )}
 

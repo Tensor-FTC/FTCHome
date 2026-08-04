@@ -25,6 +25,7 @@ import { RosterScreen } from '@/screens/Roster'
 import { BudgetScreen } from '@/screens/Budget'
 import { StatesScreen } from '@/screens/States'
 import { SettingsScreen } from '@/screens/Settings'
+import { HelpScreen } from '@/screens/Help'
 import { NotFoundScreen } from '@/screens/NotFound'
 
 function ScrollToTop() {
@@ -113,6 +114,7 @@ export function App() {
           <Route path="/parts" element={<PartsScreen />} />
           <Route path="/states" element={<StatesScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
+          <Route path="/help" element={<HelpScreen />} />
         </Route>
 
         <Route path="*" element={<NotFoundScreen />} />

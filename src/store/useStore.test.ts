@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { budgetTotals, partsTotals, useStore } from './useStore'
 import { fixtureSeason } from '@/test/fixtures'
-import { tierById } from '@/domain/parts'
 
 /**
  * Store behaviour that screens depend on. These run against the real IndexedDB
@@ -88,33 +87,43 @@ describe('season store', () => {
     expect(after.spent).toBe(before)
   })
 
-  it('toggles a part per tier without leaking across tiers', () => {
-    const { setPartsTier, togglePart } = useStore.getState()
-    const rookieItem = tierById('rookie').items[0]
-
-    setPartsTier('rookie')
-    togglePart(rookieItem.id)
-    expect(partsTotals(useStore.getState().season).haveCount).toBe(1)
-
-    setPartsTier('comp')
-    expect(partsTotals(useStore.getState().season).haveCount).toBe(0)
-
-    setPartsTier('rookie')
-    expect(partsTotals(useStore.getState().season).haveCount).toBe(1)
+  it('starts with no parts — there is no bundled catalogue', () => {
+    expect(useStore.getState().season.parts).toHaveLength(0)
+    expect(partsTotals(useStore.getState().season)).toMatchObject({ need: 0, all: 0, allCount: 0 })
   })
 
   it('subtracts owned parts from the still-needed subtotal', () => {
-    const { setPartsTier, togglePart } = useStore.getState()
-    setPartsTier('rookie')
-    const before = partsTotals(useStore.getState().season)
-    const item = tierById('rookie').items[0]
+    const { addPart, togglePart } = useStore.getState()
+    const part = addPart({ name: 'Motor', partNumber: 'M-1', vendor: 'v', category: 'Drivetrain', qty: 4, unit: 44, owned: false })
 
-    togglePart(item.id)
+    const before = partsTotals(useStore.getState().season)
+    expect(before.need).toBe(176)
+
+    togglePart(part.id)
 
     const after = partsTotals(useStore.getState().season)
-    expect(after.need).toBe(before.need - item.qty * item.unit)
+    expect(after.need).toBe(0)
+    expect(after.haveCount).toBe(1)
     // The total is a bill of materials and must not shrink.
     expect(after.all).toBe(before.all)
+  })
+
+  it('imports parts in bulk', () => {
+    const added = useStore.getState().importParts([
+      { name: 'A', partNumber: '', vendor: '', category: 'Kit', qty: 2, unit: 10, owned: false },
+      { name: 'B', partNumber: '', vendor: '', category: 'Kit', qty: 1, unit: 5, owned: true },
+    ])
+    expect(added).toBe(2)
+    const totals = partsTotals(useStore.getState().season)
+    expect(totals.allCount).toBe(2)
+    expect(totals.all).toBe(25)
+    expect(totals.need).toBe(20)
+  })
+
+  it('removes a part', () => {
+    const part = useStore.getState().addPart({ name: 'Temp', partNumber: '', vendor: '', category: '', qty: 1, unit: 1, owned: false })
+    useStore.getState().removePart(part.id)
+    expect(useStore.getState().season.parts.find((p) => p.id === part.id)).toBeUndefined()
   })
 
   it('counts pledged and received separately, because a pledge cannot buy motors', () => {

@@ -155,6 +155,7 @@ const COLLECTION_FOR: Partial<Record<SyncTable, keyof SeasonData>> = {
   media: 'media',
   weekly_reports: 'weekly',
   scouting_notes: 'scouting',
+  parts_state: 'parts',
 }
 
 /**
@@ -184,10 +185,6 @@ export function applyRemote(season: SeasonData, rows: RemoteRow[]): void {
     }
     if (row.table_name === 'competition_events' && row.data.updatedAt > season.competition.updatedAt) {
       season.competition = row.data as SeasonData['competition']
-    }
-    if (row.table_name === 'parts_state') {
-      const payload = row.data as unknown as { owned?: SeasonData['partsOwned']; updatedAt: string }
-      if (payload.owned) season.partsOwned = payload.owned
     }
   }
   season.settings.lastSyncAt = now()

@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Button, Check, Chip, LockedValue, SectionLabel } from '@/components/ui'
+import { GettingStarted } from '@/components/GettingStarted'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
 import { can } from '@/domain/permissions'
 import { daysBetween, dueLabel, longStamp, seasonWeek, today as todayIso } from '@/lib/date'
@@ -102,6 +103,8 @@ export function TodayScreen() {
           {ROLE_LABEL[session.role].charAt(0)}
         </Link>
       </div>
+
+      <GettingStarted />
 
       <div className="cols cols-3">
         <div>

@@ -51,7 +51,6 @@ export interface Team extends Syncable {
   code: PasswordVerifier | null
   /** Fundraising goal — a team decision, so it is local. */
   goal: number
-  storageQuotaGb: number
 }
 
 export interface Member extends Syncable {
@@ -174,20 +173,22 @@ export interface Approval extends Syncable {
   allocationId?: string
 }
 
-export interface PartItem {
-  id: string
+/**
+ * A line on the team's own bill of materials. There is no bundled parts
+ * catalogue: vendor prices change constantly and no API publishes them, so a
+ * shipped list would be wrong within a season. Teams add what they are actually
+ * buying, or import a CSV from a vendor cart.
+ */
+export interface PartItem extends Syncable {
   name: string
   partNumber: string
   vendor: string
+  /** Free text — teams group by subsystem, and no fixed taxonomy fits all of them. */
+  category: string
   qty: number
   unit: number
-  group: string
-}
-
-export interface PartsTier {
-  id: 'bare' | 'rookie' | 'comp'
-  label: string
-  items: PartItem[]
+  owned: boolean
+  url?: string
 }
 
 export interface MediaItem extends Syncable {
@@ -311,6 +312,8 @@ export interface Session {
   signedInAt: string | null
   /** True when browsing without an account. */
   guest: boolean
+  /** Set when the user hides the getting-started checklist by hand. */
+  onboardingDismissed?: boolean
 }
 
 /** A pending write. The queue is user-visible, so it carries a human label and a size. */
@@ -355,9 +358,7 @@ export interface SeasonData {
   weekly: WeeklyReport[]
   scouting: ScoutingNote[]
   competition: CompetitionEvent
-  /** partsTier -> { itemId: owned } */
-  partsOwned: Record<string, Record<string, boolean>>
-  partsTier: PartsTier['id']
+  parts: PartItem[]
   settings: Settings
 }
 
