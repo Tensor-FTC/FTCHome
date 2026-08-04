@@ -1,0 +1,341 @@
+/** Core domain model. One season of one team, plus whatever it takes to survive a gym. */
+
+export type Role = 'coach' | 'mentor' | 'captain' | 'student' | 'parent' | 'guest'
+
+export type Subteam = 'mechanical' | 'software' | 'electrical' | 'notebook' | 'outreach' | 'drive' | 'logistics'
+
+export type EventType = 'meet' | 'comp' | 'out' | 'dead'
+
+export type RsvpStatus = 'going' | 'maybe' | 'cant' | 'none'
+
+export type Alliance = 'red' | 'blue'
+
+export type SponsorState = 'Pledged' | 'Received'
+
+export type MediaKind = 'photo' | 'video' | 'cad' | 'match'
+
+export type ApprovalState = 'pending' | 'approved' | 'held' | 'denied'
+
+/** Every synced record carries these, so the outbox can order and de-duplicate writes. */
+export interface Syncable {
+  id: string
+  updatedAt: string
+  /** Soft delete — a tombstone still has to reach the server. */
+  deleted?: boolean
+}
+
+export interface Team extends Syncable {
+  number: string
+  name: string
+  region: string
+  rookieYear: number
+  /** PBKDF2 verifier for the shared team code. Never the code itself. */
+  code: PasswordVerifier | null
+  season: string
+  goal: number
+  storageQuotaGb: number
+}
+
+export interface Member extends Syncable {
+  name: string
+  role: Role
+  subteam?: Subteam
+  username: string
+  /** Null until the member first signs in and sets their own password. */
+  password: PasswordVerifier | null
+  pending: boolean
+  /** Mentor/coach-only. Gated at read time by permissions, not by the UI alone. */
+  medical?: MedicalRecord
+  contact?: ContactRecord
+  joinedAt: string
+}
+
+export interface MedicalRecord {
+  notes: string
+  allergies: string
+  guardian: string
+  guardianPhone: string
+}
+
+export interface ContactRecord {
+  email: string
+  phone: string
+}
+
+export interface PasswordVerifier {
+  algo: 'PBKDF2-SHA256'
+  iterations: number
+  salt: string
+  hash: string
+}
+
+export interface CalendarEvent extends Syncable {
+  title: string
+  /** ISO date, YYYY-MM-DD. Times are local and stored separately so "—" stays possible. */
+  date: string
+  time: string
+  endTime?: string
+  type: EventType
+  location?: string
+  notes?: string
+  /** Repeats weekly until this ISO date. */
+  repeatWeeklyUntil?: string
+  attachments?: Attachment[]
+}
+
+export interface Attachment {
+  id: string
+  name: string
+  ext: string
+  size: number
+  /** IndexedDB blob key when the file has been cached for offline use. */
+  blobKey?: string
+}
+
+export interface Rsvp extends Syncable {
+  eventId: string
+  memberId: string
+  status: RsvpStatus
+}
+
+export interface Task extends Syncable {
+  name: string
+  subteam?: Subteam
+  assigneeId?: string
+  /** ISO date, or empty for "no date". */
+  due: string
+  done: boolean
+  doneAt?: string
+  blockedBy?: string
+  createdBy?: string
+}
+
+export interface Sponsor extends Syncable {
+  name: string
+  tier: string
+  amount: number
+  state: SponsorState
+  contact?: string
+  loggedAt: string
+}
+
+export interface Allocation extends Syncable {
+  name: string
+  cap: number
+  spent: number
+}
+
+export interface Approval extends Syncable {
+  title: string
+  amount: number
+  requestedById: string
+  requestedAt: string
+  state: ApprovalState
+  decidedById?: string
+  decidedAt?: string
+  note?: string
+  allocationId?: string
+}
+
+export interface PartItem {
+  id: string
+  name: string
+  partNumber: string
+  vendor: string
+  qty: number
+  unit: number
+  group: string
+}
+
+export interface PartsTier {
+  id: 'bare' | 'rookie' | 'comp'
+  label: string
+  items: PartItem[]
+}
+
+export interface MediaItem extends Syncable {
+  kind: MediaKind
+  name: string
+  caption: string
+  author: string
+  /** ISO date the work happened, which is how the log groups. */
+  day: string
+  size: number
+  durationSec?: number
+  tags: string[]
+  /** Key into the blob store. Absent when the file is still queued or was pruned. */
+  blobKey?: string
+  thumbKey?: string
+  mimeType?: string
+  /** True while the file sits in the outbox waiting for Wi-Fi. */
+  queued?: boolean
+}
+
+export interface WeeklyReport extends Syncable {
+  week: number
+  from: string
+  to: string
+  summary: string
+  author: string
+  shoutouts: Shoutout[]
+  heroMediaId?: string
+  mediaIds: string[]
+  published: boolean
+  publishedAt?: string
+  reads: number
+}
+
+export interface Shoutout {
+  id: string
+  who: string
+  text: string
+}
+
+export interface ScoutingNote extends Syncable {
+  teamNumber: string
+  teamName: string
+  note: string
+  opr?: number
+  auto?: number
+  rank?: number
+}
+
+/** A match from the FTC Events API, or typed in by hand. */
+export interface Match {
+  id: string
+  /** Q42, SF1-1, F1 … */
+  label: string
+  field: string
+  time: string
+  red: [string, string]
+  blue: [string, string]
+  redScore?: number
+  blueScore?: number
+  played: boolean
+  /** Set on the one match that is currently on deck. */
+  onDeck?: boolean
+}
+
+export interface RankingRow {
+  rank: number
+  teamNumber: string
+  teamName: string
+  wins: number
+  losses: number
+  ties: number
+  opr: number
+}
+
+export interface CompetitionEvent extends Syncable {
+  code: string
+  name: string
+  venue: string
+  date: string
+  matches: Match[]
+  rankings: RankingRow[]
+  /** Where the data came from, so the UI can be honest about staleness. */
+  source: 'sample' | 'ftc-api' | 'manual'
+  fetchedAt?: string
+}
+
+export interface Settings {
+  alliance: Alliance
+  /** Seconds until our next match. Driven by the queue, overridable in Comp Mode. */
+  matchSeconds: number
+  matchLabel: string
+  matchField: string
+  partner: string
+  opponents: [string, string]
+  notificationsEnabled: boolean
+  notifyLeadSeconds: number
+  ftcApiKey: string
+  ftcSeason: string
+  ftcEventCode: string
+  /** Forces the offline treatment on, for testing the gym case on a good connection. */
+  simulateOffline: boolean
+  reducedData: boolean
+  lastSyncAt: string | null
+}
+
+export interface Session {
+  memberId: string | null
+  role: Role
+  teamNumber: string
+  signedInAt: string | null
+  /** True when browsing without an account. */
+  guest: boolean
+}
+
+/** A pending write. The queue is user-visible, so it carries a human label and a size. */
+export interface OutboxEntry {
+  id: string
+  table: SyncTable
+  op: 'upsert' | 'delete'
+  recordId: string
+  payload: unknown
+  label: string
+  bytes: number
+  createdAt: string
+  attempts: number
+  lastError?: string
+}
+
+export type SyncTable =
+  | 'teams'
+  | 'members'
+  | 'events'
+  | 'rsvps'
+  | 'tasks'
+  | 'sponsors'
+  | 'allocations'
+  | 'approvals'
+  | 'media'
+  | 'weekly_reports'
+  | 'scouting_notes'
+  | 'competition_events'
+  | 'parts_state'
+
+export interface SeasonData {
+  team: Team
+  members: Member[]
+  events: CalendarEvent[]
+  rsvps: Rsvp[]
+  tasks: Task[]
+  sponsors: Sponsor[]
+  allocations: Allocation[]
+  approvals: Approval[]
+  media: MediaItem[]
+  weekly: WeeklyReport[]
+  scouting: ScoutingNote[]
+  competition: CompetitionEvent
+  /** partsTier -> { itemId: owned } */
+  partsOwned: Record<string, Record<string, boolean>>
+  partsTier: PartsTier['id']
+  settings: Settings
+}
+
+export const ROLE_LABEL: Record<Role, string> = {
+  coach: 'Head coach',
+  mentor: 'Mentor',
+  captain: 'Captain',
+  student: 'Student',
+  parent: 'Parent',
+  guest: 'Guest',
+}
+
+export const SUBTEAM_LABEL: Record<Subteam, string> = {
+  mechanical: 'Mechanical',
+  software: 'Software',
+  electrical: 'Electrical',
+  notebook: 'Notebook',
+  outreach: 'Outreach',
+  drive: 'Drive team',
+  logistics: 'Logistics',
+}
+
+export const EVENT_TYPE_LABEL: Record<EventType, string> = {
+  meet: 'Build',
+  comp: 'Competition',
+  out: 'Outreach',
+  dead: 'Deadline',
+}

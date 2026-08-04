@@ -1,0 +1,122 @@
+/*
+ * Anodized — FTC Home design tokens.
+ *
+ * Graphite planes, hairline edges, one signal colour. Depth is *drawn*
+ * (border + one shadow), never blurred, so it survives a 2019 Chromebook and
+ * a build photo underneath it. Alliance red and blue are quarantined: they
+ * mean which side of the field you are on and nothing else.
+ *
+ * Values are transcribed from "FTC Home Spec.dc.html" — change them there
+ * first, then here.
+ */
+:root {
+  /* surface — opaque planes, low to high */
+  --srf-void: #08090a;
+  --srf-app: #0b0e10;
+  --srf-0: #101315;
+  --srf-1: #131719;
+  --srf-2: #181d20;
+  --srf-3: #1f2427;
+
+  /* the prototype leans on a couple of in-between fills for inputs/cards */
+  --srf-field: #15181a;
+  --srf-card: #111416;
+  --srf-inset: #1a1e21;
+  --srf-raise: #22272a;
+
+  --line: #232a2d;
+  --line-2: #2e3639;
+  --line-3: #3a4347;
+  --line-soft: #1b2124;
+  --hi-edge: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  /* ink */
+  --ink: #f2f4f3;
+  --ink-2: #c4cccf;
+  --ink-3: #8e989c;
+  --ink-4: #6e787c;
+  --ink-5: #4a5357;
+  --ink-rail: #525a5e;
+  --ink-body: #e4e9ea;
+
+  /* signal — one accent, one pressure */
+  --signal: #c8f751;
+  --signal-ink: #0b0e10;
+  --signal-bg: #161b10;
+  --signal-line: #3b4a22;
+  --signal-dim: #7e8c4e;
+  --signal-tint: #ddefb0;
+  --signal-deep: #1e2612;
+
+  --pressure: #ffb020;
+  --pressure-bg: #1a1710;
+  --pressure-line: #4a3b18;
+  --pressure-ink: #f0dcb4;
+  --pressure-ink-2: #b99a5e;
+
+  /* alliance — RESERVED. field sides only. never a control fill */
+  --alliance-red: #e23b2e;
+  --alliance-red-deep: #7a1f17;
+  --alliance-red-bg: #1e1413;
+  --alliance-blue: #2f6bff;
+  --alliance-blue-deep: #17357f;
+  --alliance-blue-bg: #111624;
+
+  /* set per-render from the active alliance */
+  --alliance: var(--alliance-red);
+  --alliance-deep: var(--alliance-red-deep);
+  --alliance-bg: var(--alliance-red-bg);
+
+  /* type */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --label-track: 0.16em;
+
+  /* geometry — 4px base */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --r-sm: 7px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 16px;
+  --r-2xl: 20px;
+  --r-pill: 999px;
+  --tap-min: 44px;
+  --gutter: 18px;
+
+  /* elevation — drawn, not blurred */
+  --e0: none;
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.4), var(--hi-edge);
+  --e2: 0 10px 30px rgba(0, 0, 0, 0.55), var(--hi-edge);
+  --e3: 0 16px 44px rgba(0, 0, 0, 0.65), var(--hi-edge);
+
+  /* motion — communicative, interruptible */
+  --m-tap: 120ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  --m-enter: 280ms cubic-bezier(0.2, 0.8, 0.3, 1);
+  --m-spring: 1100ms cubic-bezier(0.3, 1.4, 0.4, 1);
+  --m-urgent: 1050ms ease-in-out;
+
+  /* layout */
+  --tabbar-h: 84px;
+  --statusbar-h: 50px;
+  --rail-w: 240px;
+}
+
+[data-alliance='blue'] {
+  --alliance: var(--alliance-blue);
+  --alliance-deep: var(--alliance-blue-deep);
+  --alliance-bg: var(--alliance-blue-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --m-tap: 1ms;
+    --m-enter: 1ms;
+    --m-spring: 1ms;
+  }
+}
