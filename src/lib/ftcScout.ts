@@ -312,6 +312,8 @@ export interface ScoutMatch {
   level: string
   field: string
   time: string
+  /** ISO scheduled (or actual) start, for the countdown. */
+  startsAt?: string
   red: string[]
   blue: string[]
   redScore?: number
@@ -462,6 +464,7 @@ export async function getEventSnapshot(season: Season, code: string): Promise<Ev
       level: m.tournamentLevel,
       field: '1',
       time: clockOf(m.actualStartTime ?? m.scheduledStartTime),
+      startsAt: m.actualStartTime ?? m.scheduledStartTime ?? undefined,
       red: side('Red'),
       blue: side('Blue'),
       redScore: m.scores?.red.totalPoints,

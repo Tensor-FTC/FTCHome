@@ -136,13 +136,21 @@ export function HelpScreen() {
                 is saved on your device immediately and queued to send later. A grey strip at the top
                 means you are working from cache — nothing is broken and nothing is lost.
               </p>
+              <p className="body pretty" style={{ color: 'var(--ink-3)', marginTop: 12 }}>
+                Install it and that gets better: the app opens in its own window from your home screen,
+                dock or Start menu, and every screen is cached before you lose signal. The same install
+                works on a phone and on a laptop — <strong>Settings → Install</strong> shows the exact
+                steps for whatever you are on.
+              </p>
               <div style={{ display: 'flex', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
-                <Link to="/states">
-                  <Button size="sm">See what&rsquo;s queued</Button>
-                </Link>
                 <Link to="/settings">
+                  <Button size="sm" variant="primary">
+                    Install the app
+                  </Button>
+                </Link>
+                <Link to="/states">
                   <Button size="sm" variant="quiet">
-                    Install to your home screen
+                    See what&rsquo;s queued
                   </Button>
                 </Link>
               </div>
@@ -161,6 +169,10 @@ export function HelpScreen() {
               <Tip label="Competition Mode">
                 From Live — a black, high-contrast board readable across a gym. Leave it running on a
                 laptop in the pit.
+              </Tip>
+              <Tip label="The countdown">
+                It appears on its own within three hours of a match on your loaded schedule, and is
+                hidden the rest of the time. No match, no clock.
               </Tip>
               <Tip label="Match alerts">
                 Turn them on in Settings and your phone warns you before you are queued, once — not

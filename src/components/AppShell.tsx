@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Rail, TabBar } from './Nav'
 import { Countdown } from './Countdown'
@@ -7,9 +7,14 @@ import { useStore, currentMember } from '@/store/useStore'
 import { ago } from '@/lib/format'
 import { matchAlerts } from '@/lib/notifications'
 import { canSync } from '@/lib/sync'
+import { matchClock } from '@/domain/matchClock'
+import { useNow } from '@/lib/useNow'
 import { ROLE_LABEL } from '@/domain/types'
 
-/** Screens where the countdown is docked. It is an event-time element, not a chrome element. */
+/**
+ * Screens where the countdown may dock. It is an event-time element, not chrome
+ * — and even here it only appears when there is a real match to count down to.
+ */
 const COUNTDOWN_ROUTES = ['/today', '/calendar', '/weekly', '/build', '/live', '/events']
 
 export function AppShell() {
@@ -20,40 +25,32 @@ export function AppShell() {
   const member = useStore(currentMember)
   const online = useStore((s) => s.online)
   const syncing = useStore((s) => s.syncing)
-  const tick = useStore((s) => s.tickMatchClock)
   const sync = useStore((s) => s.sync)
 
   const settings = season.settings
   const offline = !online || settings.simulateOffline
-  const showCountdown = COUNTDOWN_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+
+  // One clock for the whole app. Only subscribes while a countdown route is
+  // open, so Settings and Roster do not re-render once a second for nothing.
+  const onCountdownRoute = COUNTDOWN_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+  const now = useNow(onCountdownRoute ? 1000 : 60_000)
+  const clock = useMemo(() => (onCountdownRoute ? matchClock(season, now) : null), [onCountdownRoute, season, now])
+  const showCountdown = clock !== null
 
   const [searchOpen, setSearchOpen] = useState(false)
   useSearchHotkey(useCallback(() => setSearchOpen(true), []))
 
-  // One interval for the whole app. The clock keeps time even on screens that
-  // do not show it, so switching tabs never resets the count.
+  // Alerts fire off the real countdown, so a team with no match is never paged.
   useEffect(() => {
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [tick])
-
-  useEffect(() => {
-    if (!settings.notificationsEnabled) return
+    if (!settings.notificationsEnabled || !clock) return
     matchAlerts.tick(
-      settings.matchLabel,
-      settings.matchField,
-      settings.alliance,
-      settings.matchSeconds,
+      clock.match.label,
+      clock.match.field,
+      clock.alliance,
+      clock.secondsUntil,
       settings.notifyLeadSeconds,
     )
-  }, [
-    settings.notificationsEnabled,
-    settings.matchLabel,
-    settings.matchField,
-    settings.alliance,
-    settings.matchSeconds,
-    settings.notifyLeadSeconds,
-  ])
+  }, [settings.notificationsEnabled, settings.notifyLeadSeconds, clock])
 
   // Opportunistic sync: on mount, and every five minutes when there is signal.
   useEffect(() => {
@@ -115,7 +112,7 @@ export function AppShell() {
               <span className={`dot ${offline ? '' : 'dot-live'}`} />
               {syncing ? 'SYNCING' : offline ? `CACHED ${ago(settings.lastSyncAt).toUpperCase()}` : 'LIVE'}
             </button>
-            {showCountdown && <Countdown />}
+            {clock && <Countdown clock={clock} />}
           </div>
         </div>
 
@@ -138,9 +135,9 @@ export function AppShell() {
         </main>
       </div>
 
-      {showCountdown && (
+      {clock && (
         <div className="cd-mobile-only">
-          <Countdown />
+          <Countdown clock={clock} />
         </div>
       )}
       <TabBar />

@@ -146,7 +146,6 @@ interface StoreState {
 
   // settings + lifecycle
   updateSettings: (patch: Partial<Settings>) => void
-  tickMatchClock: () => void
   sync: () => Promise<void>
   replaceSeason: (season: SeasonData) => Promise<void>
   resetSeason: () => Promise<void>
@@ -863,6 +862,7 @@ export const useStore = create<StoreState>((set, get) => {
             label: m.label,
             field: m.field,
             time: m.time,
+            startsAt: m.startsAt,
             red: [m.red[0] ?? '—', m.red[1] ?? '—'],
             blue: [m.blue[0] ?? '—', m.blue[1] ?? '—'],
             redScore: m.redScore,
@@ -882,15 +882,10 @@ export const useStore = create<StoreState>((set, get) => {
           ...season.settings,
           eventCode: snap.code,
           lastScoutSyncAt: now(),
-          ...(next
-            ? {
-                matchLabel: next.label,
-                matchField: next.field,
-                alliance: next.red.includes(us) ? ('red' as const) : ('blue' as const),
-                partner: (next.red.includes(us) ? next.red : next.blue).filter((t) => t !== us)[0] ?? '',
-                opponents: next.red.includes(us) ? next.blue : next.red,
-              }
-            : {}),
+          // Alliance is the only thing worth remembering here, as a fallback for
+          // Competition Mode when nothing is scheduled. Everything else about a
+          // match is derived from the schedule at render time.
+          ...(next ? { alliance: next.red.includes(us) ? ('red' as const) : ('blue' as const) } : {}),
         }
         set({ season })
         await saveSeason(season)
@@ -912,16 +907,6 @@ export const useStore = create<StoreState>((set, get) => {
     updateSettings(patch) {
       commit((d) => {
         d.settings = { ...d.settings, ...patch }
-      })
-    },
-
-    tickMatchClock() {
-      const season = get().season
-      const next = season.settings.matchSeconds - 1
-      // Loop rather than sit at zero: the prototype's countdown is a live demo,
-      // and a clock frozen at 0:00 reads as broken rather than finished.
-      set({
-        season: { ...season, settings: { ...season.settings, matchSeconds: next < 0 ? 138 : next } },
       })
     },
 

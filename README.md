@@ -66,19 +66,67 @@ Nineteen screens, all backed by real state rather than fixtures.
 
 ### Beyond the prototype
 
-- **PWA** — installable, service worker, offline-first, `navigator.storage.persist()` so a season is
-  not treated as a disposable cache.
+- **PWA** — one install for phone *and* desktop, service worker, offline-first,
+  `navigator.storage.persist()` so a season is not treated as a disposable cache. See
+  [Installing it as an app](#installing-it-as-an-app).
 - **Export & import** — parts to and from CSV (RFC 4180, so a vendor sheet with commas in part names
   imports cleanly), roster and budget to CSV, calendar to `.ics` (folded, escaped, with `RRULE`),
   weekly dashboard to markdown, whole season to JSON and back.
-- **Match alerts** — Web Notifications at the lead time, at one minute, and at zero. Never repeat;
-  an alert you learn to swipe away is worse than none.
+- **Match alerts** — Web Notifications at the lead time, at one minute, and at zero, fired off the
+  real schedule. Never repeat; an alert you learn to swipe away is worse than none.
 - **Desktop layouts** — the tab bar becomes a 240px rail, Today goes three columns, the weekly
   dashboard goes masonry, and the countdown leaves the bottom edge for a sticky top bar.
 - **Print stylesheet** — the weekly dashboard is the one thing teams hand to sponsors, so it inverts
   to ink-on-paper instead of costing a toner cartridge in graphite.
 - **Role preview** — a coach can see exactly what a student or parent sees, checked against the same
   capability matrix the app enforces.
+
+---
+
+## Installing it as an app
+
+It is one codebase that installs as **both** a phone app and a desktop app — a PWA, so there is no
+separate build, no app store, and no Electron runtime to ship.
+
+Installing needs an **https** address. `npm run dev` on localhost counts, so you can try it
+immediately, but to get it onto a phone it has to be hosted.
+
+### 1 · Put it online
+
+A GitHub Actions workflow is included. Push to `main`, then in the repo go to
+**Settings → Pages → Source → GitHub Actions**. Every push typechecks, tests, builds and deploys to
+`https://<you>.github.io/<repo>/`.
+
+It works anywhere static: `npm run build` and upload `dist/` to Netlify, Vercel, Cloudflare Pages or
+any web server. Only two things matter — serve over https, and rewrite unknown paths to
+`index.html` so a deep link like `/live` resolves. (The workflow does this by copying `index.html`
+to `404.html`, which is how Pages handles it.)
+
+### 2 · Install from the browser
+
+| Platform | How |
+|---|---|
+| **Android** | Chrome shows an install prompt, or **⋮ → Add to Home screen**. Also **Settings → Install** in the app. |
+| **iPhone / iPad** | Safari has no install API, so: **Share → Add to Home Screen**. It then launches full-screen. |
+| **Windows / ChromeOS** | Chrome or Edge: the install icon in the address bar, or **Settings → Install**. You get a real window and a taskbar icon. |
+| **macOS** | Chrome or Edge as above. Safari: **File → Add to Dock**. |
+| **Linux** | Chrome or Edge as above. |
+
+Firefox does not install desktop web apps; the site still works normally there.
+
+**Settings → Install** detects which of these applies to you and either shows a one-click button or
+the exact manual steps — it never shows a button that would do nothing.
+
+### What installing actually buys you
+
+- Launches in its own window with no browser chrome, from the home screen, dock or Start menu.
+- The service worker caches every screen, so it opens instantly and **works with no signal** —
+  which is the whole point at a competition.
+- `navigator.storage.persist()` asks the browser not to evict your season under storage pressure.
+- Competition Mode gets a wake lock, so a pit display does not sleep mid-match.
+
+Your data stays on the device either way. Installing changes how it launches, not where anything is
+stored — set up [Cloud sync](#cloud-sync--supabase) if you want it on more than one device.
 
 ---
 

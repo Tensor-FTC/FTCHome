@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { clock } from '@/lib/format'
+import { effectiveAlliance, matchClock } from '@/domain/matchClock'
+import { useNow } from '@/lib/useNow'
 import type { Match } from '@/domain/types'
 
 type Tab = 'match' | 'rank' | 'sched'
@@ -20,21 +22,18 @@ type Tab = 'match' | 'rank' | 'sched'
 export function CompetitionModeScreen() {
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
-  const tick = useStore((s) => s.tickMatchClock)
 
   const [tab, setTab] = useState<Tab>('match')
   const [teamFilter, setTeamFilter] = useState<string | null>(null)
 
-  const settings = season.settings
   const comp = season.competition
   const us = season.team.number
-  const alliance = settings.alliance === 'red' ? 'RED' : 'BLUE'
 
-  // Comp Mode is often the only screen open, so it drives the clock itself.
-  useEffect(() => {
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [tick])
+  // Comp Mode is often the only screen open, so it ticks its own clock.
+  const now = useNow(1000)
+  const mc = useMemo(() => matchClock(season, now), [season, now])
+  const side = effectiveAlliance(season, mc)
+  const alliance = side === 'red' ? 'RED' : 'BLUE'
 
   // A pit board should not sleep mid-match.
   useEffect(() => {
@@ -63,11 +62,10 @@ export function CompetitionModeScreen() {
     [comp.matches, teamFilter],
   )
 
-  const hasUpcoming = Boolean(settings.matchLabel) && comp.matches.some((m) => !m.played)
   const ourRank = comp.rankings.find((r) => r.teamNumber === us)
 
   return (
-    <div className="comp" data-alliance={settings.alliance}>
+    <div className="comp" data-alliance={side}>
       <div className="comp-banner">{alliance} ALLIANCE</div>
 
       <div className="comp-tabs" role="tablist" aria-label="Competition mode">
@@ -95,7 +93,7 @@ export function CompetitionModeScreen() {
       </div>
 
       {tab === 'match' &&
-        (hasUpcoming ? (
+        (mc ? (
           <div
             style={{
               flex: 1,
@@ -116,32 +114,32 @@ export function CompetitionModeScreen() {
                   marginBottom: 10,
                 }}
               >
-                MATCH {settings.matchLabel} · FIELD {settings.matchField}
+                MATCH {mc.match.label} · FIELD {mc.match.field}
               </div>
               <div className="comp-clock num" role="timer" aria-live="off">
-                {clock(settings.matchSeconds)}
+                {mc.overdue ? 'NOW' : clock(mc.secondsUntil)}
               </div>
               <div
                 style={{ font: '700 14px var(--font-mono)', color: '#fff', letterSpacing: '0.26em', marginTop: 12 }}
               >
-                {settings.matchSeconds < 40 ? 'GET TO THE FIELD' : 'QUEUE WHEN CALLED'}
+                {mc.overdue ? 'ON THE FIELD' : mc.secondsUntil < 120 ? 'GET TO THE FIELD' : 'QUEUE WHEN CALLED'}
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <CompRow number={us} caption="US" background="var(--alliance)" height={74} size={30} />
-              {settings.partner && (
+              {mc.partner && (
                 <CompRow
-                  number={settings.partner}
+                  number={mc.partner}
                   caption="PARTNER"
                   background="var(--alliance-deep)"
                   height={60}
                   size={30}
                 />
               )}
-              {settings.opponents.length > 0 && (
+              {mc.opponents.length > 0 && (
                 <CompRow
-                  number={settings.opponents.join(' · ')}
+                  number={mc.opponents.join(' · ')}
                   caption="OPP"
                   background="#151515"
                   border="2px solid #333"

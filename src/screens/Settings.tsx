@@ -16,7 +16,7 @@ import {
   type TeamParticipation,
 } from '@/lib/ftcScout'
 import { permission, requestPermission } from '@/lib/notifications'
-import { installState, onInstallStateChange, promptInstall } from '@/lib/install'
+import { installState, onInstallStateChange, platform, promptInstall } from '@/lib/install'
 import { backupJson, download, parseBackup } from '@/lib/exporters'
 import { blobBytes, clearApiCache } from '@/lib/idb'
 import { ago, bytes } from '@/lib/format'
@@ -60,6 +60,11 @@ export function SettingsScreen() {
   const restoreRef = useRef<HTMLInputElement>(null)
 
   const manage = can(session.role, 'settings.manage')
+
+  // Shown so Settings can explain why the countdown is or is not on screen.
+  const upcomingMatch = season.competition.matches.find(
+    (m) => !m.played && [...m.red, ...m.blue].includes(season.team.number),
+  )
 
   useEffect(() => {
     void blobBytes().then(setStoredBytes)
@@ -137,33 +142,27 @@ export function SettingsScreen() {
           <div className="section">
             <SectionLabel>Match &amp; alerts</SectionLabel>
             <div className="card card-pad">
+              {/*
+               * There is nothing to type here. Which match, which field and
+               * which alliance all come from the loaded schedule — the only
+               * setting is which colour the pit board falls back to when no
+               * match is queued.
+               */}
               <div className="label" style={{ marginBottom: 8 }}>
-                Alliance
+                Alliance · pit board fallback
               </div>
-              <div className="wrap" style={{ marginBottom: 14 }}>
+              <div className="wrap" style={{ marginBottom: 8 }}>
                 {(['red', 'blue'] as Alliance[]).map((a) => (
                   <Chip key={a} active={season.settings.alliance === a} onClick={() => updateSettings({ alliance: a })}>
                     {a === 'red' ? 'Red' : 'Blue'}
                   </Chip>
                 ))}
               </div>
-
-              <div style={{ display: 'flex', gap: 9, marginBottom: 14 }}>
-                <Field
-                  label="Match"
-                  value={season.settings.matchLabel}
-                  onChange={(e) => updateSettings({ matchLabel: e.target.value })}
-                  mono
-                  style={{ flex: 1, minWidth: 0 }}
-                />
-                <Field
-                  label="Field"
-                  value={season.settings.matchField}
-                  onChange={(e) => updateSettings({ matchField: e.target.value })}
-                  mono
-                  style={{ width: 90, flex: 'none' }}
-                />
-              </div>
+              <p className="field-note" style={{ marginBottom: 14 }}>
+                {upcomingMatch
+                  ? `Your next match is ${upcomingMatch.label} — the countdown uses the real alliance from the schedule.`
+                  : 'No match scheduled, so the countdown is hidden. It appears on its own within three hours of your next match.'}
+              </p>
 
               <div
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}
@@ -519,6 +518,7 @@ export function SettingsScreen() {
  */
 function InstallCard() {
   const [state, setState] = useState(installState())
+  const where = platform()
   const notify = useStore((s) => s.notify)
 
   useEffect(() => onInstallStateChange(() => setState(installState())), [])
@@ -529,8 +529,8 @@ function InstallCard() {
         <>
           <div style={{ font: '500 12.5px var(--font-sans)', color: 'var(--ink-2)' }}>Installed</div>
           <p className="meta pretty" style={{ marginTop: 6 }}>
-            Running as an app. The service worker is caching screens, and the season is stored with
-            persistent storage so the browser will not evict it under pressure.
+            Running as an app. Screens are cached by the service worker and the season is held in
+            persistent storage, so the browser will not evict it under pressure.
           </p>
         </>
       )}
@@ -538,8 +538,9 @@ function InstallCard() {
       {state === 'available' && (
         <>
           <p className="meta pretty" style={{ marginBottom: 11 }}>
-            Add FTC Home to your home screen. It opens without a browser bar and keeps working with no
-            signal — which is the point at a competition.
+            {where === 'desktop'
+              ? 'Installs as a desktop app with its own window and taskbar icon — no browser chrome.'
+              : 'Adds FTC Home to your home screen. Opens without a browser bar and keeps working with no signal.'}
           </p>
           <Button
             size="sm"
@@ -549,7 +550,7 @@ function InstallCard() {
               if (outcome === 'dismissed') notify('Install dismissed — you can do it later from here')
             }}
           >
-            Install
+            Install FTC Home
           </Button>
         </>
       )}
@@ -558,16 +559,33 @@ function InstallCard() {
         <>
           <div style={{ font: '500 12.5px var(--font-sans)', color: 'var(--ink-2)' }}>On iPhone or iPad</div>
           <p className="meta pretty" style={{ marginTop: 6 }}>
-            Safari has no install button for us to call. Tap <strong>Share</strong>, then{' '}
-            <strong>Add to Home Screen</strong>.
+            Safari has no install button we can call. Tap <strong>Share</strong>, scroll down, then{' '}
+            <strong>Add to Home Screen</strong>. It then launches full-screen like any other app.
           </p>
         </>
       )}
 
+      {state === 'manual-safari-desktop' && (
+        <>
+          <div style={{ font: '500 12.5px var(--font-sans)', color: 'var(--ink-2)' }}>On Safari for Mac</div>
+          <p className="meta pretty" style={{ marginTop: 6 }}>
+            Choose <strong>File → Add to Dock</strong>. Chrome and Edge offer a one-click install instead.
+          </p>
+        </>
+      )}
+
+      {state === 'insecure' && (
+        <p className="meta pretty">
+          Installing needs an <strong>https</strong> address (or localhost). Deploy the app and open it
+          over https — see the README for a one-command GitHub Pages setup.
+        </p>
+      )}
+
       {state === 'unavailable' && (
         <p className="meta pretty">
-          This browser has not offered an install prompt. The app still works — installing only adds the
-          home-screen launch.
+          This browser has not offered an install prompt. Chrome, Edge and Android browsers support it;
+          Firefox does not install desktop web apps. The app works either way — installing only adds the
+          standalone window and offline caching.
         </p>
       )}
     </div>

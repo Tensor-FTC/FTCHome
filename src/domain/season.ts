@@ -23,11 +23,6 @@ import type { CalendarEvent, CompetitionEvent, SeasonData, Settings, Team, TeamS
 export function emptySettings(): Settings {
   return {
     alliance: 'red',
-    matchSeconds: 138,
-    matchLabel: '',
-    matchField: '1',
-    partner: '',
-    opponents: [],
     notificationsEnabled: false,
     notifyLeadSeconds: 300,
     season: CURRENT_SEASON,

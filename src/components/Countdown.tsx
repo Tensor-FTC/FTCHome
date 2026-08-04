@@ -2,38 +2,37 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '@/store/useStore'
 import { clock } from '@/lib/format'
+import type { MatchClock } from '@/domain/matchClock'
 
 /**
  * The signature element: a match countdown that persists on every screen during
  * an event, docked above the tab bar.
  *
- * Three states. Alliance colour is a 4px edge at rest — it survives being seen
- * fifty times an hour — and becomes a full fill only under a minute, which is
- * the single place in the app a saturated alliance surface is allowed.
- *
- * The clock element never unmounts between states, so the digits keep ticking
- * through the expand transition.
+ * It renders **only when there is a real match to count down to** — the caller
+ * passes a resolved clock or nothing at all. Alliance colour is a 4px edge at
+ * rest, so it survives being seen fifty times an hour, and becomes a full fill
+ * only under a minute, which is the one place in the app a saturated alliance
+ * surface is allowed.
  */
-export function Countdown() {
+export function Countdown({ clock: mc }: { clock: MatchClock }) {
   const settings = useStore((s) => s.season.settings)
   const [expanded, setExpanded] = useState(false)
   const navigate = useNavigate()
 
-  const seconds = settings.matchSeconds
-  const urgent = seconds < 60
-  const alliance = settings.alliance === 'red' ? 'RED' : 'BLUE'
-  const time = clock(seconds)
+  const alliance = mc.alliance === 'red' ? 'RED' : 'BLUE'
+  const time = clock(Math.abs(mc.secondsUntil))
+  const field = mc.match.field
 
-  if (urgent) {
+  if (mc.urgent) {
     return (
-      <div className="cd">
+      <div className="cd" data-alliance={mc.alliance}>
         <div className="cd-urgent" role="status" aria-live="assertive">
           <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="cd-urgent-cue">
-                GO TO FIELD {settings.matchField} NOW · {alliance}
+                {mc.overdue ? `${mc.match.label} IS UP NOW` : `GO TO FIELD ${field} NOW`} · {alliance}
               </div>
-              <div className="cd-urgent-clock num">{time}</div>
+              <div className="cd-urgent-clock num">{mc.overdue ? 'NOW' : time}</div>
             </div>
             <button
               type="button"
@@ -59,7 +58,7 @@ export function Countdown() {
 
   if (expanded) {
     return (
-      <div className="cd">
+      <div className="cd" data-alliance={mc.alliance}>
         <div className="cd-expanded">
           <button
             type="button"
@@ -77,7 +76,7 @@ export function Countdown() {
                   letterSpacing: '0.16em',
                 }}
               >
-                MATCH {settings.matchLabel} · FIELD {settings.matchField} · {alliance} ALLIANCE
+                MATCH {mc.match.label} · FIELD {field} · {alliance} ALLIANCE
               </span>
               <span
                 className="num"
@@ -103,7 +102,7 @@ export function Countdown() {
                 With
               </div>
               <div className="num" style={{ font: '600 15px var(--font-mono)', color: 'var(--ink)' }}>
-                {settings.partner}
+                {mc.partner || '—'}
               </div>
             </div>
             <div style={{ borderRadius: 14, background: 'var(--srf-inset)', padding: '10px 11px' }}>
@@ -111,7 +110,7 @@ export function Countdown() {
                 Against
               </div>
               <div className="num" style={{ font: '600 15px var(--font-mono)', color: 'var(--ink)' }}>
-                {settings.opponents.join(' · ')}
+                {mc.opponents.join(' · ') || '—'}
               </div>
             </div>
           </div>
@@ -131,19 +130,22 @@ export function Countdown() {
           >
             Competition Mode
           </button>
+          <div className="meta" style={{ marginTop: 8, textAlign: 'center' }}>
+            Scheduled {mc.match.time} · {settings.simulateOffline ? 'cached' : 'from FTCScout'}
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="cd">
+    <div className="cd" data-alliance={mc.alliance}>
       <button
         type="button"
         className="cd-compact"
         onClick={() => setExpanded(true)}
         aria-expanded={false}
-        aria-label={`Match ${settings.matchLabel}, field ${settings.matchField}, ${alliance} alliance, T minus ${time}. Open for details.`}
+        aria-label={`Match ${mc.match.label}, field ${field}, ${alliance} alliance, T minus ${time}. Open for details.`}
       >
         <span className="cd-edge" />
         <span style={{ flex: 1, minWidth: 0 }}>
@@ -155,7 +157,7 @@ export function Countdown() {
               letterSpacing: '0.16em',
             }}
           >
-            {settings.matchLabel} · FIELD {settings.matchField} · {alliance}
+            {mc.match.label} · FIELD {field} · {alliance}
           </span>
           <span
             className="num"

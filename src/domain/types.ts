@@ -238,13 +238,19 @@ export interface ScoutingNote extends Syncable {
   rank?: number
 }
 
-/** A match from the FTC Events API, or typed in by hand. */
+/** A match as published by FTCScout. */
 export interface Match {
   id: string
   /** Q42, SF1-1, F1 … */
   label: string
   field: string
+  /** Display clock, "10:39". */
   time: string
+  /**
+   * Real scheduled start, ISO. This is what the countdown counts down to —
+   * without it there is no honest way to say how long you have.
+   */
+  startsAt?: string
   red: [string, string]
   blue: [string, string]
   redScore?: number
@@ -284,13 +290,11 @@ export interface CompetitionEvent extends Syncable {
 }
 
 export interface Settings {
+  /**
+   * Fallback alliance colour for Competition Mode when no match is scheduled.
+   * When a match *is* scheduled the real side is derived from it and wins.
+   */
   alliance: Alliance
-  /** Seconds until our next match. Derived from the schedule; editable in Settings. */
-  matchSeconds: number
-  matchLabel: string
-  matchField: string
-  partner: string
-  opponents: string[]
   notificationsEnabled: boolean
   notifyLeadSeconds: number
   /** FTCScout season (the game's start year) and region code. */

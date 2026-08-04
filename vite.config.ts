@@ -14,15 +14,24 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['brand/logo.svg', 'favicon.svg'],
       manifest: {
-        name: 'FTC Home',
+        id: '/?app=ftc-home',
+        name: 'FTC Home — FTC season manager',
         short_name: 'FTC Home',
         description: 'One place, all season. Season management for FIRST Tech Challenge teams.',
         theme_color: '#0B0E10',
         background_color: '#08090A',
         display: 'standalone',
-        orientation: 'portrait',
+        // Not locked to portrait: the same install is a desktop window with a
+        // 240px rail, and Competition Mode is meant to run landscape on a laptop.
+        orientation: 'any',
+        categories: ['productivity', 'education', 'sports'],
         start_url: '.',
         scope: '.',
+        shortcuts: [
+          { name: 'Today', url: 'today' },
+          { name: 'Live event', url: 'live' },
+          { name: 'Competition Mode', url: 'comp' },
+        ],
         icons: [
           { src: 'brand/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'brand/icon-512.png', sizes: '512x512', type: 'image/png' },

@@ -5,6 +5,8 @@ import { useStore } from '@/store/useStore'
 import { can } from '@/domain/permissions'
 import { ago, clock } from '@/lib/format'
 import { nextCompetition } from '@/domain/season'
+import { matchClock } from '@/domain/matchClock'
+import { useNow } from '@/lib/useNow'
 import { today as todayIso } from '@/lib/date'
 import type { Match } from '@/domain/types'
 
@@ -38,6 +40,9 @@ export function LiveEventScreen() {
    * screen should have live data without anybody typing an event code.
    */
   const suggested = useMemo(() => nextCompetition(season, todayIso())?.eventCode, [season])
+
+  const now = useNow(1000)
+  const mc = useMemo(() => matchClock(season, now), [season, now])
 
   useEffect(() => {
     if (comp.source === 'none' && suggested && !busy) void loadEvent(suggested)
@@ -256,7 +261,13 @@ export function LiveEventScreen() {
                         }}
                       >
                         {/* Our score first — "L 367–364" reads as a win otherwise. */}
-                        {match.played ? scoreLine(match, us) : isNext ? `T−${clock(season.settings.matchSeconds)}` : match.time}
+                        {match.played
+                          ? scoreLine(match, us)
+                          : mc && mc.match.id === match.id
+                            ? mc.overdue
+                              ? 'NOW'
+                              : `T−${clock(mc.secondsUntil)}`
+                            : match.time}
                       </div>
                       <div
                         style={{

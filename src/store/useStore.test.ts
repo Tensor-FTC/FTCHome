@@ -169,9 +169,8 @@ describe('season store', () => {
     expect(useStore.getState().session).toMatchObject({ memberId: null, role: 'guest', guest: true })
   })
 
-  it('loops the match clock instead of freezing at zero', () => {
-    useStore.getState().updateSettings({ matchSeconds: 0 })
-    useStore.getState().tickMatchClock()
-    expect(useStore.getState().season.settings.matchSeconds).toBeGreaterThan(0)
+  it('keeps an alliance preference for Competition Mode', () => {
+    useStore.getState().updateSettings({ alliance: 'blue' })
+    expect(useStore.getState().season.settings.alliance).toBe('blue')
   })
 })

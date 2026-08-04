@@ -80,8 +80,9 @@ export function App() {
 
   if (!ready) return <BootSplash />
 
+  // basename tracks Vite's base, so a subdirectory deploy (GitHub Pages) routes correctly.
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<LaunchScreen />} />
