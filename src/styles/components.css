@@ -663,6 +663,32 @@ select.field {
   }
 }
 
+/* ── search palette ──────────────────────────────────────── */
+.palette {
+  max-width: 620px;
+}
+
+.palette-hit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: transparent;
+  transition: background var(--m-tap);
+}
+
+.palette-hit[aria-selected='true'] {
+  background: var(--srf-2);
+}
+
+@media (min-width: 900px) {
+  .palette {
+    margin-top: -12vh;
+  }
+}
+
 /* ── skeleton ────────────────────────────────────────────── */
 .skeleton {
   border-radius: var(--r-md);

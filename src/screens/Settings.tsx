@@ -6,6 +6,7 @@ import { can } from '@/domain/permissions'
 import { readConfig, testConnection, writeConfig } from '@/lib/supabase'
 import { fetchCompetition, hasApiKey, readApiKey, writeApiKey } from '@/lib/ftcEvents'
 import { permission, requestPermission } from '@/lib/notifications'
+import { installState, onInstallStateChange, promptInstall } from '@/lib/install'
 import { backupJson, download, parseBackup } from '@/lib/exporters'
 import { blobBytes } from '@/lib/idb'
 import { ago, bytes } from '@/lib/format'
@@ -411,6 +412,12 @@ export function SettingsScreen() {
             </div>
           </div>
 
+          {/* ── install ──────────────────────────────────── */}
+          <div className="section">
+            <SectionLabel>Install</SectionLabel>
+            <InstallCard />
+          </div>
+
           {/* ── about ────────────────────────────────────── */}
           <div className="section">
             <SectionLabel>About</SectionLabel>
@@ -427,6 +434,67 @@ export function SettingsScreen() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Installing matters more here than in most apps: a home-screen launch gets the
+ * service worker and persistent storage, which is what "works in a gym" rests on.
+ */
+function InstallCard() {
+  const [state, setState] = useState(installState())
+  const notify = useStore((s) => s.notify)
+
+  useEffect(() => onInstallStateChange(() => setState(installState())), [])
+
+  return (
+    <div className="card card-pad">
+      {state === 'installed' && (
+        <>
+          <div style={{ font: '500 12.5px var(--font-sans)', color: 'var(--ink-2)' }}>Installed</div>
+          <p className="meta pretty" style={{ marginTop: 6 }}>
+            Running as an app. The service worker is caching screens, and the season is stored with
+            persistent storage so the browser will not evict it under pressure.
+          </p>
+        </>
+      )}
+
+      {state === 'available' && (
+        <>
+          <p className="meta pretty" style={{ marginBottom: 11 }}>
+            Add FTC Home to your home screen. It opens without a browser bar and keeps working with no
+            signal — which is the point at a competition.
+          </p>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={async () => {
+              const outcome = await promptInstall()
+              if (outcome === 'dismissed') notify('Install dismissed — you can do it later from here')
+            }}
+          >
+            Install
+          </Button>
+        </>
+      )}
+
+      {state === 'manual-ios' && (
+        <>
+          <div style={{ font: '500 12.5px var(--font-sans)', color: 'var(--ink-2)' }}>On iPhone or iPad</div>
+          <p className="meta pretty" style={{ marginTop: 6 }}>
+            Safari has no install button for us to call. Tap <strong>Share</strong>, then{' '}
+            <strong>Add to Home Screen</strong>.
+          </p>
+        </>
+      )}
+
+      {state === 'unavailable' && (
+        <p className="meta pretty">
+          This browser has not offered an install prompt. The app still works — installing only adds the
+          home-screen launch.
+        </p>
+      )}
     </div>
   )
 }

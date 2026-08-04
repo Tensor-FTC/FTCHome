@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Rail, TabBar } from './Nav'
 import { Countdown } from './Countdown'
+import { SearchPalette, useSearchHotkey } from './SearchPalette'
 import { useStore, currentMember } from '@/store/useStore'
 import { ago } from '@/lib/format'
 import { matchAlerts } from '@/lib/notifications'
@@ -25,6 +26,9 @@ export function AppShell() {
   const settings = season.settings
   const offline = !online || settings.simulateOffline
   const showCountdown = COUNTDOWN_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))
+
+  const [searchOpen, setSearchOpen] = useState(false)
+  useSearchHotkey(useCallback(() => setSearchOpen(true), []))
 
   // One interval for the whole app. The clock keeps time even on screens that
   // do not show it, so switching tabs never resets the count.
@@ -67,9 +71,14 @@ export function AppShell() {
       <div className="main">
         <header className="statusbar">
           <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-          <span className="conn">
-            <span className={`dot ${offline ? '' : 'dot-live'}`} />
-            {offline ? `CACHED ${ago(settings.lastSyncAt).toUpperCase()}` : 'LIVE'}
+          <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <button type="button" className="conn" aria-label="Search the season" onClick={() => setSearchOpen(true)}>
+              ⌕
+            </button>
+            <span className="conn">
+              <span className={`dot ${offline ? '' : 'dot-live'}`} />
+              {offline ? `CACHED ${ago(settings.lastSyncAt).toUpperCase()}` : 'LIVE'}
+            </span>
           </span>
         </header>
 
@@ -86,6 +95,17 @@ export function AppShell() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setSearchOpen(true)}
+              style={{ gap: 10, color: 'var(--ink-4)', background: 'var(--srf-1)' }}
+            >
+              Search
+              <kbd className="mono" style={{ fontSize: 10, color: 'var(--ink-5)' }}>
+                ⌘K
+              </kbd>
+            </button>
             <button
               type="button"
               className="conn"
@@ -125,6 +145,7 @@ export function AppShell() {
       )}
       <TabBar />
       <Toaster />
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }

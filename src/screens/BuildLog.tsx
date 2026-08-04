@@ -4,6 +4,7 @@ import { MediaThumb } from '@/components/MediaThumb'
 import { useStore, currentMember } from '@/store/useStore'
 import { can } from '@/domain/permissions'
 import { importFile, storageEstimate, blobUrl } from '@/lib/media'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { bytes } from '@/lib/format'
 import { longStamp, today as todayIso } from '@/lib/date'
 import type { MediaItem, MediaKind } from '@/domain/types'
@@ -88,7 +89,10 @@ export function BuildLogScreen() {
           blobKey: imported.blobKey,
           thumbKey: imported.thumbKey,
           mimeType: imported.mimeType,
-          queued: offline,
+          // "Queued" means waiting to reach the cloud. With no project
+          // configured there is nowhere for it to go, so the file is simply
+          // stored — claiming otherwise would be a lie the user can't resolve.
+          queued: offline && isSupabaseConfigured(),
         })
         added++
       } catch {
@@ -97,7 +101,11 @@ export function BuildLogScreen() {
     }
     setBusy(false)
     if (added) {
-      notify(offline ? `${added} queued — will upload on Wi-Fi` : `${added} added to the build log`)
+      notify(
+        offline && isSupabaseConfigured()
+          ? `${added} queued — will upload on Wi-Fi`
+          : `${added} added to the build log`,
+      )
     }
     if (fileRef.current) fileRef.current.value = ''
   }

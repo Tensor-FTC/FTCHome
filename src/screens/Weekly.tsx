@@ -63,7 +63,15 @@ export function WeeklyScreen() {
     return pct(going, meets.length * season.members.length)
   }, [season.events, season.rsvps, season.members.length])
 
-  const weekMedia = season.media.slice(0, 4)
+  // A week's dashboard shows that week's media. Anything explicitly pinned to
+  // the report wins, so a captain can feature an older shot deliberately.
+  const weekMedia = useMemo(() => {
+    const pinned = report?.mediaIds.map((id) => season.media.find((m) => m.id === id)).filter(Boolean) ?? []
+    const inRange = report
+      ? season.media.filter((m) => m.day >= report.from && m.day <= report.to && !report.mediaIds.includes(m.id))
+      : []
+    return [...pinned, ...inRange].filter((m): m is NonNullable<typeof m> => Boolean(m)).slice(0, 6)
+  }, [season.media, report])
 
   if (!report) {
     return (

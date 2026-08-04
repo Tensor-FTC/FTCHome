@@ -711,6 +711,10 @@ export const useStore = create<StoreState>((set, get) => {
       set({ syncing: true })
       const season = structuredClone(get().season)
       const result = await runSync(season)
+      // Anything that made it to the server is no longer waiting on Wi-Fi.
+      if (result.pushed > 0 && result.failed === 0) {
+        season.media = season.media.map((m) => (m.queued ? { ...m, queued: false } : m))
+      }
       set({ syncing: false, lastSyncResult: result, season })
       await saveSeason(season)
       if (result.pushed || result.pulled) {
