@@ -1,0 +1,106 @@
+/* Sign-in flow. Phone: one column. 1024+: a centred card, with an optional
+   explanation column beside it rather than stacked below. */
+
+.auth-shell {
+  min-height: 100dvh;
+  background: var(--srf-app);
+  padding: calc(28px + env(safe-area-inset-top)) var(--gutter) calc(40px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  animation: riseIn var(--m-enter) both;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+.auth-aside {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .auth-shell {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    padding: 60px;
+    background: radial-gradient(900px 560px at 50% -10%, #14181b 0%, #0b0e10 62%);
+  }
+
+  .auth-card {
+    width: 420px;
+    flex: none;
+    margin: 0;
+  }
+
+  .auth-aside {
+    width: 340px;
+    flex: none;
+    margin: 0;
+  }
+}
+
+.auth-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: var(--r-pill);
+  background: #1c2124;
+  margin-bottom: 22px;
+}
+
+.auth-badge-signal {
+  background: var(--signal-deep);
+}
+
+.auth-badge-text {
+  font: 500 9.5px var(--font-mono);
+  color: #9ba5a9;
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+}
+
+.auth-badge-signal .auth-badge-text {
+  color: var(--signal);
+}
+
+.pick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--r-xl);
+  border: 1px solid transparent;
+  background: var(--srf-field);
+  text-align: left;
+  min-height: 60px;
+  transition: border-color var(--m-tap), background var(--m-tap);
+}
+
+.pick:hover {
+  border-color: var(--line-2);
+}
+
+.pick[aria-pressed='true'] {
+  border-color: var(--signal-line);
+  background: var(--signal-bg);
+}
+
+@media (min-width: 1024px) {
+  .pick-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

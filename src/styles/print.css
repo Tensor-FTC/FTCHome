@@ -1,0 +1,73 @@
+/*
+ * Print. Used for one thing: the weekly dashboard, which teams hand to
+ * sponsors and pin up in the shop. Ink-on-paper inverts the whole system —
+ * graphite planes are a screen idea and cost £4 of toner on paper.
+ */
+@media print {
+  :root {
+    --srf-void: #fff;
+    --srf-app: #fff;
+    --srf-0: #fff;
+    --srf-1: #fff;
+    --srf-2: #fff;
+    --srf-field: #fff;
+    --srf-card: #fff;
+    --ink: #111;
+    --ink-2: #222;
+    --ink-3: #555;
+    --ink-4: #666;
+    --line: #ccc;
+    --line-2: #bbb;
+    --signal: #4a6a00;
+    --signal-dim: #7a8f3a;
+  }
+
+  body {
+    background: #fff;
+    color: #111;
+  }
+
+  .rail,
+  .tabbar,
+  .statusbar,
+  .topbar,
+  .cd,
+  .toast,
+  .offline-strip,
+  .sheet-scrim,
+  button {
+    display: none !important;
+  }
+
+  .card,
+  .card-quiet,
+  .card-hero {
+    background: #fff !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+
+  .body {
+    padding: 0 !important;
+  }
+
+  .screen {
+    max-width: none;
+    animation: none;
+  }
+
+  .weekly-grid {
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  a {
+    color: #111;
+    text-decoration: underline;
+  }
+
+  @page {
+    margin: 16mm;
+  }
+}

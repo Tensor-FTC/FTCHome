@@ -1,0 +1,446 @@
+/* ══ App shell ══════════════════════════════════════════════
+ * Phone: fixed tab bar, countdown docked above it, one scrolling body.
+ * 1024+: the tab bar becomes a 240px left rail and the countdown leaves the
+ * bottom edge — thumb reach is irrelevant with a mouse — for a sticky top bar.
+ * ══════════════════════════════════════════════════════════ */
+
+.shell {
+  min-height: 100dvh;
+  background: var(--srf-app);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── phone status bar ────────────────────────────────────── */
+.statusbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: calc(var(--statusbar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) 22px 7px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  background: linear-gradient(180deg, var(--srf-app) 62%, rgba(11, 14, 16, 0));
+  font: 600 12px var(--font-mono);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.statusbar > * {
+  pointer-events: auto;
+}
+
+.conn {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font: 500 10px var(--font-mono);
+  color: #9ba5a9;
+  letter-spacing: 0.08em;
+}
+
+/* ── body ────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  min-height: 0;
+  padding-bottom: calc(var(--tabbar-h) + 108px + env(safe-area-inset-bottom));
+}
+
+.body-no-cd {
+  padding-bottom: calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom));
+}
+
+.body-plain {
+  padding-bottom: 32px;
+}
+
+/* ── tab bar ─────────────────────────────────────────────── */
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding: 9px 8px env(safe-area-inset-bottom);
+  background: #0e1113;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: flex-start;
+  z-index: 45;
+}
+
+.tab {
+  flex: 1;
+  height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--ink-4);
+  font: 500 9.5px var(--font-sans);
+  transition: color var(--m-tap);
+}
+
+.tab[aria-current='page'] {
+  color: var(--signal);
+}
+
+.tab-icon {
+  width: 34px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--m-tap);
+}
+
+.tab[aria-current='page'] .tab-icon {
+  background: var(--signal-deep);
+}
+
+/* ── desktop rail ────────────────────────────────────────── */
+.rail {
+  display: none;
+}
+
+.topbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .shell {
+    flex-direction: row;
+  }
+
+  .statusbar,
+  .tabbar {
+    display: none;
+  }
+
+  .rail {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: var(--rail-w);
+    flex: none;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    padding: 22px 14px;
+    background: #0e1113;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+  }
+
+  .rail-brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 20px;
+    padding: 0 6px;
+  }
+
+  .rail-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-height: 40px;
+    padding: 8px 11px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    color: var(--ink-3);
+    font: 500 13px var(--font-sans);
+    width: 100%;
+    text-align: left;
+    transition: background var(--m-tap), color var(--m-tap);
+  }
+
+  .rail-item:hover {
+    background: #14181b;
+    color: var(--ink-2);
+  }
+
+  .rail-item[aria-current='page'] {
+    border-color: var(--signal-line);
+    background: var(--signal-bg);
+    color: var(--signal-tint);
+  }
+
+  .rail-group {
+    font: 500 9px/1 var(--font-mono);
+    color: var(--ink-rail);
+    letter-spacing: 0.18em;
+    margin: 16px 0 6px;
+    padding: 0 11px;
+  }
+
+  .main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 28px;
+    background: rgba(11, 14, 16, 0.94);
+    border-bottom: 1px solid var(--line);
+    min-height: 68px;
+  }
+
+  .body {
+    padding: 0 0 60px;
+  }
+
+  /* Desktop content is a measured column, not a stretched phone. */
+  .screen {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .section,
+  .pad {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .grid-2 {
+    gap: 16px;
+  }
+}
+
+/* ── desktop multi-column screens ────────────────────────── */
+.cols {
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 1024px) {
+  .cols-3 {
+    grid-template-columns: 1.05fr 1.35fr 1fr;
+    align-items: start;
+    padding: 0 28px;
+  }
+
+  .cols-2 {
+    grid-template-columns: 1.25fr 1fr;
+    align-items: start;
+    padding: 0 28px;
+  }
+
+  .cols > .section {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .col-sticky {
+    position: sticky;
+    top: 86px;
+  }
+}
+
+/* Masonry-ish weekly dashboard: media spans, auto blocks stay one column wide. */
+@media (min-width: 1024px) {
+  .weekly-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: start;
+    padding: 0 28px;
+  }
+
+  .weekly-span {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ── countdown ───────────────────────────────────────────── */
+.cd {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom));
+  z-index: 48;
+}
+
+.cd-compact {
+  height: 58px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid #313a3d;
+  background: var(--srf-2);
+  box-shadow: var(--e2);
+  text-align: left;
+}
+
+.cd-expanded {
+  padding: 13px 14px 14px;
+  border-radius: var(--r-xl);
+  border: 1px solid #313a3d;
+  background: var(--srf-2);
+  box-shadow: var(--e3);
+}
+
+/* The one place the app is loud, and the one saturated alliance surface allowed. */
+.cd-urgent {
+  padding: 14px 15px;
+  border-radius: var(--r-xl);
+  background: var(--alliance);
+  animation: urg var(--m-urgent) ease-in-out infinite;
+}
+
+.cd-edge {
+  width: 4px;
+  height: 26px;
+  border-radius: 2px;
+  flex: none;
+  background: var(--alliance);
+}
+
+/* The countdown renders once per breakpoint: docked bottom on a phone, in the
+ * sticky top bar on desktop. Only one is ever in the tree at a time visually. */
+.cd-mobile-only {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .cd-mobile-only {
+    display: none;
+  }
+
+  .cd {
+    position: static;
+    width: 330px;
+    flex: none;
+  }
+
+  .cd-compact {
+    height: 52px;
+  }
+
+  .cd-expanded {
+    position: absolute;
+    top: 62px;
+    right: 28px;
+    width: 330px;
+    z-index: 60;
+  }
+
+  .cd-urgent {
+    padding: 10px 14px;
+  }
+}
+
+/* ── competition mode ────────────────────────────────────── */
+/*
+ * Abandons the system on purpose: pure black, no borders, no elevation.
+ * At three metres in gym lighting, contrast beats identity.
+ */
+.comp {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn var(--m-tap) both;
+}
+
+.comp-banner {
+  height: 64px;
+  flex: none;
+  background: var(--alliance);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 15px var(--font-mono);
+  color: #fff;
+  letter-spacing: 0.22em;
+}
+
+.comp-tabs {
+  display: flex;
+  border-bottom: 2px solid #333;
+  flex: none;
+}
+
+.comp-tab {
+  flex: 1;
+  height: 56px;
+  background: #000;
+  color: #8a8a8a;
+  font: 700 13px var(--font-mono);
+  letter-spacing: 0.16em;
+  border-bottom: 3px solid transparent;
+}
+
+.comp-tab[aria-selected='true'] {
+  background: #1a1a1a;
+  color: #fff;
+  border-bottom-color: var(--signal);
+}
+
+.comp-clock {
+  font: 700 92px/0.9 var(--font-mono);
+  color: #fff;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.comp-exit {
+  height: 78px;
+  flex: none;
+  border-top: 2px solid #333;
+  background: #000;
+  color: #fff;
+  font: 700 15px var(--font-mono);
+  letter-spacing: 0.2em;
+}
+
+@media (min-width: 1024px) {
+  /* Pit board: meant to be left running on a laptop beside the robot cart. */
+  .comp-clock {
+    font-size: 260px;
+  }
+
+  .comp-banner {
+    height: 92px;
+    font-size: 22px;
+  }
+}
+
+/* ── offline strip ───────────────────────────────────────── */
+.offline-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px var(--gutter);
+  background: var(--srf-inset);
+  border-bottom: 1px solid var(--line);
+  font: 400 11.5px var(--font-sans);
+  color: #9ba5a9;
+}
+
+@media (min-width: 1024px) {
+  .offline-strip {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+}
