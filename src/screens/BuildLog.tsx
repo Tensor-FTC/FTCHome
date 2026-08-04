@@ -278,7 +278,7 @@ export function BuildLogScreen() {
                 each June.
               </div>
               <Button size="sm" disabled title="Previous seasons appear here once one has been archived">
-                {Number(season.team.season) - 1}–{String(Number(season.team.season)).slice(2)}
+                {season.settings.season - 1}–{String(season.settings.season).slice(2)}
               </Button>
             </div>
           </div>

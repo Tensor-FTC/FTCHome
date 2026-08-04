@@ -24,14 +24,32 @@ export interface Syncable {
   deleted?: boolean
 }
 
+/**
+ * Team identity. Everything above `code` is *sourced from FTCScout*, never
+ * authored here — name, city, state, rookie year and sponsors are facts about a
+ * real team and guessing them is how you end up telling 11138 it is in Ontario.
+ */
 export interface Team extends Syncable {
   number: string
   name: string
-  region: string
+  schoolName: string
+  city: string
+  state: string
+  country: string
   rookieYear: number
+  website: string | null
+  /** Sponsors as registered with FIRST. Distinct from the money in `sponsors`. */
+  registeredSponsors: string[]
+  /** FTCScout region code for this team's home state, e.g. USWA. */
+  region: string
+  /** Season-wide performance from FTCScout, with world ranks. Null before any match. */
+  seasonStats: TeamSeasonStats | null
+  /** When the identity above was last pulled. Null means never — not yet set up. */
+  syncedAt: string | null
+
   /** PBKDF2 verifier for the shared team code. Never the code itself. */
   code: PasswordVerifier | null
-  season: string
+  /** Fundraising goal — a team decision, so it is local. */
   goal: number
   storageQuotaGb: number
 }
@@ -48,6 +66,18 @@ export interface Member extends Syncable {
   medical?: MedicalRecord
   contact?: ContactRecord
   joinedAt: string
+}
+
+/** FTCScout "quick stats": average contribution, with a rank among all teams. */
+export interface TeamSeasonStats {
+  totalOpr: number
+  totalRank: number
+  autoOpr: number
+  autoRank: number
+  teleopOpr: number
+  endgameOpr: number
+  /** How many teams the ranks are out of. */
+  teamCount: number
 }
 
 export interface MedicalRecord {
@@ -81,6 +111,13 @@ export interface CalendarEvent extends Syncable {
   /** Repeats weekly until this ISO date. */
   repeatWeeklyUntil?: string
   attachments?: Attachment[]
+  /**
+   * Where this entry came from. FTCScout entries are replaced wholesale on
+   * refresh; locally-created ones are never touched by a pull.
+   */
+  source?: 'ftc-scout' | 'local'
+  /** FTCScout event code, for entries that map to a real competition. */
+  eventCode?: string
 }
 
 export interface Attachment {
@@ -230,31 +267,41 @@ export interface CompetitionEvent extends Syncable {
   code: string
   name: string
   venue: string
+  city: string
+  state: string
   date: string
+  endDate: string
+  ongoing: boolean
+  finished: boolean
   matches: Match[]
   rankings: RankingRow[]
   /** Where the data came from, so the UI can be honest about staleness. */
-  source: 'sample' | 'ftc-api' | 'manual'
+  source: 'ftc-scout' | 'none'
   fetchedAt?: string
+  /** True when it was served from cache because the network was unreachable. */
+  stale?: boolean
 }
 
 export interface Settings {
   alliance: Alliance
-  /** Seconds until our next match. Driven by the queue, overridable in Comp Mode. */
+  /** Seconds until our next match. Derived from the schedule; editable in Settings. */
   matchSeconds: number
   matchLabel: string
   matchField: string
   partner: string
-  opponents: [string, string]
+  opponents: string[]
   notificationsEnabled: boolean
   notifyLeadSeconds: number
-  ftcApiKey: string
-  ftcSeason: string
-  ftcEventCode: string
+  /** FTCScout season (the game's start year) and region code. */
+  season: number
+  region: string
+  /** Event code currently loaded into Live and Competition Mode. */
+  eventCode: string
   /** Forces the offline treatment on, for testing the gym case on a good connection. */
   simulateOffline: boolean
-  reducedData: boolean
   lastSyncAt: string | null
+  /** Last successful pull from FTCScout. */
+  lastScoutSyncAt: string | null
 }
 
 export interface Session {

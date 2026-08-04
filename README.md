@@ -12,9 +12,28 @@ npm install
 npm run dev
 ```
 
-That is the whole setup. No account, no server, no API key — the app opens on a seeded demo season
-for team 11138 and every screen works. Cloud sync and live competition data are additive; see
-[Cloud sync](#cloud-sync--supabase) and [Live data](#live-data--first-events-api).
+That is the whole setup. Enter your team number and the app pulls your real identity, competitions,
+match results and rankings from [FTCScout](https://ftcscout.org) — no account, no server, no API key.
+Cloud sync is additive; see [Cloud sync](#cloud-sync--supabase).
+
+## Where the data comes from
+
+**Nothing factual is authored by this app.** Team name, city, state, rookie year, registered
+sponsors, competition schedule, venues, match results, rankings and OPR all come from the FTCScout
+API and are cached locally so they survive a gym with no signal.
+
+What the app stores locally is only what no API knows — your roster, tasks, budget, sponsorship
+money, media and weekly write-ups. Those start **genuinely empty**. There is no demo season and no
+sample data to delete later, because pre-filled examples are indistinguishable from real records
+once somebody has scrolled past them twice.
+
+| Comes from FTCScout | Entered by your team |
+|---|---|
+| Team name, school, city, state, country, rookie year | Roster and roles |
+| Registered sponsors (as filed with FIRST) | Sponsorship money, goals, allocations |
+| Competitions, dates, venues | Build sessions, deadlines, outreach |
+| Match schedule, scores, W-L-T | Tasks, purchase approvals |
+| Rankings and OPR (event and season, with world rank) | Photos, video, CAD, weekly write-ups |
 
 ---
 
@@ -59,8 +78,8 @@ Nineteen screens, all backed by real state rather than fixtures.
 
 ```
 src/
-  domain/     types, capability matrix, parts catalogue, seed season
-  lib/        idb · sync · supabase · crypto · ftcEvents · media · exporters · notifications
+  domain/     types, capability matrix, parts catalogue, season construction
+  lib/        ftcScout · idb · sync · supabase · crypto · media · exporters · notifications
   store/      one zustand store; every mutation stamps, persists and queues
   components/ shell, nav, countdown, media thumb, ui primitives
   screens/    the nineteen
@@ -109,25 +128,32 @@ The team secret is always runtime-only.
 
 ---
 
-## Live data · FIRST Events API
+## Live data · FTCScout
 
-Optional. Until a key is set, Live Event and Competition Mode run on bundled sample data from the
-Milton qualifier, and the screen says so rather than pretending.
+No setup. [`ftcScout.ts`](src/lib/ftcScout.ts) talks to the public API at `api.ftcscout.org`, which
+needs no key and reflects the request origin in its CORS headers, so it works straight from the
+browser.
 
-1. Request a key at [ftc-events.firstinspires.org/services/API](https://ftc-events.firstinspires.org/services/API).
-2. **Settings → Live data**, paste it as `username:authorizationKey`, save, then **Pull rankings &
-   schedule** for your event code.
+Routes were verified against the upstream source
+([`packages/server/src/rest/v1`](https://github.com/ftc-scout/ftc-scout)) rather than guessed:
 
-The key is stored in `localStorage`, deliberately *not* in the synced season document — it is yours,
-not the team's, and it should not travel to other devices. It grants read access to public
-competition data and nothing else.
+- `GET /rest/v1/teams/:number` — identity
+- `GET /rest/v1/teams/:number/events/:season` — registered events, with per-event rank and record
+- `GET /rest/v1/teams/:number/quick-stats?season=` — season OPR split auto / teleop / endgame, ranked
+  against every team that season
+- `GET /rest/v1/events/search/:season?region=` — events near you
+- `POST /graphql` — one query for an event's rankings *with team names* plus the full match schedule,
+  which the REST routes would need N+1 requests to assemble
 
-FTC publishes ranking points rather than OPR. What the app labels OPR is a documented stand-in —
-mean alliance score across a team's played matches — which ranks the same way for scouting and never
-claims to be the least-squares figure. See [`ftcEvents.ts`](src/lib/ftcEvents.ts).
+Every response is cached in IndexedDB and **served stale when the network is unreachable**, labelled
+with how old it is. A failed refresh is never an error state — the screen keeps its last good data.
 
-> **Browser CORS.** The FIRST API does not always send permissive CORS headers. If a pull fails with
-> a network error, that is what happened; proxy the call or run from a deployed origin.
+**Defaults are US.** `UnitedStates` is the default region; once a team is linked, its region is
+derived from its home state (WA → `USWA`). California, New York and Texas keep the umbrella option
+because upstream splits them into sub-regions and picking one would be a guess.
+
+**On OPR.** The numbers shown are FTCScout's own OPR (`totalPointsNp`), not a local approximation.
+Season figures come from quick-stats and carry a world rank, e.g. *#420 of 8,362*.
 
 ---
 
@@ -197,9 +223,10 @@ node scripts/generate-icons.mjs   # re-rasterise app icons from the vector mark
 
 ## Notes
 
-- The seeded demo season is generated **relative to today**, so the next competition is always two
-  weeks out and the app reads correctly whenever it is opened. **Settings → Restore demo season**
-  regenerates it.
+- **Settings → Clear season data** wipes the roster, tasks, budget and media but keeps the team's
+  FTCScout identity and schedule, which is almost always what you want between seasons.
+- Seasons run 2019–2025 (`Decode`). The API rejects anything outside that, so the picker only offers
+  what it accepts.
 - The uploaded logo raster could not be retrieved from the design project intact — its file-read API
   caps at 256 KiB and the PNG exceeds it. The drawn vector mark that the same source specifies is
   used instead, which also gives real favicons and PWA icons. To use the raster, drop it at

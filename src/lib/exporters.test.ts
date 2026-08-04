@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { backupJson, calendarIcs, parseBackup, partsCsv, rosterCsv, toCsv } from './exporters'
-import { buildSeed } from '@/domain/seed'
+import { fixtureSeason } from '@/test/fixtures'
 
-const season = buildSeed('2026-01-10')
+const season = fixtureSeason('2026-01-10')
 
 describe('CSV', () => {
   it('quotes cells containing commas, quotes and newlines', () => {
@@ -80,22 +80,27 @@ describe('backup', () => {
     expect(restored.events).toHaveLength(season.events.length)
   })
 
-  it('strips credentials and API keys so a shared file leaks neither', async () => {
+  it('strips credentials so a shared file leaks neither the team code nor a password', async () => {
     const { hashPassword } = await import('./crypto')
     const withSecrets = {
       ...season,
       team: { ...season.team, code: await hashPassword('team-code') },
       members: [{ ...season.members[0], password: await hashPassword('personal') }, ...season.members.slice(1)],
-      settings: { ...season.settings, ftcApiKey: 'user:secret-key' },
     }
     const json = backupJson(withSecrets)
-    expect(json).not.toContain('secret-key')
     expect(json).not.toContain('PBKDF2')
 
     const restored = parseBackup(json)
     expect(restored.team.code).toBeNull()
     expect(restored.members.every((m) => m.password === null)).toBe(true)
-    expect(restored.settings.ftcApiKey).toBe('')
+  })
+
+  it('keeps the team identity that came from FTCScout', () => {
+    const restored = parseBackup(backupJson(season))
+    expect(restored.team.number).toBe('11138')
+    expect(restored.team.city).toBe('Bellevue')
+    expect(restored.team.state).toBe('WA')
+    expect(restored.team.region).toBe('USWA')
   })
 
   it('refuses a file that is not one of ours, with a reason', () => {

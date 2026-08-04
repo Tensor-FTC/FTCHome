@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { BrandLaunch } from '@/components/Brand'
 import { Button } from '@/components/ui'
 import { useStore } from '@/store/useStore'
+import { isConfigured } from '@/domain/season'
 
 /**
  * 00 · Launch
@@ -15,10 +16,13 @@ import { useStore } from '@/store/useStore'
 export function LaunchScreen() {
   const navigate = useNavigate()
   const session = useStore((s) => s.session)
-  const team = useStore((s) => s.season.team)
+  const season = useStore((s) => s.season)
   const browseAsGuest = useStore((s) => s.browseAsGuest)
   const [replayKey, setReplayKey] = useState(0)
   const [motion, setMotion] = useState(true)
+
+  const team = season.team
+  const configured = isConfigured(season)
 
   useEffect(() => {
     setMotion(!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
@@ -89,12 +93,21 @@ export function LaunchScreen() {
           animation: motion ? 'fadeIn .5s ease 1.2s both' : undefined,
         }}
       >
-        <Button variant="primary" size="lg" block onClick={() => navigate('/signin')}>
-          Sign in to my team
-        </Button>
-        <Button block onClick={() => navigate('/signin/mentor')}>
-          Mentor or volunteer
-        </Button>
+        {configured ? (
+          <>
+            <Button variant="primary" size="lg" block onClick={() => navigate('/signin')}>
+              Sign in to my team
+            </Button>
+            <Button block onClick={() => navigate('/signin/mentor')}>
+              Mentor or volunteer
+            </Button>
+          </>
+        ) : (
+          <Button variant="primary" size="lg" block onClick={() => navigate('/identity')}>
+            Set up my team
+          </Button>
+        )}
+
         <div style={{ display: 'flex', gap: 10 }}>
           <Button
             variant="quiet"
@@ -116,11 +129,11 @@ export function LaunchScreen() {
             ↻
           </Button>
         </div>
-        <p
-          className="meta"
-          style={{ textAlign: 'center', marginTop: 6, color: 'var(--ink-4)' }}
-        >
-          Team {team.number} · {team.name}
+
+        <p className="meta" style={{ textAlign: 'center', marginTop: 6, color: 'var(--ink-4)' }}>
+          {configured
+            ? `${team.number} · ${team.name} · ${[team.city, team.state].filter(Boolean).join(', ')}`
+            : 'Real team data from FTCScout. No account needed to look around.'}
         </p>
       </div>
     </div>

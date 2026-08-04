@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyRemote } from './sync'
-import { buildSeed } from '@/domain/seed'
+import { fixtureSeason } from '@/test/fixtures'
 import type { SeasonData, SyncTable } from '@/domain/types'
 
 function row(table: SyncTable, id: string, data: object, updatedAt: string, deleted = false) {
@@ -18,7 +18,7 @@ describe('applyRemote', () => {
   let season: SeasonData
 
   function fresh() {
-    season = buildSeed('2026-01-10')
+    season = fixtureSeason('2026-01-10')
     return season
   }
 

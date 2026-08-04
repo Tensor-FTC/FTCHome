@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Field, Sheet, TextArea } from '@/components/ui'
+import { Button, EmptyState, Field, Sheet, Spinner, TextArea } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { can } from '@/domain/permissions'
-import { clock } from '@/lib/format'
+import { ago, clock } from '@/lib/format'
+import { nextCompetition } from '@/domain/season'
+import { today as todayIso } from '@/lib/date'
 import type { Match } from '@/domain/types'
 
 /**
@@ -21,12 +23,25 @@ export function LiveEventScreen() {
   const season = useStore((s) => s.season)
   const role = useStore((s) => s.session.role)
   const upsertScouting = useStore((s) => s.upsertScouting)
+  const loadEvent = useStore((s) => s.loadEvent)
+  const busy = useStore((s) => s.scoutBusy)
+  const notify = useStore((s) => s.notify)
 
   const [editing, setEditing] = useState<{ teamNumber: string; teamName: string } | null>(null)
 
   const comp = season.competition
   const us = season.team.number
   const alliance = season.settings.alliance
+
+  /**
+   * If no event is loaded, pull the one the team's own schedule points at. The
+   * screen should have live data without anybody typing an event code.
+   */
+  const suggested = useMemo(() => nextCompetition(season, todayIso())?.eventCode, [season])
+
+  useEffect(() => {
+    if (comp.source === 'none' && suggested && !busy) void loadEvent(suggested)
+  }, [comp.source, suggested, busy, loadEvent])
 
   const ourRanking = comp.rankings.find((r) => r.teamNumber === us)
   const ourMatches = useMemo(
@@ -36,9 +51,12 @@ export function LiveEventScreen() {
   const upcoming = ourMatches.filter((m) => !m.played)
   const nextMatch = upcoming[0]
 
+  // Prefer the event's official record; fall back to counting played matches
+  // only when the team has no ranking row yet (schedule out, no matches played).
   const played = ourMatches.filter((m) => m.played)
-  const wins = played.filter((m) => won(m, us)).length
-  const losses = played.length - wins
+  const wins = ourRanking?.wins ?? played.filter((m) => won(m, us)).length
+  const losses = ourRanking?.losses ?? played.length - played.filter((m) => won(m, us)).length
+  const ties = ourRanking?.ties ?? 0
 
   /** The other three robots on the field for our next match. */
   const scoutTargets = useMemo(() => {
@@ -52,6 +70,41 @@ export function LiveEventScreen() {
     ]
   }, [nextMatch, us])
 
+  if (comp.source === 'none') {
+    return (
+      <div className="screen">
+        <div className="section" style={{ paddingTop: 24 }}>
+          {busy ? (
+            <div className="card card-pad" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <Spinner />
+              <span className="meta">Pulling the event from FTCScout…</span>
+            </div>
+          ) : (
+            <EmptyState
+              title="No event loaded"
+              body={
+                suggested
+                  ? `Your schedule points at ${suggested}. Load it to get rankings, the match schedule and results.`
+                  : 'Pick an event in Settings to get rankings, the match schedule and results from FTCScout.'
+              }
+              action={
+                suggested
+                  ? {
+                      label: `Load ${suggested}`,
+                      onClick: async () => {
+                        const r = await loadEvent(suggested)
+                        if (!r.ok) notify(r.message, 'warn')
+                      },
+                    }
+                  : { label: 'Open settings', onClick: () => navigate('/settings') }
+              }
+            />
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="screen">
       <div
@@ -60,26 +113,37 @@ export function LiveEventScreen() {
       >
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="dot dot-live" style={{ animation: 'blink 1.6s steps(1) infinite' }} />
             <span
-              className="label"
-              style={{ color: 'var(--signal)' }}
-            >
-              LIVE · {comp.name}
+              className={`dot ${comp.ongoing ? 'dot-live' : ''}`}
+              style={comp.ongoing ? { animation: 'blink 1.6s steps(1) infinite' } : undefined}
+            />
+            <span className="label" style={{ color: comp.ongoing ? 'var(--signal)' : 'var(--ink-4)' }}>
+              {comp.ongoing ? 'LIVE' : comp.finished ? 'FINAL' : 'UPCOMING'} · {comp.name}
             </span>
           </div>
           <h1 className="h1" style={{ margin: '7px 0 0', fontSize: 22 }}>
-            Qualification round
+            {[comp.venue, comp.city].filter(Boolean).join(' · ') || 'Qualification round'}
           </h1>
-          {comp.source === 'sample' && (
-            <div className="meta" style={{ marginTop: 4 }}>
-              Sample event data. Add a FIRST API key in Settings for live results.
-            </div>
-          )}
+          <div className="meta" style={{ marginTop: 4 }}>
+            FTCScout · {comp.code} ·{' '}
+            {comp.stale ? `cached ${ago(comp.fetchedAt)}` : `updated ${ago(comp.fetchedAt)}`}
+          </div>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => navigate('/comp')}>
-          Comp Mode
-        </Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={async () => {
+              const r = await loadEvent(comp.code)
+              notify(r.message, r.ok ? 'ok' : 'warn')
+            }}
+          >
+            {busy ? 'Refreshing…' : 'Refresh'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => navigate('/comp')}>
+            Comp Mode
+          </Button>
+        </div>
       </div>
 
       <div className="cols cols-2">
@@ -94,9 +158,11 @@ export function LiveEventScreen() {
                   <span className="num" style={{ font: '600 27px/1 var(--font-mono)', color: 'var(--ink)' }}>
                     {ourRanking?.rank ?? '—'}
                   </span>
-                  {ourRanking && ourRanking.rank <= 8 && (
-                    <span className="num" style={{ font: '500 11px var(--font-mono)', color: 'var(--signal)' }}>
-                      ▲
+                  {/* No rank delta: FTCScout gives a standing, not a history, and
+                      a movement arrow we cannot source would be decoration. */}
+                  {ourRanking && (
+                    <span className="num" style={{ font: '500 11px var(--font-mono)', color: 'var(--ink-4)' }}>
+                      /{comp.rankings.length}
                     </span>
                   )}
                 </div>
@@ -106,7 +172,7 @@ export function LiveEventScreen() {
                   W-L-T
                 </div>
                 <div className="num" style={{ font: '600 20px/1.35 var(--font-mono)', color: 'var(--ink)', marginTop: 6 }}>
-                  {wins}-{losses}-0
+                  {wins}-{losses}-{ties}
                 </div>
               </div>
               <div className="card card-pad" style={{ padding: 13, borderRadius: 18 }}>
@@ -189,11 +255,8 @@ export function LiveEventScreen() {
                           color: isNext ? 'var(--signal)' : 'var(--ink-2)',
                         }}
                       >
-                        {match.played
-                          ? `${won(match, us) ? 'W' : 'L'} ${match.redScore}–${match.blueScore}`
-                          : isNext
-                            ? `T−${clock(season.settings.matchSeconds)}`
-                            : match.time}
+                        {/* Our score first — "L 367–364" reads as a win otherwise. */}
+                        {match.played ? scoreLine(match, us) : isNext ? `T−${clock(season.settings.matchSeconds)}` : match.time}
                       </div>
                       <div
                         style={{
@@ -406,4 +469,14 @@ function ScoutingSheet({
 function won(match: Match, team: string): boolean {
   if (match.redScore == null || match.blueScore == null) return false
   return match.red.includes(team) ? match.redScore > match.blueScore : match.blueScore > match.redScore
+}
+
+/** "W 349–246" — always ours first, so the result and the numbers agree. */
+function scoreLine(match: Match, team: string): string {
+  if (match.redScore == null || match.blueScore == null) return '—'
+  const weAreRed = match.red.includes(team)
+  const ourScore = weAreRed ? match.redScore : match.blueScore
+  const theirScore = weAreRed ? match.blueScore : match.redScore
+  const outcome = ourScore === theirScore ? 'T' : ourScore > theirScore ? 'W' : 'L'
+  return `${outcome} ${ourScore}–${theirScore}`
 }

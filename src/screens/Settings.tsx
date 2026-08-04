@@ -4,13 +4,22 @@ import { Button, Chip, Field, SectionLabel, Select, Toggle } from '@/components/
 import { useStore, currentMember } from '@/store/useStore'
 import { can } from '@/domain/permissions'
 import { readConfig, testConnection, writeConfig } from '@/lib/supabase'
-import { fetchCompetition, hasApiKey, readApiKey, writeApiKey } from '@/lib/ftcEvents'
+import {
+  getTeamSeason,
+  INTERNATIONAL_REGIONS,
+  REGION_GROUPS,
+  regionLabel,
+  SEASON_NAMES,
+  SEASONS,
+  US_REGIONS,
+  type Season as ScoutSeason,
+  type TeamParticipation,
+} from '@/lib/ftcScout'
 import { permission, requestPermission } from '@/lib/notifications'
 import { installState, onInstallStateChange, promptInstall } from '@/lib/install'
 import { backupJson, download, parseBackup } from '@/lib/exporters'
-import { blobBytes } from '@/lib/idb'
+import { blobBytes, clearApiCache } from '@/lib/idb'
 import { ago, bytes } from '@/lib/format'
-import { sampleCompetition } from '@/domain/seed'
 import { ROLE_LABEL, type Alliance, type Role } from '@/domain/types'
 
 /**
@@ -26,7 +35,9 @@ export function SettingsScreen() {
   const session = useStore((s) => s.session)
   const me = useStore(currentMember)
   const updateSettings = useStore((s) => s.updateSettings)
-  const setCompetition = useStore((s) => s.setCompetition)
+  const loadEvent = useStore((s) => s.loadEvent)
+  const refreshTeam = useStore((s) => s.refreshTeam)
+  const scoutBusy = useStore((s) => s.scoutBusy)
   const replaceSeason = useStore((s) => s.replaceSeason)
   const resetSeason = useStore((s) => s.resetSeason)
   const eraseEverything = useStore((s) => s.eraseEverything)
@@ -41,10 +52,8 @@ export function SettingsScreen() {
   const [testing, setTesting] = useState(false)
   const [verdict, setVerdict] = useState<{ ok: boolean; message: string } | null>(null)
 
-  const [apiKey, setApiKey] = useState(readApiKey())
-  const [eventCode, setEventCode] = useState(season.settings.ftcEventCode)
-  const [ftcSeason, setFtcSeason] = useState(season.settings.ftcSeason)
-  const [pulling, setPulling] = useState(false)
+  const [eventCode, setEventCode] = useState(season.settings.eventCode)
+  const [teamEvents, setTeamEvents] = useState<TeamParticipation[]>([])
 
   const [notifyState, setNotifyState] = useState(permission())
   const [storedBytes, setStoredBytes] = useState(0)
@@ -56,19 +65,18 @@ export function SettingsScreen() {
     void blobBytes().then(setStoredBytes)
   }, [season.media.length])
 
-  async function pullEvent() {
-    setPulling(true)
-    try {
-      const comp = await fetchCompetition(ftcSeason, eventCode.trim().toUpperCase())
-      setCompetition(comp)
-      updateSettings({ ftcEventCode: eventCode.trim().toUpperCase(), ftcSeason })
-      notify(`Pulled ${comp.matches.length} matches from ${comp.name}`)
-    } catch (err) {
-      notify(err instanceof Error ? err.message : 'Could not reach the FTC Events API', 'warn')
-    } finally {
-      setPulling(false)
+  // The team's own registered events, so loading one is a tap rather than a
+  // remembered event code.
+  useEffect(() => {
+    if (!season.team.number) return
+    let live = true
+    void getTeamSeason(season.team.number, season.settings.season as ScoutSeason).then((rows) => {
+      if (live) setTeamEvents(rows)
+    })
+    return () => {
+      live = false
     }
-  }
+  }, [season.team.number, season.settings.season])
 
   return (
     <div className="screen">
@@ -243,7 +251,7 @@ export function SettingsScreen() {
                 </Button>
                 {manage && (
                   <Button size="sm" variant="quiet" onClick={() => void resetSeason()}>
-                    Restore demo season
+                    Clear season data
                   </Button>
                 )}
               </div>
@@ -277,81 +285,130 @@ export function SettingsScreen() {
         <div>
           {/* ── live data ────────────────────────────────── */}
           <div className="section">
-            <SectionLabel aside={hasApiKey() ? <span className="meta">key set</span> : undefined}>
-              Live data · FIRST Events API
-            </SectionLabel>
+            <SectionLabel aside={<span className="meta">no key needed</span>}>Live data · FTCScout</SectionLabel>
             <div className="card card-pad">
               <p className="meta pretty" style={{ marginBottom: 12 }}>
-                Request a key at ftc-events.firstinspires.org/services/API. Paste it as{' '}
-                <span className="mono">username:authorizationKey</span> — it stays in this browser and never
-                syncs to other devices.
+                Team identity, competitions, rankings, match results and OPR all come from{' '}
+                <a href="https://ftcscout.org" target="_blank" rel="noreferrer noopener">
+                  ftcscout.org
+                </a>
+                . It is a free public API — nothing to sign up for.
               </p>
 
-              <Field
-                label="API key"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="username:authorizationKey"
-                autoComplete="off"
-              />
-              <Button
-                size="sm"
-                style={{ marginTop: 9 }}
-                onClick={() => {
-                  writeApiKey(apiKey)
-                  notify(apiKey.trim() ? 'API key saved to this browser' : 'API key cleared')
-                }}
-              >
-                Save key
-              </Button>
+              <div className="stack" style={{ gap: 11 }}>
+                <div style={{ display: 'flex', gap: 9 }}>
+                  <Select
+                    label="Season"
+                    value={String(season.settings.season)}
+                    onChange={(e) => updateSettings({ season: Number(e.target.value) })}
+                    style={{ flex: 1, minWidth: 0 }}
+                  >
+                    {[...SEASONS].reverse().map((s) => (
+                      <option key={s} value={s}>
+                        {s} · {SEASON_NAMES[s]}
+                      </option>
+                    ))}
+                  </Select>
+                  <Select
+                    label="Region"
+                    value={season.settings.region}
+                    onChange={(e) => updateSettings({ region: e.target.value })}
+                    style={{ flex: 1, minWidth: 0 }}
+                  >
+                    <optgroup label="Groups">
+                      {REGION_GROUPS.map((r) => (
+                        <option key={r} value={r}>
+                          {regionLabel(r)}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="United States">
+                      {US_REGIONS.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="International">
+                      {INTERNATIONAL_REGIONS.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </Select>
+                </div>
 
-              <div style={{ display: 'flex', gap: 9, marginTop: 14 }}>
-                <Field
-                  label="Event code"
-                  value={eventCode}
-                  onChange={(e) => setEventCode(e.target.value.toUpperCase())}
-                  placeholder="ONMI"
-                  mono
-                  style={{ flex: 1, minWidth: 0 }}
-                />
-                <Field
-                  label="Season"
-                  value={ftcSeason}
-                  onChange={(e) => setFtcSeason(e.target.value)}
-                  inputMode="numeric"
-                  mono
-                  style={{ width: 100, flex: 'none' }}
-                />
+                <div>
+                  <div className="label" style={{ marginBottom: 8 }}>
+                    Your events this season
+                  </div>
+                  {teamEvents.length === 0 ? (
+                    <p className="meta">
+                      No {SEASON_NAMES[season.settings.season as never] ?? season.settings.season} events
+                      registered for {season.team.number || 'this team'} yet.
+                    </p>
+                  ) : (
+                    <div className="wrap">
+                      {teamEvents.map((e) => (
+                        <Chip
+                          key={e.eventCode}
+                          active={season.settings.eventCode === e.eventCode}
+                          disabled={scoutBusy}
+                          onClick={async () => {
+                            const r = await loadEvent(e.eventCode)
+                            notify(r.message, r.ok ? 'ok' : 'warn')
+                          }}
+                        >
+                          {e.eventCode}
+                        </Chip>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 9, alignItems: 'flex-end' }}>
+                  <Field
+                    label="Or any event code"
+                    value={eventCode}
+                    onChange={(e) => setEventCode(e.target.value.toUpperCase())}
+                    placeholder="USWABAM1"
+                    mono
+                    style={{ flex: 1, minWidth: 0 }}
+                  />
+                  <Button
+                    variant="primary"
+                    disabled={scoutBusy || !eventCode.trim()}
+                    onClick={async () => {
+                      const r = await loadEvent(eventCode)
+                      notify(r.message, r.ok ? 'ok' : 'warn')
+                    }}
+                  >
+                    {scoutBusy ? 'Loading…' : 'Load'}
+                  </Button>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 9, marginTop: 11, flexWrap: 'wrap' }}>
-                <Button size="sm" variant="primary" disabled={!hasApiKey() || pulling} onClick={() => void pullEvent()}>
-                  {pulling ? 'Pulling…' : 'Pull rankings & schedule'}
+              <div className="meta" style={{ marginTop: 12 }}>
+                {season.competition.source === 'ftc-scout' ? (
+                  <>
+                    Loaded: <strong style={{ color: 'var(--ink-2)' }}>{season.competition.name}</strong> ·{' '}
+                    {season.competition.rankings.length} teams · {season.competition.matches.length} matches ·{' '}
+                    {season.competition.stale ? 'cached' : 'updated'} {ago(season.competition.fetchedAt)}
+                  </>
+                ) : (
+                  'No event loaded yet.'
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
+                <Button size="sm" disabled={scoutBusy} onClick={() => void refreshTeam()}>
+                  Refresh team &amp; schedule
                 </Button>
-                <Button
-                  size="sm"
-                  variant="quiet"
-                  onClick={() => {
-                    setCompetition(sampleCompetition(season.competition.date))
-                    notify('Reverted to sample event data')
-                  }}
-                >
-                  Use sample data
+                <Button size="sm" variant="quiet" onClick={() => navigate('/identity')}>
+                  Change team
                 </Button>
               </div>
-
-              <div className="meta" style={{ marginTop: 11 }}>
-                Now showing: <strong style={{ color: 'var(--ink-2)' }}>{season.competition.name}</strong> ·{' '}
-                {season.competition.source === 'ftc-api'
-                  ? `live, fetched ${ago(season.competition.fetchedAt)}`
-                  : season.competition.source}{' '}
-                · {season.competition.matches.length} matches
-              </div>
-              <p className="field-note">
-                If the pull fails with a network error in a browser, the FIRST API is refusing the
-                cross-origin request; run the app from a deployed origin or proxy the call.
-              </p>
             </div>
           </div>
 
@@ -428,8 +485,26 @@ export function SettingsScreen() {
                 field you are on.
               </div>
               <div className="meta-mono" style={{ marginTop: 10 }}>
-                Team {season.team.number} · {season.team.name} · season {season.team.season}
+                {season.team.number
+                  ? `${season.team.number} ${season.team.name} · ${[season.team.city, season.team.state].filter(Boolean).join(', ')}`
+                  : 'No team linked'}
               </div>
+              <div className="meta-mono">
+                {SEASON_NAMES[season.settings.season as ScoutSeason] ?? season.settings.season} · identity
+                synced {ago(season.team.syncedAt)}
+              </div>
+              <Button
+                size="sm"
+                variant="quiet"
+                style={{ marginTop: 10, paddingLeft: 0 }}
+                onClick={async () => {
+                  await clearApiCache()
+                  await refreshTeam()
+                  notify('Cached FTCScout responses cleared')
+                }}
+              >
+                Clear cached FTCScout data
+              </Button>
             </div>
           </div>
         </div>

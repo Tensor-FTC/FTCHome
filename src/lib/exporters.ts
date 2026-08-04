@@ -155,15 +155,14 @@ export interface SeasonBackup {
 }
 
 /**
- * Backups deliberately omit credential verifiers and the FTC API key. A file a
- * team emails around should not carry either.
+ * Backups deliberately omit credential verifiers. A file a team emails around
+ * should not carry the team code or anybody's password hash.
  */
 export function backupJson(season: SeasonData): string {
   const scrubbed: SeasonData = {
     ...season,
     team: { ...season.team, code: null },
     members: season.members.map((m) => ({ ...m, password: null })),
-    settings: { ...season.settings, ftcApiKey: '' },
   }
   const payload: SeasonBackup = {
     format: 'ftc-home.season',

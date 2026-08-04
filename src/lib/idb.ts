@@ -15,7 +15,7 @@ import type { OutboxEntry, SeasonData, Session } from '@/domain/types'
  *   outbox   pending writes, user-visible on the States screen.
  */
 const DB_NAME = 'ftc-home'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 export const DOC_SEASON = 'season'
 export const DOC_SESSION = 'session'
@@ -30,6 +30,11 @@ function db(): Promise<IDBPDatabase> {
         if (!database.objectStoreNames.contains('blobs')) database.createObjectStore('blobs')
         if (!database.objectStoreNames.contains('outbox')) {
           database.createObjectStore('outbox', { keyPath: 'id' })
+        }
+        // FTCScout responses. Kept so competition data survives a gym with no
+        // signal — served stale and labelled rather than blanking a screen.
+        if (!database.objectStoreNames.contains('apiCache')) {
+          database.createObjectStore('apiCache')
         }
       },
     })
@@ -62,7 +67,26 @@ export async function saveSession(session: Session): Promise<void> {
 
 export async function clearAll(): Promise<void> {
   const database = await db()
-  await Promise.all([database.clear('doc'), database.clear('blobs'), database.clear('outbox')])
+  await Promise.all([
+    database.clear('doc'),
+    database.clear('blobs'),
+    database.clear('outbox'),
+    database.clear('apiCache'),
+  ])
+}
+
+// ── API cache ───────────────────────────────────────────────
+
+export async function cacheGet<T>(key: string): Promise<{ data: T; at: string } | undefined> {
+  return (await db()).get('apiCache', key)
+}
+
+export async function cachePut<T>(key: string, data: T, at: string): Promise<void> {
+  await (await db()).put('apiCache', { data, at }, key)
+}
+
+export async function clearApiCache(): Promise<void> {
+  await (await db()).clear('apiCache')
 }
 
 // ── blobs ───────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { budgetTotals, partsTotals, useStore } from './useStore'
-import { buildSeed } from '@/domain/seed'
+import { fixtureSeason } from '@/test/fixtures'
 import { tierById } from '@/domain/parts'
 
 /**
@@ -9,7 +9,7 @@ import { tierById } from '@/domain/parts'
  */
 describe('season store', () => {
   beforeEach(async () => {
-    await useStore.getState().replaceSeason(buildSeed('2026-01-10'))
+    await useStore.getState().replaceSeason(fixtureSeason('2026-01-10'))
   })
 
   it('adds a member as a pending invite with a derived username', () => {

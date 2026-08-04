@@ -63,6 +63,9 @@ export function CompetitionModeScreen() {
     [comp.matches, teamFilter],
   )
 
+  const hasUpcoming = Boolean(settings.matchLabel) && comp.matches.some((m) => !m.played)
+  const ourRank = comp.rankings.find((r) => r.teamNumber === us)
+
   return (
     <div className="comp" data-alliance={settings.alliance}>
       <div className="comp-banner">{alliance} ALLIANCE</div>
@@ -91,54 +94,99 @@ export function CompetitionModeScreen() {
         ))}
       </div>
 
-      {tab === 'match' && (
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            padding: '0 22px',
-            gap: 26,
-            minHeight: 0,
-          }}
-        >
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                font: '700 13px var(--font-mono)',
-                color: '#8A8A8A',
-                letterSpacing: '0.3em',
-                marginBottom: 10,
-              }}
-            >
-              MATCH {settings.matchLabel} · FIELD {settings.matchField}
+      {tab === 'match' &&
+        (hasUpcoming ? (
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              padding: '0 22px',
+              gap: 26,
+              minHeight: 0,
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <div
+                style={{
+                  font: '700 13px var(--font-mono)',
+                  color: '#8A8A8A',
+                  letterSpacing: '0.3em',
+                  marginBottom: 10,
+                }}
+              >
+                MATCH {settings.matchLabel} · FIELD {settings.matchField}
+              </div>
+              <div className="comp-clock num" role="timer" aria-live="off">
+                {clock(settings.matchSeconds)}
+              </div>
+              <div
+                style={{ font: '700 14px var(--font-mono)', color: '#fff', letterSpacing: '0.26em', marginTop: 12 }}
+              >
+                {settings.matchSeconds < 40 ? 'GET TO THE FIELD' : 'QUEUE WHEN CALLED'}
+              </div>
             </div>
-            <div className="comp-clock num" role="timer" aria-live="off">
-              {clock(settings.matchSeconds)}
-            </div>
-            <div
-              style={{ font: '700 14px var(--font-mono)', color: '#fff', letterSpacing: '0.26em', marginTop: 12 }}
-            >
-              {settings.matchSeconds < 40 ? 'GET TO THE FIELD' : 'QUEUE WHEN CALLED'}
-            </div>
-          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <CompRow number={us} caption="US" background="var(--alliance)" height={74} size={30} />
-            <CompRow number={settings.partner} caption="PARTNER" background="var(--alliance-deep)" height={60} size={30} />
-            <CompRow
-              number={settings.opponents.join(' · ')}
-              caption="OPP"
-              background="#151515"
-              border="2px solid #333"
-              height={60}
-              size={26}
-              muted
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <CompRow number={us} caption="US" background="var(--alliance)" height={74} size={30} />
+              {settings.partner && (
+                <CompRow
+                  number={settings.partner}
+                  caption="PARTNER"
+                  background="var(--alliance-deep)"
+                  height={60}
+                  size={30}
+                />
+              )}
+              {settings.opponents.length > 0 && (
+                <CompRow
+                  number={settings.opponents.join(' · ')}
+                  caption="OPP"
+                  background="#151515"
+                  border="2px solid #333"
+                  height={60}
+                  size={26}
+                  muted
+                />
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          /*
+           * No match queued. Rather than a blank clock and empty alliance rows,
+           * the board becomes a standings card — which is what a pit display is
+           * for once the schedule is done.
+           */
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '0 22px',
+              gap: 18,
+              minHeight: 0,
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ font: '700 13px var(--font-mono)', color: '#8A8A8A', letterSpacing: '0.3em' }}>
+              {comp.finished ? 'EVENT COMPLETE' : 'NO MATCH QUEUED'}
+            </div>
+            <div className="num" style={{ font: '700 96px/0.9 var(--font-mono)', color: '#fff' }}>
+              {ourRank ? `#${ourRank.rank}` : us}
+            </div>
+            {ourRank && (
+              <div style={{ font: '700 20px var(--font-mono)', color: '#BFBFBF', letterSpacing: '0.1em' }}>
+                {ourRank.wins}-{ourRank.losses}-{ourRank.ties} · OPR {ourRank.opr.toFixed(1)}
+              </div>
+            )}
+            <div style={{ font: '500 14px var(--font-sans)', color: '#8A8A8A', maxWidth: 520 }}>
+              {comp.name}
+            </div>
+          </div>
+        ))}
 
       {tab === 'rank' && (
         <div className="scr" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -247,7 +295,7 @@ export function CompetitionModeScreen() {
               </button>
             )}
             <span style={{ font: '700 12px var(--font-mono)', color: '#8A8A8A', letterSpacing: '0.18em' }}>
-              {teamFilter ? `TEAM ${teamFilter} · ${matches.length} MATCHES` : `QUALIFICATION · ${matches.length} MATCHES`}
+              {teamFilter ? `TEAM ${teamFilter} · ${matches.length} MATCHES` : `${matches.length} MATCHES`}
             </span>
           </div>
           <div className="scr" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>

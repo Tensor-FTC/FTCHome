@@ -1,6 +1,21 @@
 import { create } from 'zustand'
-import { buildSeed } from '@/domain/seed'
+import {
+  calendarFromScout,
+  emptySeason,
+  isConfigured,
+  mergeScoutEvents,
+  statsFromQuickStats,
+  teamFromScout,
+} from '@/domain/season'
 import { tierById } from '@/domain/parts'
+import {
+  getEvent,
+  getEventSnapshot,
+  getQuickStats,
+  getTeam,
+  getTeamSeason,
+  type Season as ScoutSeason,
+} from '@/lib/ftcScout'
 import type {
   Allocation,
   Approval,
@@ -119,6 +134,12 @@ interface StoreState {
   // competition
   setCompetition: (competition: CompetitionEvent) => void
 
+  // FTCScout — the only source of factual data in the app
+  adoptTeam: (teamNumber: string) => Promise<{ ok: boolean; message: string }>
+  refreshTeam: () => Promise<void>
+  loadEvent: (code: string) => Promise<{ ok: boolean; message: string }>
+  scoutBusy: boolean
+
   // settings + lifecycle
   updateSettings: (patch: Partial<Settings>) => void
   tickMatchClock: () => void
@@ -168,18 +189,21 @@ export const useStore = create<StoreState>((set, get) => {
 
   return {
     ready: false,
-    season: buildSeed(),
+    season: emptySeason(),
     session: GUEST_SESSION,
     online: typeof navigator === 'undefined' ? true : navigator.onLine !== false,
     syncing: false,
+    scoutBusy: false,
     lastSyncResult: null,
     toast: null,
 
     async hydrate() {
       const [season, session] = await Promise.all([loadSeason(), loadSession()])
-      const next = season ?? buildSeed()
+      const next = season ?? emptySeason()
       if (!season) await saveSeason(next)
       set({ season: next, session: session ?? GUEST_SESSION, ready: true })
+      // Identity and competition dates go stale; refresh quietly on open.
+      if (isConfigured(next)) void get().refreshTeam()
     },
 
     setOnline(online) {
@@ -689,6 +713,155 @@ export const useStore = create<StoreState>((set, get) => {
       )
     },
 
+    // ── FTCScout ────────────────────────────────────────────
+    /**
+     * Look a team up and adopt its real identity and competition schedule.
+     * This is the only way factual data enters the app.
+     */
+    async adoptTeam(teamNumber) {
+      set({ scoutBusy: true })
+      try {
+        const { team: scout } = await getTeam(teamNumber)
+        const season = structuredClone(get().season)
+        season.team = teamFromScout(scout, season.team)
+        season.settings = { ...season.settings, region: season.team.region, lastScoutSyncAt: now() }
+
+        const scoutSeason = season.settings.season as ScoutSeason
+        season.team.seasonStats = statsFromQuickStats(await getQuickStats(scout.number, scoutSeason))
+
+        const participations = await getTeamSeason(scout.number, season.settings.season as ScoutSeason)
+        const details = await Promise.all(
+          participations.map((p) => getEvent(season.settings.season as ScoutSeason, p.eventCode).catch(() => null)),
+        )
+        const events = details.filter((e): e is NonNullable<typeof e> => Boolean(e))
+        season.events = mergeScoutEvents(season.events, calendarFromScout(events, participations))
+
+        set({ season })
+        await saveSeason(season)
+        void enqueue('teams', 'upsert', season.team, `Team · ${season.team.number}`)
+
+        return {
+          ok: true,
+          message: `${scout.number} ${scout.name} · ${[scout.city, scout.state].filter(Boolean).join(', ')}`,
+        }
+      } catch (err) {
+        return { ok: false, message: err instanceof Error ? err.message : 'Lookup failed' }
+      } finally {
+        set({ scoutBusy: false })
+      }
+    },
+
+    /** Quiet refresh of identity and schedule. Never clobbers local calendar entries. */
+    async refreshTeam() {
+      const current = get().season
+      if (!current.team.number) return
+      try {
+        const { team: scout } = await getTeam(current.team.number)
+        const participations = await getTeamSeason(scout.number, current.settings.season as ScoutSeason)
+        const details = await Promise.all(
+          participations.map((p) => getEvent(current.settings.season as ScoutSeason, p.eventCode).catch(() => null)),
+        )
+        const events = details.filter((e): e is NonNullable<typeof e> => Boolean(e))
+
+        const stats = statsFromQuickStats(await getQuickStats(scout.number, current.settings.season as ScoutSeason))
+
+        const season = structuredClone(get().season)
+        season.team = teamFromScout(scout, season.team)
+        season.team.seasonStats = stats
+        season.events = mergeScoutEvents(season.events, calendarFromScout(events, participations))
+        season.settings = { ...season.settings, lastScoutSyncAt: now() }
+        set({ season })
+        await saveSeason(season)
+      } catch {
+        // Offline or upstream down. The cached season is still on screen, which
+        // is the whole point — a failed refresh is not an error state.
+      }
+    },
+
+    /** Pull one event's rankings and full match schedule. */
+    async loadEvent(code) {
+      const trimmed = code.trim().toUpperCase()
+      if (!trimmed) return { ok: false, message: 'Enter an event code.' }
+      set({ scoutBusy: true })
+      try {
+        const seasonNumber = get().season.settings.season as ScoutSeason
+        const snap = await getEventSnapshot(seasonNumber, trimmed)
+        const us = get().season.team.number
+
+        const competition: CompetitionEvent = {
+          id: 'competition',
+          updatedAt: now(),
+          code: snap.code,
+          name: snap.name,
+          venue: snap.venue,
+          city: snap.city,
+          state: snap.state,
+          date: snap.start,
+          endDate: snap.end,
+          ongoing: snap.ongoing,
+          finished: snap.finished,
+          source: 'ftc-scout',
+          fetchedAt: snap.fetchedAt,
+          stale: snap.stale,
+          rankings: snap.rankings.map((r) => ({
+            rank: r.rank,
+            teamNumber: r.teamNumber,
+            teamName: r.teamName,
+            wins: r.wins,
+            losses: r.losses,
+            ties: r.ties,
+            opr: r.opr,
+          })),
+          matches: snap.matches.map((m) => ({
+            id: m.id,
+            label: m.label,
+            field: m.field,
+            time: m.time,
+            red: [m.red[0] ?? '—', m.red[1] ?? '—'],
+            blue: [m.blue[0] ?? '—', m.blue[1] ?? '—'],
+            redScore: m.redScore,
+            blueScore: m.blueScore,
+            played: m.played,
+          })),
+        }
+
+        // Point the countdown at our own next unplayed match at this event.
+        const ours = competition.matches.filter((m) => [...m.red, ...m.blue].includes(us))
+        const next = ours.find((m) => !m.played)
+        if (next) next.onDeck = true
+
+        const season = structuredClone(get().season)
+        season.competition = competition
+        season.settings = {
+          ...season.settings,
+          eventCode: snap.code,
+          lastScoutSyncAt: now(),
+          ...(next
+            ? {
+                matchLabel: next.label,
+                matchField: next.field,
+                alliance: next.red.includes(us) ? ('red' as const) : ('blue' as const),
+                partner: (next.red.includes(us) ? next.red : next.blue).filter((t) => t !== us)[0] ?? '',
+                opponents: next.red.includes(us) ? next.blue : next.red,
+              }
+            : {}),
+        }
+        set({ season })
+        await saveSeason(season)
+
+        return {
+          ok: true,
+          message: snap.stale
+            ? `${snap.name} · showing cached data`
+            : `${snap.name} · ${snap.rankings.length} teams, ${snap.matches.length} matches`,
+        }
+      } catch (err) {
+        return { ok: false, message: err instanceof Error ? err.message : 'Could not load that event' }
+      } finally {
+        set({ scoutBusy: false })
+      }
+    },
+
     // ── settings + lifecycle ────────────────────────────────
     updateSettings(patch) {
       commit((d) => {
@@ -729,16 +902,21 @@ export const useStore = create<StoreState>((set, get) => {
       await saveSeason(season)
     },
 
+    /** Clears team-entered data but keeps the team's real identity and schedule. */
     async resetSeason() {
-      const season = buildSeed()
+      const current = get().season
+      const season = emptySeason()
+      season.team = current.team
+      season.settings = { ...season.settings, season: current.settings.season, region: current.settings.region }
       set({ season })
       await saveSeason(season)
-      get().notify('Demo season restored')
+      if (current.team.number) void get().refreshTeam()
+      get().notify('Season data cleared. Team identity kept.')
     },
 
     async eraseEverything() {
       await clearAll()
-      const season = buildSeed()
+      const season = emptySeason()
       set({ season, session: GUEST_SESSION })
       await saveSeason(season)
       await saveSession(GUEST_SESSION)

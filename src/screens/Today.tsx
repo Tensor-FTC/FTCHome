@@ -5,6 +5,8 @@ import { useStore, budgetTotals, currentMember } from '@/store/useStore'
 import { can } from '@/domain/permissions'
 import { daysBetween, dueLabel, longStamp, seasonWeek, today as todayIso } from '@/lib/date'
 import { money, plural } from '@/lib/format'
+import { nextCompetition } from '@/domain/season'
+import { SEASON_NAMES, type Season as ScoutSeason } from '@/lib/ftcScout'
 import { ROLE_LABEL, type Task } from '@/domain/types'
 
 /**
@@ -27,13 +29,13 @@ export function TodayScreen() {
   const [draft, setDraft] = useState('')
   const [assigneeId, setAssigneeId] = useState(me?.id ?? '')
 
-  const nextComp = useMemo(
-    () =>
-      season.events
-        .filter((e) => e.type === 'comp' && e.date >= iso)
-        .sort((a, b) => a.date.localeCompare(b.date))[0],
-    [season.events, iso],
-  )
+  /**
+   * The next competition, or — once the season is over — the last one, so a
+   * team that has finished sees its result instead of an empty card claiming
+   * nothing is booked.
+   */
+  const nextComp = useMemo(() => nextCompetition(season, iso), [season, iso])
+  const compIsPast = Boolean(nextComp && nextComp.date < iso)
 
   // Build week counts from the season's own start — the earliest thing on the
   // calendar — not from whichever event happens to be first in the array.
@@ -41,6 +43,12 @@ export function TodayScreen() {
     () => season.events.reduce<string>((min, e) => (!min || e.date < min ? e.date : min), ''),
     [season.events],
   )
+  const lastDate = useMemo(
+    () => season.events.reduce<string>((max, e) => (e.date > max ? e.date : max), ''),
+    [season.events],
+  )
+  const seasonOver = Boolean(lastDate && lastDate < iso)
+  const stats = season.team.seasonStats
 
   const todaysMeetings = season.events.filter((e) => e.date === iso)
 
@@ -70,7 +78,9 @@ export function TodayScreen() {
       <div className="section" style={{ paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
         <div>
           <div className="label" style={{ marginBottom: 5 }}>
-            {longStamp(iso)} · WEEK {seasonWeek(iso, kickoff || iso)}
+            {longStamp(iso)}
+            {kickoff && !seasonOver ? ` · WEEK ${seasonWeek(iso, kickoff)}` : ''}
+            {seasonOver ? ` · ${SEASON_NAMES[season.settings.season as ScoutSeason] ?? ''} COMPLETE` : ''}
           </div>
           <h1 className="h1-lg">Today</h1>
         </div>
@@ -101,32 +111,49 @@ export function TodayScreen() {
               <Link to={`/events/${nextComp.id}`} className="card-hero" style={{ display: 'block', color: 'inherit' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
-                    <div className="label">Next competition</div>
+                    <div className="label">{compIsPast ? 'Last competition' : 'Next competition'}</div>
                     <div style={{ font: '600 16px/1.3 var(--font-sans)', color: 'var(--ink)', marginTop: 6 }}>
                       {nextComp.title}
                     </div>
                     <div className="meta">
-                      {longStamp(nextComp.date)} · load-in {nextComp.time}
+                      {longStamp(nextComp.date)}
+                      {nextComp.location ? ` · ${nextComp.location}` : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flex: 'none' }}>
-                    <div className="num" style={{ font: '600 34px/1 var(--font-mono)', color: 'var(--signal)' }}>
-                      {daysBetween(iso, nextComp.date)}
+                    <div
+                      className="num"
+                      style={{
+                        font: '600 34px/1 var(--font-mono)',
+                        color: compIsPast ? 'var(--ink-3)' : 'var(--signal)',
+                      }}
+                    >
+                      {Math.abs(daysBetween(iso, nextComp.date))}
                     </div>
                     <div className="label" style={{ marginTop: 3 }}>
-                      Days
+                      {compIsPast ? 'Days ago' : 'Days'}
                     </div>
                   </div>
                 </div>
                 <hr className="divider" style={{ margin: '14px 0 12px', background: '#242b2e' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Fact label="Robot" value="Drivable" />
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  {/* Real season performance from FTCScout, not a status somebody typed. */}
+                  <Fact
+                    label="Season OPR"
+                    value={stats ? stats.totalOpr.toFixed(1) : '—'}
+                    sub={stats ? `#${stats.totalRank} of ${stats.teamCount.toLocaleString('en-US')}` : 'no matches yet'}
+                    mono
+                  />
                   <Fact
                     label="Engr. NB"
                     value={notebookGaps ? plural(notebookGaps, 'gap') : 'Current'}
                     tone={notebookGaps ? 'pressure' : 'ink'}
                   />
-                  <Fact label="Roster" value={`${going}/${season.members.length}`} mono />
+                  <Fact
+                    label={compIsPast ? 'Attended' : 'Going'}
+                    value={`${going}/${season.members.length}`}
+                    mono
+                  />
                 </div>
               </Link>
             ) : (
@@ -377,9 +404,21 @@ export function TodayScreen() {
   )
 }
 
-function Fact({ label, value, tone = 'ink', mono }: { label: string; value: string; tone?: 'ink' | 'pressure'; mono?: boolean }) {
+function Fact({
+  label,
+  value,
+  sub,
+  tone = 'ink',
+  mono,
+}: {
+  label: string
+  value: string
+  sub?: string
+  tone?: 'ink' | 'pressure'
+  mono?: boolean
+}) {
   return (
-    <div>
+    <div style={{ minWidth: 0 }}>
       <div className="label" style={{ fontSize: 9, letterSpacing: '0.14em' }}>
         {label}
       </div>
@@ -392,6 +431,11 @@ function Fact({ label, value, tone = 'ink', mono }: { label: string; value: stri
       >
         {value}
       </div>
+      {sub && (
+        <div className="num" style={{ font: '400 9.5px/1.4 var(--font-mono)', color: 'var(--ink-4)' }}>
+          {sub}
+        </div>
+      )}
     </div>
   )
 }
