@@ -4,6 +4,7 @@ dist-ssr/
 coverage/
 .vite/
 *.local
+*.tsbuildinfo
 
 .env
 .env.*
