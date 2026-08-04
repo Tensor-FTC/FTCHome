@@ -193,10 +193,15 @@
     align-items: center;
     justify-content: space-between;
     gap: 18px;
-    padding: 14px 28px;
+    padding: 0 28px;
     background: rgba(11, 14, 16, 0.94);
     border-bottom: 1px solid var(--line);
-    min-height: 68px;
+    /*
+     * Fixed, not min-height. The countdown swaps between resting and urgent
+     * every match cycle, and a top bar that grows 50px on the swap would shove
+     * the whole page down while somebody is reading it.
+     */
+    height: 84px;
   }
 
   .body {
@@ -306,6 +311,19 @@
   animation: urg var(--m-urgent) ease-in-out infinite;
 }
 
+.cd-urgent-cue {
+  font: 600 10px var(--font-mono);
+  color: #fff;
+  letter-spacing: 0.2em;
+  opacity: 0.85;
+}
+
+.cd-urgent-clock {
+  font: 700 44px/1 var(--font-mono);
+  color: #fff;
+  letter-spacing: -0.02em;
+}
+
 .cd-edge {
   width: 4px;
   height: 26px;
@@ -343,8 +361,13 @@
     z-index: 60;
   }
 
+  /* Sized to land at the same height as the resting state, so nothing shifts. */
   .cd-urgent {
-    padding: 10px 14px;
+    padding: 8px 14px;
+  }
+
+  .cd-urgent-clock {
+    font-size: 28px;
   }
 }
 

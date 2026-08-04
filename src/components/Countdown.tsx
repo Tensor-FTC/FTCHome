@@ -30,22 +30,10 @@ export function Countdown() {
         <div className="cd-urgent" role="status" aria-live="assertive">
           <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  font: '600 10px var(--font-mono)',
-                  color: '#fff',
-                  letterSpacing: '0.2em',
-                  opacity: 0.85,
-                }}
-              >
+              <div className="cd-urgent-cue">
                 GO TO FIELD {settings.matchField} NOW · {alliance}
               </div>
-              <div
-                className="num"
-                style={{ font: '700 44px/1 var(--font-mono)', color: '#fff', letterSpacing: '-0.02em' }}
-              >
-                {time}
-              </div>
+              <div className="cd-urgent-clock num">{time}</div>
             </div>
             <button
               type="button"
