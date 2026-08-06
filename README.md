@@ -16,6 +16,9 @@ That is the whole setup. Enter your team number and the app pulls your real iden
 match results and rankings from [FTCScout](https://ftcscout.org) — no account, no server, no API key.
 Cloud sync is additive; see [Cloud sync](#cloud-sync--supabase).
 
+> **Putting it on the web, onto phones, and onto a shared database:**
+> [**docs/SETUP.md**](docs/SETUP.md) is the single end-to-end walkthrough for all three.
+
 ## Where the data comes from
 
 **Nothing factual is authored by this app.** Team name, city, state, rookie year, registered
@@ -53,16 +56,18 @@ Nineteen screens, all backed by real state rather than fixtures.
 | A1–A5 | Team access · Who are you · Personal sign-in · Mentor sign-in · Register | Two-factor-by-design: a shared team code gets you to the door, your own password says who you are |
 | R1 | Roster | Add/edit/remove members, subteams, mentor-only medical and contact records |
 | 04 | Today | Next competition, today's meeting with RSVP, assigned tasks, gated approvals, blockers |
-| 05 / C1 | Calendar · Editor | Month grid, agenda, season timeline derived from the team's own competition dates, `.ics` export |
+| 05 / C1 | Calendar · Plan | Month grid of labelled entries, repeating meetings expanded on read, task due dates, agenda, season timeline derived from the team's own competition dates, `.ics` export with `RRULE` and `EXDATE` |
 | 06 | Event detail | RSVP, attendance forecast, who can't make it *by name*, cached attachments |
 | 07 | Weekly dashboard | Auto blocks derived from tasks and RSVPs, human blocks written by the captain, publish + print + markdown export |
 | 08 | Build log | Real photo/video/CAD upload to IndexedDB with generated thumbnails, storage meter, offline queue |
-| 09 | Live event | Rank, record, match queue, scouting cards with editable pit notes |
+| 09 | Live event | Rank, record, match queue, scouting cards for the next match |
+| 11b | Scout | Every team at the event: FTCScout rank/record/OPR, plus the team's own rating, tapped observations and alliance shortlist |
+| 12 | Archive | Everything finished and past the cutoff, searchable, nothing deleted |
 | 10 | Competition Mode | Pit board: pure black, 92px clock (260px on desktop), wake lock, rankings and schedule |
 | 11 | States | The live outbox — what is queued, how big, when it goes |
 | 01–03 | Guest onboarding · Parts · Team identity | No-account hub, your own bill of materials with CSV import/export, FTCScout lookup |
 | — | Help | How it works: the five tabs, where numbers come from, what your role can do |
-| — | Settings | Sync, live data, alerts, backup/restore, role preview |
+| — | Settings | Five tabs: You, Team (who can see what), Data, Sync, App |
 
 ### Beyond the prototype
 
@@ -80,6 +85,23 @@ Nineteen screens, all backed by real state rather than fixtures.
   to ink-on-paper instead of costing a toner cartridge in graphite.
 - **Role preview** — a coach can see exactly what a student or parent sees, checked against the same
   capability matrix the app enforces.
+- **Team visibility policy** — everything starts visible to the whole team, and a coach can narrow
+  budget figures, purchase amounts, contact records, roster editing and calendar editing to
+  signed-in members or to staff. Structural authority is deliberately *not* configurable: no
+  setting lets a student approve their own purchase, and no setting hands a write or a minor's
+  contact details to a signed-out guest.
+- **A planner, not an event list** — meetings that repeat weekly or monthly on chosen days, ending
+  after a count or a date, expanded on read rather than materialised as rows; a single occurrence
+  can be skipped without deleting the series; task due dates land on the same grid; and an entry
+  can be on the calendar without expecting anyone to turn up.
+- **Archive** — a filter, not a mutation. Finished things past the cutoff move out of the working
+  screens and nothing is deleted; unfinished work never archives however old it is.
+- **CAD viewer** — STL (binary and ASCII) and OBJ render in a WebGL viewer written directly against
+  the GL API, lazy-loaded into its own 6 kB chunk. `.f3d`/`.f3z` and STEP say plainly why they
+  cannot be drawn and what to export instead, rather than showing an empty canvas.
+- **Staffing that fits real teams** — several coaches with no head, mentors carrying it with no
+  coach, or a coach lost in January. The roster names a single point of failure and refuses to let
+  the last adult be removed or demoted.
 
 ---
 
@@ -165,6 +187,15 @@ can. [`sync.test.ts`](src/lib/sync.test.ts) pins the two cases that lose data if
 ## Cloud sync · Supabase
 
 Optional. Without it the app is a complete single-device season manager.
+
+**What it actually is:** the season lives in your browser's own IndexedDB, and that is the real
+copy — every screen reads from it, which is why the app works with the wifi off. Sync is additive:
+every change is *also* written to an outbox, and when there is signal that outbox is pushed to a
+Postgres database you own. Other devices pull the same rows back. Nothing in the app ever awaits
+the network. Conflicts resolve last-write-wins per record on `updatedAt`.
+
+Full step-by-step walkthrough, including where each of the three values lives in the Supabase
+dashboard: [**docs/SETUP.md**](docs/SETUP.md).
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — CLI `supabase db push`,
@@ -287,3 +318,11 @@ node scripts/generate-icons.mjs   # re-rasterise app icons from the vector mark
   caps at 256 KiB and the PNG exceeds it. The drawn vector mark that the same source specifies is
   used instead, which also gives real favicons and PWA icons. To use the raster, drop it at
   `public/brand/` and point [`Brand.tsx`](src/components/Brand.tsx) at it.
+
+---
+
+## Design notes
+
+- [**docs/SETUP.md**](docs/SETUP.md) — website, app install and database, end to end.
+- [**docs/team-identity.md**](docs/team-identity.md) — what happens if a team sets up under someone
+  else's number, why it cannot currently happen, and what to build first if this is ever hosted.

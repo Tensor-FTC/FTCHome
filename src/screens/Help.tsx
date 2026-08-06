@@ -39,7 +39,7 @@ export function HelpScreen() {
               <Row
                 to="/calendar"
                 name="Calendar"
-                body="Every build session, deadline and competition. Competitions arrive automatically from FTCScout; you add the rest."
+                body="Every build session, deadline, task due date and competition. Competitions arrive automatically from FTCScout; you add the rest under Plan."
               />
               <Row
                 to="/weekly"
@@ -54,7 +54,7 @@ export function HelpScreen() {
               <Row
                 to="/live"
                 name="Live"
-                body="At a competition: your rank, record, match schedule and scouting notes on the other robots on the field."
+                body="At a competition: your rank, record and match schedule. Scout takes you to every team at the event."
               />
             </div>
           </div>
@@ -122,8 +122,11 @@ export function HelpScreen() {
               ))}
             </div>
             <p className="field-note">
-              Gating is real, not cosmetic: figures you are not cleared for are never sent to your
-              device, so there is nothing to find by poking around.
+              These are the defaults. A coach can widen or narrow who sees budget figures, purchase
+              amounts and contact records under <strong>Settings &rarr; Team</strong> — but never who
+              gets to <em>decide</em> spending, which is fixed. Gating is real rather than cosmetic:
+              figures you are not cleared for are never sent to your device, so there is nothing to
+              find by poking around.
             </p>
           </div>
 
@@ -157,6 +160,42 @@ export function HelpScreen() {
             </div>
           </div>
 
+          {/* ── sync ─────────────────────────────────────── */}
+          <div className="section">
+            <SectionLabel>What the Supabase thing is</SectionLabel>
+            <div className="card card-pad">
+              <p className="body pretty" style={{ color: 'var(--ink-3)', margin: 0 }}>
+                Your season lives in your browser&rsquo;s own database, on your device. That is the real
+                copy — every screen reads from it, which is why the app works with the wifi off.
+              </p>
+              <p className="body pretty" style={{ color: 'var(--ink-3)', marginTop: 12 }}>
+                Sync is optional and it only adds. Turn it on and every change is <em>also</em> written
+                to a queue, and when there is signal that queue is pushed to a{' '}
+                <a href="https://supabase.com" target="_blank" rel="noreferrer noopener">
+                  Supabase
+                </a>{' '}
+                database your team owns. Everyone else&rsquo;s device pulls the same rows back, so the
+                roster, calendar, budget and scouting notes are the same everywhere.
+              </p>
+              <p className="body pretty" style={{ color: 'var(--ink-3)', marginTop: 12 }}>
+                Nothing in the app waits for that to finish. If two people edit the same thing, the
+                later edit wins — a coach fixing a meeting time on the drive over should not lose to a
+                stale tab left open in the pit.
+              </p>
+              <p className="meta pretty" style={{ marginTop: 12 }}>
+                Setting it up is a coach job and takes about fifteen minutes: make a free project, run
+                one SQL file, and paste three values into Settings. Every device then pastes the same
+                three. Without it the app still works completely — it just stays on one device per
+                person, so take a backup now and then.
+              </p>
+              <div style={{ display: 'flex', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>
+                <Link to="/settings">
+                  <Button size="sm">Set up sync</Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+
           {/* ── shortcuts ────────────────────────────────── */}
           <div className="section">
             <SectionLabel>Worth knowing</SectionLabel>
@@ -177,6 +216,19 @@ export function HelpScreen() {
               <Tip label="Match alerts">
                 Turn them on in Settings and your phone warns you before you are queued, once — not
                 every thirty seconds.
+              </Tip>
+              <Tip label="Repeating meetings">
+                Add a build session once and set it to repeat — twice a week, for eight weeks. Skipping
+                one week does not delete the series.
+              </Tip>
+              <Tip label="The archive">
+                Anything finished and older than a month moves out of the working screens into the
+                Archive. Nothing is deleted, and unfinished work never moves however old it is.
+              </Tip>
+              <Tip label="CAD">
+                Upload an STL or OBJ and it spins right in the build log. Fusion&rsquo;s own .f3d files
+                are a closed format nothing else can open — right-click the body in Fusion and choose
+                Save as Mesh.
               </Tip>
               <Tip label="Export">
                 Calendar to <span className="mono">.ics</span>, parts and roster to CSV, the whole
