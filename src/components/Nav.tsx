@@ -55,6 +55,7 @@ const MANAGE = [
   { to: '/budget', label: 'Budget & sponsors' },
   { to: '/calendar/edit', label: 'Plan', capability: 'calendar.edit' as const },
   { to: '/parts', label: 'Parts' },
+  { to: '/scout', label: 'Scout' },
   { to: '/archive', label: 'Archive' },
 ]
 

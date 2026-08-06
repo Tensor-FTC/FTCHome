@@ -112,7 +112,7 @@ export function RegisterScreen() {
           className="card-dashed"
           style={{ padding: 20, textAlign: 'center', font: '400 12px/1.5 var(--font-sans)', color: 'var(--ink-4)' }}
         >
-          Nobody yet. Add your head coach first.
+          Nobody yet. Add a coach or mentor first.
         </div>
       ) : (
         season.members.map((m) => (

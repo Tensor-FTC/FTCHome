@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Button, EmptyState, Field, Sheet, Spinner, TextArea } from '@/components/ui'
+import { Link, useNavigate } from 'react-router-dom'
+import { Button, EmptyState, Spinner } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { ScoutingSheet } from '@/components/ScoutingSheet'
 import { ago, clock } from '@/lib/format'
 import { nextCompetition } from '@/domain/season'
 import { matchClock } from '@/domain/matchClock'
@@ -24,7 +25,6 @@ export function LiveEventScreen() {
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
   const allow = useCan()
-  const upsertScouting = useStore((s) => s.upsertScouting)
   const loadEvent = useStore((s) => s.loadEvent)
   const busy = useStore((s) => s.scoutBusy)
   const notify = useStore((s) => s.notify)
@@ -387,6 +387,12 @@ export function LiveEventScreen() {
               )
             })}
 
+            <Link to="/scout">
+              <Button size="sm" variant="quiet" block>
+                Scout every team at this event
+              </Button>
+            </Link>
+
             {scoutTargets.length === 0 && (
               <div className="card-dashed" style={{ padding: 18, textAlign: 'center' }}>
                 <span className="meta">No upcoming match to scout.</span>
@@ -400,11 +406,9 @@ export function LiveEventScreen() {
         <ScoutingSheet
           teamNumber={editing.teamNumber}
           teamName={editing.teamName}
+          eventCode={comp.code}
+          matchLabel={nextMatch?.label}
           onClose={() => setEditing(null)}
-          onSave={(patch) => {
-            upsertScouting({ teamNumber: editing.teamNumber, teamName: editing.teamName, ...patch })
-            setEditing(null)
-          }}
         />
       )}
     </div>
@@ -423,57 +427,6 @@ function Micro({ label, value }: { label: string; value: string }) {
         {value}
       </div>
     </div>
-  )
-}
-
-function ScoutingSheet({
-  teamNumber,
-  teamName,
-  onClose,
-  onSave,
-}: {
-  teamNumber: string
-  teamName: string
-  onClose: () => void
-  onSave: (patch: { note: string; auto?: number }) => void
-}) {
-  const existing = useStore((s) => s.season.scouting.find((x) => x.teamNumber === teamNumber))
-  const [note, setNote] = useState(existing?.note ?? '')
-  const [auto, setAuto] = useState(existing?.auto != null ? String(existing.auto) : '')
-
-  return (
-    <Sheet
-      title={`${teamNumber} · pit note`}
-      subtitle={teamName}
-      onClose={onClose}
-      footer={
-        <Button
-          variant="primary"
-          block
-          onClick={() => onSave({ note: note.trim(), auto: auto.trim() ? Number(auto) : undefined })}
-        >
-          Save note
-        </Button>
-      }
-    >
-      <div className="stack" style={{ gap: 11 }}>
-        <TextArea
-          label="What we saw"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Cycle speed, endgame, anything that changes how we play them."
-          hint="Pit notes sit under the stats on the same card, so scouting data and our own observation are read together."
-        />
-        <Field
-          label="Auto average"
-          value={auto}
-          onChange={(e) => setAuto(e.target.value)}
-          inputMode="decimal"
-          placeholder="22.0"
-          mono
-        />
-      </div>
-    </Sheet>
   )
 }
 

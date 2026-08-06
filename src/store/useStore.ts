@@ -707,7 +707,9 @@ export const useStore = create<StoreState>((set, get) => {
     upsertScouting(note) {
       const existing = note.id
         ? get().season.scouting.find((s) => s.id === note.id)
-        : get().season.scouting.find((s) => s.teamNumber === note.teamNumber)
+        : get().season.scouting.find(
+            (s) => s.teamNumber === note.teamNumber && (s.eventCode ?? '') === (note.eventCode ?? ''),
+          )
       const record: ScoutingNote = stamped({
         ...(existing ?? { id: uid('sc-'), updatedAt: now() }),
         ...note,

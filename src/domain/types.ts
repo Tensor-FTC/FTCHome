@@ -457,7 +457,7 @@ export interface SeasonData {
 }
 
 export const ROLE_LABEL: Record<Role, string> = {
-  coach: 'Head coach',
+  coach: 'Coach',
   mentor: 'Mentor',
   captain: 'Captain',
   student: 'Student',

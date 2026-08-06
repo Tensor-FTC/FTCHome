@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Avatar, Button, Chip, Field, IconButton, LockedValue, Sheet, TextArea } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { isLastStaff, staffingIssues } from '@/domain/staffing'
 import { ROLE_LABEL, SUBTEAM_LABEL, type Member, type Role, type Subteam } from '@/domain/types'
 import { download, rosterCsv } from '@/lib/exporters'
 
@@ -32,6 +33,7 @@ export function RosterScreen() {
   const manage = allow('roster.manage')
   const readMedical = allow('roster.readContact')
   const pending = season.members.filter((m) => m.pending).length
+  const issues = staffingIssues(season)
 
   function onAdd(e: FormEvent) {
     e.preventDefault()
@@ -137,6 +139,28 @@ export function RosterScreen() {
           </form>
         )}
 
+        {issues.length > 0 && (
+          <div className="section">
+            {issues.map((issue) => (
+              <div
+                key={issue.id}
+                className={issue.severity === 'blocking' ? 'card-signal card-pad' : 'card-quiet card-pad'}
+                style={{ marginBottom: 9 }}
+              >
+                <div
+                  className="label"
+                  style={{ color: issue.severity === 'blocking' ? 'var(--signal)' : 'var(--ink-3)' }}
+                >
+                  {issue.title}
+                </div>
+                <p className="meta pretty" style={{ marginTop: 6 }}>
+                  {issue.detail}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="section">
           {season.members.map((member) => (
             <div key={member.id} className="row">
@@ -175,7 +199,7 @@ export function RosterScreen() {
                 <LockedValue shape="•••• ••" title="Mentors and the listed guardian only" />
               )}
 
-              {manage && member.role !== 'coach' && (
+              {manage && !isLastStaff(season.members, member.id) && (
                 <IconButton label={`Remove ${member.name}`} small onClick={() => removeMember(member.id)}>
                   ×
                 </IconButton>
@@ -195,6 +219,7 @@ export function RosterScreen() {
       {editing && readMedical && (
         <MemberSheet
           member={editing}
+          lockRole={isLastStaff(season.members, editing.id)}
           onClose={() => setEditing(null)}
           onSave={(patch) => {
             updateMember(editing.id, patch)
@@ -209,10 +234,13 @@ export function RosterScreen() {
 
 function MemberSheet({
   member,
+  lockRole,
   onClose,
   onSave,
 }: {
   member: Member
+  /** True when this is the only adult left — demoting them locks the team out. */
+  lockRole: boolean
   onClose: () => void
   onSave: (patch: Partial<Member>) => void
 }) {
@@ -254,11 +282,22 @@ function MemberSheet({
           </div>
           <div className="wrap">
             {ADDABLE_ROLES.map((r) => (
-              <Chip key={r} active={role === r} onClick={() => setRole(r)}>
+              <Chip
+                key={r}
+                active={role === r}
+                onClick={() => !lockRole && setRole(r)}
+                disabled={lockRole && r !== member.role}
+              >
                 {ROLE_LABEL[r]}
               </Chip>
             ))}
           </div>
+          {lockRole && (
+            <p className="field-note">
+              {member.name} is the only coach or mentor on this team. Add another adult before changing
+              this role, or nobody will be able to approve spending.
+            </p>
+          )}
         </div>
 
         <div>

@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, Button, IconButton, Meter } from '@/components/ui'
 import { useStore, currentMember } from '@/store/useStore'
 import { describeRecurrence, parseOccurrenceId } from '@/domain/recurrence'
+import { eventStaffing } from '@/domain/staffing'
 import { EVENT_TYPE_LABEL, ROLE_LABEL, type RsvpStatus } from '@/domain/types'
 import { longStamp } from '@/lib/date'
 import { bytes } from '@/lib/format'
@@ -58,7 +59,8 @@ export function EventDetailScreen() {
     .map((r) => season.members.find((m) => m.id === r.memberId))
     .filter((m): m is NonNullable<typeof m> => Boolean(m))
 
-  const driveGap = cantMake.some((m) => m.subteam === 'drive' || m.role === 'coach')
+  const staffing = eventStaffing(season, rsvpKey)
+  const driveGap = cantMake.some((m) => m.subteam === 'drive')
 
   return (
     <div className="screen">
@@ -187,9 +189,19 @@ export function EventDetailScreen() {
                   </div>
                 ))
               )}
+              {staffing.uncovered && (
+                <div className="meta" style={{ marginTop: 10, color: 'var(--pressure)' }}>
+                  No adult is coming. Every coach and mentor on this team has said they can&rsquo;t make it.
+                </div>
+              )}
+              {!staffing.uncovered && staffing.total === 1 && staffing.declined === 0 && (
+                <div className="meta" style={{ marginTop: 10, color: 'var(--ink-rail)' }}>
+                  One adult is covering this on their own. A second would remove the single point of failure.
+                </div>
+              )}
               {driveGap && (
                 <div className="meta" style={{ marginTop: 10, color: 'var(--ink-rail)' }}>
-                  Drive team gap: no backup coach. Assign one before the event.
+                  Drive team gap: somebody on drive can&rsquo;t make it. Assign a backup before the event.
                 </div>
               )}
             </div>

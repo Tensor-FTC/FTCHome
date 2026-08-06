@@ -71,6 +71,20 @@ const POLICY_DRIVEN: Partial<Record<Capability, keyof TeamPolicy>> = {
   'calendar.edit': 'calendarEditing',
 }
 
+/**
+ * How far a team may open a capability, whatever the policy says.
+ *
+ * Widening *visibility* to everyone is a team's call. Widening a write, or
+ * minors' contact details, to a signed-out guest is not — so policy can move
+ * these within the roles below and no further. Without this, one dropdown in
+ * Settings would hand roster editing to anybody who opened the link.
+ */
+const POLICY_CEILING: Partial<Record<Capability, Role[]>> = {
+  'roster.readContact': ['coach', 'mentor', 'captain', 'student'],
+  'roster.manage': ['coach', 'mentor', 'captain', 'student'],
+  'calendar.edit': ['coach', 'mentor', 'captain', 'student'],
+}
+
 export const AUDIENCE_ROLES: Record<Audience, Role[]> = {
   everyone: ['coach', 'mentor', 'captain', 'student', 'parent', 'guest'],
   members: ['coach', 'mentor', 'captain', 'student'],
@@ -105,7 +119,11 @@ export function can(role: Role, capability: Capability, policy?: TeamPolicy): bo
     const audience = policy[key]
     // `archiveAfterDays` is a number and is never a capability key; the guard
     // keeps a malformed stored policy from silently granting everything.
-    if (typeof audience === 'string') return AUDIENCE_ROLES[audience]?.includes(role) ?? false
+    if (typeof audience === 'string') {
+      const granted = AUDIENCE_ROLES[audience]?.includes(role) ?? false
+      const ceiling = POLICY_CEILING[capability]
+      return granted && (!ceiling || ceiling.includes(role))
+    }
   }
   return MATRIX[capability].includes(role)
 }
