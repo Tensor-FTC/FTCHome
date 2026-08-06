@@ -27,7 +27,7 @@ export interface ImportedMedia {
 export function kindOf(file: File): MediaKind {
   if (file.type.startsWith('video/')) return 'video'
   if (file.type.startsWith('image/')) return 'photo'
-  if (/\.(step|stp|stl|f3d|sldprt|iges|igs|dwg|dxf)$/i.test(file.name)) return 'cad'
+  if (/\.(step|stp|stl|obj|f3d|f3z|sldprt|iges|igs|dwg|dxf)$/i.test(file.name)) return 'cad'
   return 'photo'
 }
 

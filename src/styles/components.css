@@ -974,3 +974,9 @@ input.field::-webkit-calendar-picker-indicator:hover {
   opacity: 0.7;
   margin-left: 1px;
 }
+
+/* The select overlays the pill; only the label underneath is ever seen. */
+.status-pill.is-editable > span:not(.status-pill-caret) {
+  position: relative;
+  z-index: 0;
+}

@@ -59,6 +59,8 @@ export function StatusPicker<T extends string>({
   return (
     <span className={`${classes} is-editable`}>
       <i aria-hidden="true" />
+      {/* The visible label. The select above it is transparent, so this is what reads. */}
+      <span>{current?.label ?? value}</span>
       <select id={id} aria-label={label} value={value} onChange={(e) => onChange(e.target.value as T)}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>

@@ -3,6 +3,9 @@ import { Button, Chip, EmptyState, Field, Meter, Sheet, TextArea } from '@/compo
 import { MediaThumb } from '@/components/MediaThumb'
 import { useStore, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { LazyModelViewer } from '@/components/LazyModelViewer'
+import { getBlob } from '@/lib/idb'
+import { meshSupport } from '@/lib/mesh'
 import { useArchive } from '@/domain/useArchive'
 import { importFile, storageEstimate, blobUrl } from '@/lib/media'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -161,7 +164,7 @@ export function BuildLogScreen() {
                     ref={fileRef}
                     type="file"
                     multiple
-                    accept="image/*,video/*,.step,.stp,.stl,.f3d,.sldprt,.dxf,.dwg"
+                    accept="image/*,video/*,.stl,.obj,.step,.stp,.f3d,.f3z,.sldprt,.dxf,.dwg"
                     style={{ display: 'none' }}
                     onChange={(e) => void onFiles(e.target.files)}
                   />
@@ -330,6 +333,7 @@ function MediaDetail({
   const [caption, setCaption] = useState(item.caption)
   const [name, setName] = useState(item.name)
   const [fullUrl, setFullUrl] = useState<string | null>(null)
+  const [modelBlob, setModelBlob] = useState<Blob | null>(null)
 
   useEffect(() => {
     let live = true
@@ -338,6 +342,21 @@ function MediaDetail({
       live = false
     }
   }, [item.blobKey])
+
+  /**
+   * CAD is read from the blob store rather than an object URL: the viewer needs
+   * the bytes to parse, not a src to point at. Fetched only when the file is
+   * actually one we can draw, so opening a .f3d costs nothing.
+   */
+  const drawable = item.kind === 'cad' && meshSupport(item.name) === 'mesh'
+  useEffect(() => {
+    if (!drawable || !item.blobKey) return
+    let live = true
+    void getBlob(item.blobKey).then((b) => live && setModelBlob(b ?? null))
+    return () => {
+      live = false
+    }
+  }, [drawable, item.blobKey])
 
   return (
     <Sheet
@@ -364,6 +383,17 @@ function MediaDetail({
         </div>
       }
     >
+      {item.kind === 'cad' ? (
+        <div style={{ marginBottom: 14 }}>
+          {drawable && !modelBlob ? (
+            <div className="card-dashed" style={{ height: 320, display: 'grid', placeItems: 'center' }}>
+              <span className="meta">Loading the model…</span>
+            </div>
+          ) : (
+            <LazyModelViewer name={item.name} blob={modelBlob} />
+          )}
+        </div>
+      ) : (
       <div className="card" style={{ overflow: 'hidden', marginBottom: 14 }}>
         {item.kind === 'video' && fullUrl ? (
           <video src={fullUrl} controls playsInline style={{ width: '100%', maxHeight: 320, background: '#000' }} />
@@ -373,6 +403,7 @@ function MediaDetail({
           <MediaThumb item={item} height={200} />
         )}
       </div>
+      )}
 
       <div className="stack" style={{ gap: 11 }}>
         <Field label="Name" value={name} onChange={(e) => setName(e.target.value)} />
