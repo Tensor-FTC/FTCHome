@@ -104,6 +104,24 @@ export class FtcScoutError extends Error {
 // ── transport ───────────────────────────────────────────────
 
 /**
+ * How long to wait before giving up and using the cache.
+ *
+ * A dead network *rejects*, which the catch below already handles. A venue's
+ * captive portal does something worse: it accepts the connection and then never
+ * answers, so the promise stays pending forever, the cached copy is never
+ * served, and the screen sits on a spinner for the rest of the competition.
+ * Ten seconds is longer than a slow gym needs and shorter than anybody's
+ * patience.
+ */
+const REQUEST_TIMEOUT_MS = 10_000
+
+function timedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  return fetch(url, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer))
+}
+
+/**
  * Fetch with an IndexedDB cache. On a network failure the cached copy is served
  * and flagged, so screens can say "as of 41 minutes ago" instead of going blank.
  */
@@ -114,7 +132,7 @@ async function cached<T>(key: string, url: string, ttlMs = 5 * 60_000): Promise<
   if (fresh) return { data: hit.data, stale: false, at: hit.at }
 
   try {
-    const res = await fetch(url, { headers: { accept: 'application/json' } })
+    const res = await timedFetch(url, { headers: { accept: 'application/json' } })
     if (res.status === 404) throw new FtcScoutError('Not found in the FTCScout index.', 404)
     if (!res.ok) throw new FtcScoutError(`FTCScout returned ${res.status}.`, res.status)
     const data = (await res.json()) as T
@@ -124,7 +142,12 @@ async function cached<T>(key: string, url: string, ttlMs = 5 * 60_000): Promise<
   } catch (err) {
     if (hit) return { data: hit.data, stale: true, at: hit.at }
     if (err instanceof FtcScoutError) throw err
-    throw new FtcScoutError('Could not reach FTCScout, and nothing is cached yet.')
+    const timedOut = err instanceof DOMException && err.name === 'AbortError'
+    throw new FtcScoutError(
+      timedOut
+        ? 'FTCScout did not answer in time, and nothing is cached yet. Venue wifi often does this.'
+        : 'Could not reach FTCScout, and nothing is cached yet.',
+    )
   }
 }
 
@@ -133,7 +156,7 @@ async function graphql<T>(query: string, key: string, ttlMs = 5 * 60_000): Promi
   if (hit && Date.now() - new Date(hit.at).getTime() < ttlMs) return { data: hit.data, stale: false, at: hit.at }
 
   try {
-    const res = await fetch(GRAPHQL, {
+    const res = await timedFetch(GRAPHQL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({ query }),
@@ -147,7 +170,12 @@ async function graphql<T>(query: string, key: string, ttlMs = 5 * 60_000): Promi
   } catch (err) {
     if (hit) return { data: hit.data, stale: true, at: hit.at }
     if (err instanceof FtcScoutError) throw err
-    throw new FtcScoutError('Could not reach FTCScout, and nothing is cached yet.')
+    const timedOut = err instanceof DOMException && err.name === 'AbortError'
+    throw new FtcScoutError(
+      timedOut
+        ? 'FTCScout did not answer in time, and nothing is cached yet. Venue wifi often does this.'
+        : 'Could not reach FTCScout, and nothing is cached yet.',
+    )
   }
 }
 

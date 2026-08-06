@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'vitest'
-import { CURRENT_SEASON, DEFAULT_REGION, regionForState, regionLabel, SEASON_NAMES, SEASONS } from './ftcScout'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  CURRENT_SEASON,
+  DEFAULT_REGION,
+  getTeam,
+  regionForState,
+  regionLabel,
+  SEASON_NAMES,
+  SEASONS,
+} from './ftcScout'
 
 describe('FTCScout constants', () => {
   it('defaults to the United States', () => {
@@ -55,5 +63,41 @@ describe('regionLabel', () => {
     expect(regionLabel('UnitedStates')).toBe('United States')
     expect(regionLabel('International')).toBe('International')
     expect(regionLabel('USWA')).toBe('USWA')
+  })
+})
+
+describe('hanging networks', () => {
+  /**
+   * The venue case that matters: a captive portal accepts the connection and
+   * then never answers. Without a timeout the promise stays pending forever,
+   * the cached copy is never served, and the screen sits on a spinner for the
+   * rest of the competition.
+   */
+  it('gives up on a request that never answers and serves the cache', async () => {
+    vi.useFakeTimers()
+    const original = globalThis.fetch
+    let aborted = false
+
+    globalThis.fetch = vi.fn(
+      (_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            aborted = true
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          })
+        }),
+    ) as typeof fetch
+
+    try {
+      const pending = getTeam('11138').catch((err: Error) => err)
+      await vi.advanceTimersByTimeAsync(11_000)
+      const result = await pending
+      expect(aborted).toBe(true)
+      expect(result).toBeInstanceOf(Error)
+      expect((result as Error).message).toMatch(/did not answer in time/)
+    } finally {
+      globalThis.fetch = original
+      vi.useRealTimers()
+    }
   })
 })
