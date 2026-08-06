@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, Button, IconButton, Meter } from '@/components/ui'
 import { useStore, currentMember } from '@/store/useStore'
+import { describeRecurrence, parseOccurrenceId } from '@/domain/recurrence'
 import { EVENT_TYPE_LABEL, ROLE_LABEL, type RsvpStatus } from '@/domain/types'
 import { longStamp } from '@/lib/date'
 import { bytes } from '@/lib/format'
@@ -16,30 +17,44 @@ import { bytes } from '@/lib/format'
  * arrive at a qualifier without a backup coach.
  */
 export function EventDetailScreen() {
-  const { eventId = '' } = useParams()
+  const { eventId: routeId = '' } = useParams()
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
   const me = useStore(currentMember)
   const online = useStore((s) => s.online)
   const setRsvp = useStore((s) => s.setRsvp)
+  const updateEvent = useStore((s) => s.updateEvent)
+  const notify = useStore((s) => s.notify)
 
+  /**
+   * A repeating entry is one record and many dates, so the route carries
+   * `id@date`. RSVPs are keyed on that whole string: "I can't make next
+   * Tuesday" must not mean "I can't make any Tuesday".
+   */
+  const { eventId, date: occurrenceDate } = parseOccurrenceId(routeId)
   const event = season.events.find((e) => e.id === eventId)
   const offline = !online || season.settings.simulateOffline
+  const rsvpKey = routeId
 
   const counts = useMemo(() => {
-    const forEvent = season.rsvps.filter((r) => r.eventId === eventId)
+    const forEvent = season.rsvps.filter((r) => r.eventId === rsvpKey)
     const by = (status: RsvpStatus) => forEvent.filter((r) => r.status === status).length
     const going = by('going')
     const maybe = by('maybe')
     const cant = by('cant')
     return { going, maybe, cant, silent: Math.max(0, season.members.length - going - maybe - cant) }
-  }, [season.rsvps, season.members.length, eventId])
+  }, [season.rsvps, season.members.length, rsvpKey])
 
   if (!event) return <Navigate to="/calendar" replace />
 
-  const mine = season.rsvps.find((r) => r.eventId === eventId && r.memberId === me?.id)
+  const shownDate = occurrenceDate ?? event.date
+  // Attendance is opt-in per entry: a parts deadline is on the calendar but
+  // nobody turns up to it, and asking the team to RSVP would be noise.
+  const expectsAttendance = event.attendance ?? event.type !== 'dead'
+
+  const mine = season.rsvps.find((r) => r.eventId === rsvpKey && r.memberId === me?.id)
   const cantMake = season.rsvps
-    .filter((r) => r.eventId === eventId && r.status === 'cant')
+    .filter((r) => r.eventId === rsvpKey && r.status === 'cant')
     .map((r) => season.members.find((m) => m.id === r.memberId))
     .filter((m): m is NonNullable<typeof m> => Boolean(m))
 
@@ -60,7 +75,7 @@ export function EventDetailScreen() {
         )}
 
         <div className="label" style={{ marginBottom: 6 }}>
-          {EVENT_TYPE_LABEL[event.type]} · {longStamp(event.date)}
+          {EVENT_TYPE_LABEL[event.type]} · {longStamp(shownDate)}
         </div>
         <h1 className="h1" style={{ marginBottom: 4 }}>
           {event.title}
@@ -75,10 +90,39 @@ export function EventDetailScreen() {
             {event.notes}
           </p>
         )}
+        {event.recurrence && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+            <span className="meta">{describeRecurrence(event.recurrence)}</span>
+            {occurrenceDate && (
+              <Button
+                size="sm"
+                variant="quiet"
+                onClick={() => {
+                  updateEvent(event.id, { exceptions: [...(event.exceptions ?? []), occurrenceDate] })
+                  notify(`Skipped ${longStamp(occurrenceDate)}`)
+                  navigate('/calendar')
+                }}
+              >
+                Skip this one
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="cols cols-2">
         <div>
+          {!expectsAttendance && (
+            <div className="section">
+              <div className="card-quiet card-pad">
+                <div className="label">No attendance expected</div>
+                <p className="meta" style={{ marginTop: 6 }}>
+                  This is a date on the calendar, not a session. Nobody needs to RSVP.
+                </p>
+              </div>
+            </div>
+          )}
+          {expectsAttendance && (
           <div className="section">
             <div style={{ display: 'flex', gap: 9 }}>
               {(['going', 'cant', 'maybe'] as RsvpStatus[]).map((status) => (
@@ -89,7 +133,7 @@ export function EventDetailScreen() {
                   variant={mine?.status === status ? 'primary' : 'default'}
                   style={status === 'maybe' ? { width: 56, flex: 'none', padding: 0 } : undefined}
                   disabled={!me}
-                  onClick={() => me && setRsvp(event.id, me.id, mine?.status === status ? 'none' : status)}
+                  onClick={() => me && setRsvp(rsvpKey, me.id, mine?.status === status ? 'none' : status)}
                 >
                   {status === 'going' ? 'Going' : status === 'cant' ? "Can't" : '?'}
                 </Button>
@@ -101,7 +145,9 @@ export function EventDetailScreen() {
               </p>
             )}
           </div>
+          )}
 
+          {expectsAttendance && (
           <div className="section">
             <div className="card card-pad">
               <div className="section-head" style={{ marginBottom: 11 }}>
@@ -148,6 +194,7 @@ export function EventDetailScreen() {
               )}
             </div>
           </div>
+          )}
         </div>
 
         <div className="section">

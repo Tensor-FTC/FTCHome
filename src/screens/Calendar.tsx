@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, Chip, IconButton } from '@/components/ui'
 import { useStore } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
+import { expandAll, occurrenceId } from '@/domain/recurrence'
+import { isDone } from '@/domain/tasks'
 import { EVENT_TYPE_LABEL, type EventType } from '@/domain/types'
 import {
+  addDays,
   dayNum,
   fromIso,
   monShort,
@@ -23,24 +26,44 @@ export const TYPE_COLOR: Record<EventType, string> = {
   dead: 'var(--pressure)',
 }
 
-const FILTERS: { id: EventType | 'all'; label: string }[] = [
+type Filter = EventType | 'all' | 'task'
+
+const FILTERS: { id: Filter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'meet', label: 'Builds' },
   { id: 'comp', label: 'Comps' },
   { id: 'out', label: 'Outreach' },
   { id: 'dead', label: 'Deadlines' },
+  { id: 'task', label: 'Tasks' },
 ]
+
+/** One thing happening on one day — a calendar occurrence or a task that is due. */
+interface DayItem {
+  key: string
+  date: string
+  title: string
+  color: string
+  to: string
+  time: string
+  sub: string
+  done: boolean
+  sort: number
+}
 
 /**
  * 05 · Calendar
  *
- * Month grid, season timeline, and an agenda that runs past this season into
- * next year's deadlines. The timeline shows build phases as bars against fixed
- * event marks, so slipping a phase is visible against a date you cannot move.
+ * A month grid of hairline cells, a season timeline, and an agenda that runs
+ * past this season into next year's deadlines.
+ *
+ * Repeating entries are expanded here rather than stored as rows, so a team
+ * that builds every Tuesday and Thursday has one record and fifty dates. Task
+ * due dates land on the same grid: a deadline nobody can see is a deadline
+ * nobody meets.
  */
 export function CalendarScreen() {
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const navigate = useNavigate()
 
   const iso = todayIso()
@@ -48,32 +71,75 @@ export function CalendarScreen() {
     const d = fromIso(iso)
     return { year: d.getFullYear(), month: d.getMonth() }
   })
-  const [filter, setFilter] = useState<EventType | 'all'>('all')
+  const [filter, setFilter] = useState<Filter>('all')
 
-  const visible = useMemo(
-    () => season.events.filter((e) => filter === 'all' || e.type === filter),
-    [season.events, filter],
-  )
+  const grid = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor])
+  const gridFrom = grid[0]?.iso ?? iso
+  const gridTo = grid[grid.length - 1]?.iso ?? iso
+
+  const showEvents = filter !== 'task'
+  const showTasks = filter === 'all' || filter === 'task'
+
+  /** Everything falling inside `[from, to]`, occurrences expanded, tasks folded in. */
+  const itemsIn = useMemo(() => {
+    return (from: string, to: string): DayItem[] => {
+      const out: DayItem[] = []
+
+      if (showEvents) {
+        const events = season.events.filter((e) => filter === 'all' || e.type === filter)
+        for (const occ of expandAll(events, from, to)) {
+          const e = occ.event
+          out.push({
+            key: occurrenceId(e, occ.date),
+            date: occ.date,
+            title: e.title,
+            color: TYPE_COLOR[e.type],
+            to: `/events/${occurrenceId(e, occ.date)}`,
+            time: e.time,
+            sub: [e.time !== '—' ? e.time : null, e.location || EVENT_TYPE_LABEL[e.type].toLowerCase()]
+              .filter(Boolean)
+              .join(' · '),
+            done: false,
+            sort: timeToMinutes(e.time),
+          })
+        }
+      }
+
+      if (showTasks) {
+        for (const task of season.tasks) {
+          if (!task.due || task.due < from || task.due > to) continue
+          const late = !isDone(task) && task.due < iso
+          out.push({
+            key: `task-${task.id}`,
+            date: task.due,
+            title: task.name,
+            color: isDone(task) ? 'var(--ink-5)' : late ? 'var(--pressure)' : 'var(--ink-3)',
+            to: '/today',
+            time: '—',
+            sub: `due · ${task.subteam ?? 'task'}`,
+            done: isDone(task),
+            // Due dates sit after timed entries in a day.
+            sort: 24 * 60 + 1,
+          })
+        }
+      }
+
+      return out.sort((a, b) => a.date.localeCompare(b.date) || a.sort - b.sort || a.title.localeCompare(b.title))
+    }
+  }, [season.events, season.tasks, filter, showEvents, showTasks, iso])
 
   const byDate = useMemo(() => {
-    const map = new Map<string, typeof visible>()
-    for (const e of visible) {
-      const list = map.get(e.date) ?? []
-      list.push(e)
-      map.set(e.date, list)
+    const map = new Map<string, DayItem[]>()
+    for (const item of itemsIn(gridFrom, gridTo)) {
+      const list = map.get(item.date) ?? []
+      list.push(item)
+      map.set(item.date, list)
     }
     return map
-  }, [visible])
+  }, [itemsIn, gridFrom, gridTo])
 
-  const grid = monthGrid(cursor.year, cursor.month)
-
-  const agenda = useMemo(
-    () =>
-      [...visible]
-        .filter((e) => e.date >= iso)
-        .sort((a, b) => a.date.localeCompare(b.date) || timeToMinutes(a.time) - timeToMinutes(b.time)),
-    [visible, iso],
-  )
+  // A year ahead is enough to catch next season's kickoff without walking forever.
+  const agenda = useMemo(() => itemsIn(iso, addDays(iso, 365)).slice(0, 40), [itemsIn, iso])
 
   function step(delta: number) {
     setCursor((c) => {
@@ -84,18 +150,31 @@ export function CalendarScreen() {
 
   return (
     <div className="screen">
-      <div className="section" style={{ paddingTop: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+      <div
+        className="section"
+        style={{ paddingTop: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}
+      >
         <h1 className="h1">{monthLong(cursor.year, cursor.month)}</h1>
         <div style={{ display: 'flex', gap: 6 }}>
           <IconButton label="Previous month" small onClick={() => step(-1)}>
             ‹
           </IconButton>
+          <IconButton
+            label="Back to this month"
+            small
+            onClick={() => {
+              const d = fromIso(iso)
+              setCursor({ year: d.getFullYear(), month: d.getMonth() })
+            }}
+          >
+            ·
+          </IconButton>
           <IconButton label="Next month" small onClick={() => step(1)}>
             ›
           </IconButton>
-          {can(role, 'calendar.edit') && (
+          {allow('calendar.edit') && (
             <Button size="sm" onClick={() => navigate('/calendar/edit')}>
-              Edit
+              Plan
             </Button>
           )}
         </div>
@@ -108,7 +187,7 @@ export function CalendarScreen() {
               key={f.id}
               active={filter === f.id}
               onClick={() => setFilter(f.id)}
-              dot={f.id === 'all' ? undefined : TYPE_COLOR[f.id]}
+              dot={f.id === 'all' || f.id === 'task' ? undefined : TYPE_COLOR[f.id]}
             >
               {f.label}
             </Chip>
@@ -118,67 +197,41 @@ export function CalendarScreen() {
 
       <div className="cols cols-2">
         <div className="section">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 5 }}>
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-              <div
-                key={i}
-                style={{ textAlign: 'center', font: '500 9px var(--font-mono)', color: 'var(--ink-rail)', letterSpacing: '0.1em' }}
-              >
-                {d}
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
-            {grid.map((cell) => {
-              const events = byDate.get(cell.iso) ?? []
-              const isToday = cell.iso === iso
-              const content = (
-                <>
-                  <span
-                    className="num"
-                    style={{
-                      font: '500 12px var(--font-mono)',
-                      color: isToday ? 'var(--signal)' : cell.inMonth ? 'var(--ink-2)' : '#333b3e',
-                    }}
-                  >
-                    {dayNum(cell.iso).replace(/^0/, '')}
-                  </span>
-                  <span style={{ display: 'flex', gap: 2, justifyContent: 'center', height: 4 }}>
-                    {events.slice(0, 3).map((e) => (
-                      <span
-                        key={e.id}
-                        style={{ width: 4, height: 4, borderRadius: '50%', background: TYPE_COLOR[e.type], display: 'block' }}
-                      />
+          <div className="cal">
+            <div className="cal-head">
+              {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d) => (
+                <span key={d}>{d.slice(0, 1)}</span>
+              ))}
+            </div>
+            <div className="cal-grid">
+              {grid.map((cell) => {
+                const items = byDate.get(cell.iso) ?? []
+                const classes = [
+                  'cal-cell',
+                  cell.inMonth ? '' : 'is-outside',
+                  cell.iso === iso ? 'is-today' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+                return (
+                  <div key={cell.iso} className={classes}>
+                    <span className="cal-date">{dayNum(cell.iso).replace(/^0/, '')}</span>
+                    {items.slice(0, 3).map((item) => (
+                      <Link
+                        key={item.key}
+                        to={item.to}
+                        className={`cal-chip${item.done ? ' is-done' : ''}`}
+                        title={`${item.title} — ${item.sub}`}
+                      >
+                        <i style={{ background: item.color }} />
+                        <span>{item.title}</span>
+                      </Link>
                     ))}
-                  </span>
-                </>
-              )
-              const style: React.CSSProperties = {
-                aspectRatio: '1',
-                borderRadius: 8,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 3,
-                background: isToday ? '#1b2124' : 'transparent',
-                border: `1px solid ${isToday ? 'var(--signal-line)' : 'transparent'}`,
-              }
-              return events.length ? (
-                <Link
-                  key={cell.iso}
-                  to={`/events/${events[0].id}`}
-                  style={{ ...style, color: 'inherit' }}
-                  aria-label={`${cell.iso}, ${events.length} event${events.length > 1 ? 's' : ''}`}
-                >
-                  {content}
-                </Link>
-              ) : (
-                <div key={cell.iso} style={style}>
-                  {content}
-                </div>
-              )
-            })}
+                    {items.length > 3 && <span className="cal-more">+{items.length - 3} more</span>}
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
           <SeasonTimeline />
@@ -202,40 +255,37 @@ export function CalendarScreen() {
             <div className="card-dashed" style={{ padding: 20, textAlign: 'center' }}>
               <div style={{ font: '500 13px var(--font-sans)', color: 'var(--ink-2)' }}>Nothing ahead</div>
               <p className="meta" style={{ marginTop: 4 }}>
-                {can(role, 'calendar.edit') ? 'Add your first meeting.' : 'A coach adds events here.'}
+                {allow('calendar.edit') ? 'Add your first meeting.' : 'A coach adds events here.'}
               </p>
-              {can(role, 'calendar.edit') && (
+              {allow('calendar.edit') && (
                 <Button variant="primary" size="sm" style={{ marginTop: 12 }} onClick={() => navigate('/calendar/edit')}>
                   Add first meeting
                 </Button>
               )}
             </div>
           ) : (
-            agenda.map((event) => (
-              <Link key={event.id} to={`/events/${event.id}`} className="row" style={{ color: 'inherit' }}>
-                <span
-                  style={{ width: 3, height: 36, borderRadius: 2, flex: 'none', background: TYPE_COLOR[event.type] }}
-                />
+            agenda.map((item) => (
+              <Link key={item.key} to={item.to} className="row" style={{ color: 'inherit' }}>
+                <span style={{ width: 3, height: 36, borderRadius: 2, flex: 'none', background: item.color }} />
                 <div style={{ width: 44, flex: 'none' }}>
                   <div className="num" style={{ font: '600 14px/1.1 var(--font-mono)', color: 'var(--ink-body)' }}>
-                    {dayNum(event.date)}
+                    {dayNum(item.date)}
                   </div>
-                  <div
-                    style={{
-                      font: '500 8.5px/1.6 var(--font-mono)',
-                      color: 'var(--ink-4)',
-                      letterSpacing: '0.1em',
-                    }}
-                  >
-                    {monShort(event.date)}
+                  <div style={{ font: '500 8.5px/1.6 var(--font-mono)', color: 'var(--ink-4)', letterSpacing: '0.1em' }}>
+                    {monShort(item.date)}
                   </div>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: '500 13px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>{event.title}</div>
-                  <div className="meta-mono">
-                    {event.time !== '—' ? `${event.time} · ` : ''}
-                    {event.location || EVENT_TYPE_LABEL[event.type].toLowerCase()}
+                  <div
+                    style={{
+                      font: '500 13px/1.3 var(--font-sans)',
+                      color: 'var(--ink-body)',
+                      textDecoration: item.done ? 'line-through' : 'none',
+                    }}
+                  >
+                    {item.title}
                   </div>
+                  <div className="meta-mono">{item.sub}</div>
                 </div>
               </Link>
             ))
@@ -255,9 +305,7 @@ function SeasonTimeline() {
   const season = useStore((s) => s.season)
   const iso = todayIso()
 
-  const comps = season.events
-    .filter((e) => e.type === 'comp')
-    .sort((a, b) => a.date.localeCompare(b.date))
+  const comps = season.events.filter((e) => e.type === 'comp').sort((a, b) => a.date.localeCompare(b.date))
   const start = season.events.map((e) => e.date).sort()[0] ?? iso
   const end = comps[comps.length - 1]?.date ?? season.events.map((e) => e.date).sort().at(-1) ?? iso
 
@@ -270,6 +318,8 @@ function SeasonTimeline() {
     { name: 'Build v1', from: addPct(start, end, 0.4), to: addPct(start, end, 0.72), color: 'var(--signal)' },
     { name: 'Drive practice', from: addPct(start, end, 0.72), to: end, color: 'var(--signal-dim)' },
   ]
+
+  if (season.events.length === 0) return null
 
   return (
     <div style={{ marginTop: 20 }}>
@@ -290,15 +340,7 @@ function SeasonTimeline() {
                 </span>
               </div>
               <div style={{ height: 7, borderRadius: 4, background: '#1c2225', position: 'relative', overflow: 'hidden' }}>
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: `${progress}%`,
-                    background: phase.color,
-                    borderRadius: 4,
-                  }}
-                />
+                <div style={{ position: 'absolute', inset: 0, width: `${progress}%`, background: phase.color, borderRadius: 4 }} />
               </div>
             </div>
           )
@@ -317,13 +359,7 @@ function SeasonTimeline() {
               }}
             >
               <span style={{ width: 1, height: 7, background: 'var(--ink-5)', display: 'block', margin: '0 auto' }} />
-              <span
-                style={{
-                  font: '500 8.5px var(--font-mono)',
-                  color: 'var(--ink-4)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <span style={{ font: '500 8.5px var(--font-mono)', color: 'var(--ink-4)', whiteSpace: 'nowrap' }}>
                 {monShort(comp.date)} {dayNum(comp.date)}
               </span>
             </div>
