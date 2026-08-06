@@ -85,8 +85,10 @@ function YouTab() {
   const session = useStore((s) => s.session)
   const me = useStore(currentMember)
   const setRole = useStore((s) => s.setRole)
+  const endRolePreview = useStore((s) => s.endRolePreview)
   const signOut = useStore((s) => s.signOut)
   const allow = useCan()
+  const previewing = Boolean(session.previewOf)
 
   return (
     <div className="cols cols-2">
@@ -131,9 +133,19 @@ function YouTab() {
                 </Chip>
               ))}
             </div>
+            {previewing && (
+              <Button
+                size="sm"
+                variant="primary"
+                style={{ marginTop: 12 }}
+                onClick={endRolePreview}
+              >
+                Back to my own view
+              </Button>
+            )}
             <p className="field-note">
-              Switches this session's view only — it does not change your account or anyone else's. Sign
-              out and back in to reset.
+              Switches this session's view only — it does not change your account or anyone else's, and
+              you can drop it any time without signing out.
             </p>
           </div>
         </div>

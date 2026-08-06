@@ -4,7 +4,30 @@ import type { Capability } from './permissions'
 
 export type Role = 'coach' | 'mentor' | 'captain' | 'student' | 'parent' | 'guest'
 
-export type Subteam = 'mechanical' | 'software' | 'electrical' | 'notebook' | 'outreach' | 'drive' | 'logistics'
+/**
+ * A subteam id. Not a closed union: teams invent their own — "CAD", "Pit crew",
+ * "Fundraising" — and a fixed list means somebody's real subteam has no home.
+ * The built-ins below are seeded for every team; anything else a team adds
+ * lives in `SeasonData.subteams` and is therefore visible to everybody.
+ */
+export type Subteam = string
+
+export interface SubteamDef {
+  id: string
+  label: string
+  /** True for the seven shipped with the app, which cannot be deleted. */
+  builtIn?: boolean
+}
+
+export const BUILT_IN_SUBTEAMS: SubteamDef[] = [
+  { id: 'mechanical', label: 'Mechanical', builtIn: true },
+  { id: 'software', label: 'Software', builtIn: true },
+  { id: 'electrical', label: 'Electrical', builtIn: true },
+  { id: 'notebook', label: 'Notebook', builtIn: true },
+  { id: 'outreach', label: 'Outreach', builtIn: true },
+  { id: 'drive', label: 'Drive team', builtIn: true },
+  { id: 'logistics', label: 'Logistics', builtIn: true },
+]
 
 export type EventType = 'meet' | 'comp' | 'out' | 'dead'
 
@@ -65,7 +88,12 @@ export type MemberStatus = 'invited' | 'requested' | 'active' | 'declined' | 'su
 export interface Member extends Syncable {
   name: string
   role: Role
-  subteam?: Subteam
+  /**
+   * Every subteam this person is on. Most students are on two by February, and
+   * forcing a single choice meant the roster was quietly wrong about half of
+   * them.
+   */
+  subteams: Subteam[]
   username: string
   /** Null until the member first signs in and sets their own password. */
   password: PasswordVerifier | null
@@ -510,6 +538,11 @@ export interface Session {
    * read because somebody opened a laptop.
    */
   readAt?: Record<string, string>
+  /**
+   * The person's real role while a coach is previewing someone else's view.
+   * Absent when not previewing, so "am I previewing" is one check.
+   */
+  previewOf?: Role
   /** Set when signed in through Supabase rather than a device credential. */
   authUserId?: string
   email?: string
@@ -564,6 +597,8 @@ export interface SeasonData {
   media: MediaItem[]
   weekly: WeeklyReport[]
   scouting: ScoutingNote[]
+  /** Built-ins plus whatever this team invented. Synced, so everyone sees them. */
+  subteams: SubteamDef[]
   channels: Channel[]
   messages: ChatMessage[]
   competition: CompetitionEvent
@@ -580,7 +615,11 @@ export const ROLE_LABEL: Record<Role, string> = {
   guest: 'Guest',
 }
 
-export const SUBTEAM_LABEL: Record<Subteam, string> = {
+/**
+ * Labels for the built-ins only. Use `subteamLabel(season, id)` from
+ * domain/subteams.ts anywhere a custom subteam could appear.
+ */
+export const SUBTEAM_LABEL: Record<string, string> = {
   mechanical: 'Mechanical',
   software: 'Software',
   electrical: 'Electrical',

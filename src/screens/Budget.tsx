@@ -308,8 +308,10 @@ export function BudgetScreen() {
                     style={{ width: 150, flex: 'none' }}
                     value={reqAllocation}
                     onChange={(e) => setReqAllocation(e.target.value)}
-                    aria-label="Allocation"
+                    aria-label="Budget category"
                   >
+                    {/* Always an option, or a team with no categories yet gets an empty box. */}
+                    <option value="">No category</option>
                     {season.allocations.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}

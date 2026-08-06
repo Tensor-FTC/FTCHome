@@ -4,7 +4,8 @@ import { AuthLayout } from './AuthLayout'
 import { Avatar, Button, Chip, Field, IconButton } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { isConfigured } from '@/domain/season'
-import { ROLE_LABEL, SUBTEAM_LABEL, type Role, type Subteam } from '@/domain/types'
+import { ROLE_LABEL, SUBTEAM_LABEL, type Role } from '@/domain/types'
+import { SubteamPicker } from '@/components/SubteamPicker'
 
 const ADDABLE_ROLES: Role[] = ['student', 'captain', 'mentor', 'coach', 'parent']
 
@@ -26,7 +27,7 @@ export function RegisterScreen() {
 
   const [name, setName] = useState('')
   const [role, setRole] = useState<Role>('coach')
-  const [subteam, setSubteam] = useState<Subteam | ''>('')
+  const [subteams, setSubteams] = useState<string[]>([])
 
   // A team must be looked up before it can have a roster.
   if (!isConfigured(season)) return <Navigate to="/identity" replace />
@@ -38,8 +39,9 @@ export function RegisterScreen() {
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
-    addMember(trimmed, role, subteam || undefined)
+    addMember(trimmed, role, subteams)
     setName('')
+    setSubteams([])
     // A team starts with its coach; everyone after is a student by default.
     if (role === 'coach') setRole('student')
   }
@@ -88,15 +90,8 @@ export function RegisterScreen() {
             </Chip>
           ))}
         </div>
-        <div className="wrap" style={{ marginBottom: 11 }}>
-          <Chip active={subteam === ''} onClick={() => setSubteam('')}>
-            No subteam
-          </Chip>
-          {(Object.keys(SUBTEAM_LABEL) as Subteam[]).map((s) => (
-            <Chip key={s} active={subteam === s} onClick={() => setSubteam(s)}>
-              {SUBTEAM_LABEL[s]}
-            </Chip>
-          ))}
+        <div style={{ marginBottom: 11 }}>
+          <SubteamPicker value={subteams} onChange={setSubteams} />
         </div>
         <Button type="submit" variant="primary" block disabled={!name.trim()}>
           Add member
@@ -124,7 +119,7 @@ export function RegisterScreen() {
                 style={{ font: '500 9.5px/1.6 var(--font-mono)', color: 'var(--ink-4)', letterSpacing: '0.1em' }}
               >
                 {ROLE_LABEL[m.role].toUpperCase()}
-                {m.subteam ? ` · ${SUBTEAM_LABEL[m.subteam].toUpperCase()}` : ''}
+                {m.subteams?.length ? ` · ${m.subteams.map((s) => (SUBTEAM_LABEL[s] ?? s).toUpperCase()).join(' · ')}` : ''}
               </div>
             </div>
             <IconButton label={`Remove ${m.name}`} small onClick={() => removeMember(m.id)}>

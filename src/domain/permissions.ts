@@ -54,11 +54,11 @@ export type Capability =
 const MATRIX: Record<Capability, Role[]> = {
   'roster.manage': ['coach', 'mentor'],
   'roster.readContact': ['coach', 'mentor'],
-  'calendar.edit': ['coach', 'mentor', 'captain'],
+  'calendar.edit': ['coach', 'mentor', 'captain', 'parent'],
   'events.rsvp': ['coach', 'mentor', 'captain', 'student', 'parent'],
   'volunteer.signUp': ['coach', 'mentor', 'captain', 'student', 'parent'],
   'tasks.create': ['coach', 'mentor', 'captain', 'student'],
-  'tasks.assignOthers': ['coach', 'mentor', 'captain'],
+  'tasks.assignOthers': ['coach', 'mentor', 'captain', 'parent'],
   'budget.viewAmounts': ['coach', 'mentor', 'captain', 'student'],
   'budget.edit': ['coach', 'mentor'],
   'approvals.viewAmounts': ['coach', 'mentor'],
@@ -70,15 +70,15 @@ const MATRIX: Record<Capability, Role[]> = {
   'chat.manageChannels': ['coach', 'mentor', 'captain'],
   'chat.moderate': ['coach', 'mentor'],
   'media.upload': ['coach', 'mentor', 'captain', 'student'],
-  'media.delete': ['coach', 'mentor', 'captain'],
-  'weekly.edit': ['coach', 'mentor', 'captain'],
+  'media.delete': ['coach', 'mentor', 'captain', 'parent'],
+  'weekly.edit': ['coach', 'mentor', 'captain', 'parent'],
   'weekly.publish': ['coach', 'mentor', 'captain'],
   // Everyone signed in scouts. A student in the stands with a phone is the
   // whole point of scouting notes.
   'scouting.edit': ['coach', 'mentor', 'captain', 'student'],
   'settings.manage': ['coach', 'mentor'],
   'policy.manage': ['coach', 'mentor'],
-  'season.export': ['coach', 'mentor', 'captain'],
+  'season.export': ['coach', 'mentor', 'captain', 'parent'],
 }
 
 /** Capabilities whose audience the team can widen or narrow. */
@@ -140,8 +140,8 @@ export const CAPABILITY_LABEL: Partial<Record<Capability, string>> = {
  */
 const POLICY_CEILING: Partial<Record<Capability, Role[]>> = {
   'roster.readContact': ['coach', 'mentor', 'captain', 'student'],
-  'roster.manage': ['coach', 'mentor', 'captain', 'student'],
-  'calendar.edit': ['coach', 'mentor', 'captain', 'student'],
+  'roster.manage': ['coach', 'mentor', 'captain', 'student', 'parent'],
+  'calendar.edit': ['coach', 'mentor', 'captain', 'student', 'parent'],
 }
 
 export const AUDIENCE_ROLES: Record<Audience, Role[]> = {

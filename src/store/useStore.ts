@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { toggledStatus } from '@/domain/tasks'
 import { GRANTABLE, type Capability } from '@/domain/permissions'
 import { missingDefaults } from '@/domain/chat'
+import { subteamId } from '@/domain/subteams'
 import type { AuthUser } from '@/lib/auth'
 import {
   calendarFromScout,
@@ -87,13 +88,17 @@ interface StoreState {
   browseAsGuest: () => void
   signOut: () => void
   setRole: (role: Role) => void
+  /** Drops a role preview and returns to the signed-in person's own role. */
+  endRolePreview: () => void
   dismissOnboarding: () => void
   setMemberPassword: (memberId: string, password: string) => Promise<void>
   /** Creates the first account on an empty team and signs in as its coach. */
   createFirstAccount: (input: { name: string; email?: string; password: string }) => Promise<Member>
 
   // roster
-  addMember: (name: string, role: Role, subteam?: Member['subteam']) => Member
+  addMember: (name: string, role: Role, subteams?: string[]) => Member
+  /** Adds a subteam to the team's own list. Idempotent on the derived id. */
+  addSubteam: (label: string) => string
   updateMember: (id: string, patch: Partial<Member>) => void
   removeMember: (id: string) => void
   /** Sign in with a Supabase account, matching it to a member or raising a request. */
@@ -300,7 +305,24 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     setRole(role) {
-      const session = { ...get().session, role }
+      const me = currentMember(get())
+      // Remember the real one the first time, so "back to me" is always exact.
+      const previewOf = get().session.previewOf ?? me?.role
+      const session: Session =
+        me && role === previewOf
+          ? { ...get().session, role, previewOf: undefined }
+          : { ...get().session, role, previewOf }
+      set({ session })
+      void saveSession(session)
+    },
+
+    endRolePreview() {
+      const me = currentMember(get())
+      const session: Session = {
+        ...get().session,
+        role: get().session.previewOf ?? me?.role ?? 'guest',
+        previewOf: undefined,
+      }
       set({ session })
       void saveSession(session)
     },
@@ -337,6 +359,7 @@ export const useStore = create<StoreState>((set, get) => {
         updatedAt: now(),
         name: name.trim(),
         role: 'coach',
+        subteams: [],
         username: email?.trim() || `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
         password: verifier,
         status: 'active',
@@ -355,14 +378,34 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     // ── roster ──────────────────────────────────────────────
-    addMember(name, role, subteam) {
+    addSubteam(label) {
+      const id = subteamId(label)
+      if (!id) return id
+      if (get().season.subteams.some((s) => s.id === id)) return id
+      const next = [...get().season.subteams, { id, label: label.trim() }]
+      commit(
+        (d) => {
+          d.subteams = next
+        },
+        // Rides the team record: it is one small list, not a table of its own.
+        {
+          table: 'teams',
+          op: 'upsert',
+          record: stamped({ ...get().season.team }),
+          label: `Subteam · ${label}`,
+        },
+      )
+      return id
+    },
+
+    addMember(name, role, subteams) {
       const team = get().season.team
       const member: Member = {
         id: uid('mem-'),
         updatedAt: now(),
         name,
         role,
-        subteam,
+        subteams: subteams ?? [],
         username: `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
         password: null,
         status: 'invited',
@@ -392,13 +435,25 @@ export const useStore = create<StoreState>((set, get) => {
         (user.email ? members.find((m) => m.email?.toLowerCase() === user.email.toLowerCase()) : undefined)
 
       if (!member) {
+        /*
+         * Nobody on the team yet means this person is setting it up, so they
+         * are its coach and there is no approval step — there would be nobody
+         * to give it, and waiting for one would deadlock the whole team.
+         * Mirrors claim_team() in the migration, which enforces the same rule
+         * server-side.
+         */
+        const firstOnTeam = !members.some((m) => m.status === 'active')
         member = get().requestToJoin({
           name: user.name || user.email.split('@')[0] || 'New member',
           email: user.email,
           authUserId: user.id,
-          role: 'student',
+          role: firstOnTeam ? 'coach' : 'student',
           provider: user.provider,
         })
+        if (firstOnTeam) {
+          get().approveMember(member.id, 'coach')
+          member = get().season.members.find((m) => m.id === member!.id) ?? member
+        }
       } else if (member.authUserId !== user.id || member.authProvider !== user.provider) {
         // First cloud sign-in for someone a coach added by email: bind the account.
         get().updateMember(member.id, { authUserId: user.id, authProvider: user.provider, email: user.email })
@@ -436,6 +491,7 @@ export const useStore = create<StoreState>((set, get) => {
         updatedAt: now(),
         name,
         role,
+        subteams: [],
         username: email || `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
         password: null,
         status: 'requested',

@@ -3,15 +3,15 @@ import { Avatar, Button, Chip, Field, IconButton, LockedValue, Sheet, TextArea }
 import { useStore } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { isLastStaff, staffingIssues } from '@/domain/staffing'
+import { subteamLabel } from '@/domain/subteams'
+import { SubteamPicker } from '@/components/SubteamPicker'
 import { can, CAPABILITY_LABEL, GRANTABLE, type Capability } from '@/domain/permissions'
 import {
   AUTH_PROVIDER_LABEL,
   MEMBER_STATUS_LABEL,
   ROLE_LABEL,
-  SUBTEAM_LABEL,
   type Member,
   type Role,
-  type Subteam,
 } from '@/domain/types'
 import { download, rosterCsv } from '@/lib/exporters'
 
@@ -36,7 +36,7 @@ export function RosterScreen() {
 
   const [name, setName] = useState('')
   const [newRole, setNewRole] = useState<Role>('student')
-  const [subteam, setSubteam] = useState<Subteam | ''>('')
+  const [subteams, setSubteams] = useState<string[]>([])
   const [editing, setEditing] = useState<Member | null>(null)
 
   const manage = allow('roster.manage')
@@ -54,8 +54,9 @@ export function RosterScreen() {
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
-    addMember(trimmed, newRole, subteam || undefined)
+    addMember(trimmed, newRole, subteams)
     setName('')
+    setSubteams([])
     notify(`${trimmed} added — they set their own password on first sign-in`)
   }
 
@@ -133,15 +134,8 @@ export function RosterScreen() {
                   </Chip>
                 ))}
               </div>
-              <div className="wrap" style={{ marginBottom: 11 }}>
-                <Chip active={subteam === ''} onClick={() => setSubteam('')}>
-                  No subteam
-                </Chip>
-                {(Object.keys(SUBTEAM_LABEL) as Subteam[]).map((s) => (
-                  <Chip key={s} active={subteam === s} onClick={() => setSubteam(s)}>
-                    {SUBTEAM_LABEL[s]}
-                  </Chip>
-                ))}
+              <div style={{ marginBottom: 11 }}>
+                <SubteamPicker value={subteams} onChange={setSubteams} />
               </div>
               <Button type="submit" variant="primary" block disabled={!name.trim()}>
                 Add member
@@ -220,7 +214,7 @@ export function RosterScreen() {
                   }}
                 >
                   {ROLE_LABEL[member.role].toUpperCase()}
-                  {member.subteam ? ` · ${SUBTEAM_LABEL[member.subteam].toUpperCase()}` : ''}
+                  {member.subteams?.length ? ` · ${member.subteams.map((s) => subteamLabel(season, s).toUpperCase()).join(' · ')}` : ''}
                   {member.status === 'active' ? '' : ` · ${MEMBER_STATUS_LABEL[member.status].toUpperCase()}`}
                 </div>
               </div>
@@ -296,7 +290,7 @@ function MemberSheet({
 }) {
   const [role, setRole] = useState<Role>(member.role)
   const [grants, setGrantsDraft] = useState<Capability[]>(member.grants ?? [])
-  const [subteam, setSubteam] = useState<Subteam | ''>(member.subteam ?? '')
+  const [picked, setPicked] = useState<string[]>(member.subteams ?? [])
   const [email, setEmail] = useState(member.contact?.email ?? '')
   const [phone, setPhone] = useState(member.contact?.phone ?? '')
   const [allergies, setAllergies] = useState(member.medical?.allergies ?? '')
@@ -317,7 +311,7 @@ function MemberSheet({
             onSave(
               {
                 role,
-                subteam: subteam || undefined,
+                subteams: picked,
                 contact: { email, phone },
                 medical: { allergies, notes, guardian, guardianPhone },
               },
@@ -384,21 +378,7 @@ function MemberSheet({
           </div>
         )}
 
-        <div>
-          <div className="label" style={{ marginBottom: 8 }}>
-            Subteam
-          </div>
-          <div className="wrap">
-            <Chip active={subteam === ''} onClick={() => setSubteam('')}>
-              None
-            </Chip>
-            {(Object.keys(SUBTEAM_LABEL) as Subteam[]).map((s) => (
-              <Chip key={s} active={subteam === s} onClick={() => setSubteam(s)}>
-                {SUBTEAM_LABEL[s]}
-              </Chip>
-            ))}
-          </div>
-        </div>
+        <SubteamPicker value={picked} onChange={setPicked} />
 
         <Field label="Email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
         <Field label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" />

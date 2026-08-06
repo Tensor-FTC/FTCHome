@@ -17,15 +17,17 @@ import { can, canMember, type Capability } from './permissions'
 export function useCan(): (capability: Capability) => boolean {
   const role = useStore((s) => s.session.role)
   const awaiting = useStore((s) => s.session.awaitingApproval)
+  const previewing = useStore((s) => Boolean(s.session.previewOf))
   const me = useStore(currentMember)
   const policy = useStore((s) => s.season.settings.policy)
 
   return useMemo(() => {
     // Somebody whose request has not been accepted has no standing at all yet.
     if (awaiting) return () => false
-    // Role preview: the session role has been changed away from the member's own.
-    if (me && me.role !== role) return (c: Capability) => can(role, c, policy)
+    // Role preview: a coach is looking at somebody else's view, so the preview
+    // role wins over their own record — including its grants.
+    if (previewing) return (c: Capability) => can(role, c, policy)
     if (me) return (c: Capability) => canMember(me, c, policy)
     return (c: Capability) => can(role, c, policy)
-  }, [role, awaiting, me, policy])
+  }, [role, awaiting, previewing, me, policy])
 }

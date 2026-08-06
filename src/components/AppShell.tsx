@@ -26,6 +26,7 @@ export function AppShell() {
   const online = useStore((s) => s.online)
   const syncing = useStore((s) => s.syncing)
   const sync = useStore((s) => s.sync)
+  const endRolePreview = useStore((s) => s.endRolePreview)
 
   const settings = season.settings
   const offline = !online || settings.simulateOffline
@@ -66,6 +67,23 @@ export function AppShell() {
       <Rail />
 
       <div className="main">
+        {/*
+         * Previewing a lower role removes settings.manage, which used to hide
+         * the very panel holding the way out — so the exit lives here, outside
+         * every permission gate, and is reachable from any screen.
+         */}
+        {session.previewOf && (
+          <div className="preview-bar" role="status">
+            <span>
+              Viewing as <strong>{ROLE_LABEL[session.role].toLowerCase()}</strong>. This is a preview —
+              nothing you do changes anyone&rsquo;s access.
+            </span>
+            <button type="button" onClick={endRolePreview}>
+              Back to my view
+            </button>
+          </div>
+        )}
+
         <header className="statusbar">
           <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
           <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

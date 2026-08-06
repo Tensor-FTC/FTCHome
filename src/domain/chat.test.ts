@@ -4,7 +4,17 @@ import { emptySeason } from './season'
 import type { Channel, ChatMessage, Member, Role, SeasonData, Session, Subteam } from './types'
 
 function member(id: string, role: Role, subteam?: Subteam, status: Member['status'] = 'active'): Member {
-  return { id, updatedAt: '', name: id, role, subteam, username: id, password: null, status, joinedAt: '' }
+  return {
+    id,
+    updatedAt: '',
+    name: id,
+    role,
+    subteams: subteam ? [subteam] : [],
+    username: id,
+    password: null,
+    status,
+    joinedAt: '',
+  }
 }
 
 function channel(id: string, patch: Partial<Channel>): Channel {

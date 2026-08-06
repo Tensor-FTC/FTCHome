@@ -292,7 +292,8 @@ export function TodayScreen() {
                           active={assigneeId === m.id}
                           onClick={() => setAssigneeId(m.id)}
                         >
-                          {m.id === me?.id ? 'You' : m.name}
+                          {m.name}
+                          {m.id === me?.id ? ' · you' : ''}
                         </Chip>
                       ))}
                   </div>

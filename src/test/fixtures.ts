@@ -31,12 +31,12 @@ export function fixtureSeason(anchor = today()): SeasonData {
   season.team = teamFromScout(SCOUT_TEAM_11138, season.team)
   season.team.goal = 9200
 
-  const member = (name: string, role: SeasonData['members'][number]['role'], subteam?: SeasonData['members'][number]['subteam']) => ({
+  const member = (name: string, role: SeasonData['members'][number]['role'], subteam?: string) => ({
     id: uid('mem-'),
     updatedAt: now(),
     name,
     role,
-    subteam,
+    subteams: subteam ? [subteam] : [],
     username: `${name.toLowerCase().replace(/[^a-z]/g, '')}@11138`,
     password: null,
     status: 'active' as const,

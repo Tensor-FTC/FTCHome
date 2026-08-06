@@ -1,6 +1,7 @@
-import type { Channel, ChatMessage, Member, SeasonData, Session, Subteam } from './types'
-import { SUBTEAM_LABEL } from './types'
+import type { Channel, ChatMessage, Member, SeasonData, Session } from './types'
+
 import { isStaff } from './permissions'
+import { inSubteam, membersOf, subteamLabel } from './subteams'
 
 /**
  * Who can see which channel, and what is unread.
@@ -19,7 +20,7 @@ export function canSee(channel: Channel, me: Member | null | undefined): boolean
   if (!me || me.status !== 'active') return false
   if (channel.staffOnly && !isStaff(me.role)) return false
   if (channel.kind === 'team') return true
-  if (channel.kind === 'subteam') return me.subteam === channel.subteam || isStaff(me.role)
+  if (channel.kind === 'subteam') return inSubteam(me, channel.subteam ?? '') || isStaff(me.role)
   return Boolean(channel.memberIds?.includes(me.id))
 }
 
@@ -67,17 +68,17 @@ export function missingDefaults(season: SeasonData): Omit<Channel, 'id' | 'updat
 
   const used = new Set(season.channels.filter((c) => c.kind === 'subteam').map((c) => c.subteam))
   const active = new Set(
-    season.members.filter((m) => m.status === 'active' && m.subteam).map((m) => m.subteam as Subteam),
+    season.members.filter((m) => m.status === 'active').flatMap((m) => m.subteams ?? []),
   )
   for (const subteam of active) {
     // Two people is a pair, not a subteam; a channel for one person is noise.
-    const size = season.members.filter((m) => m.status === 'active' && m.subteam === subteam).length
+    const size = membersOf(season, subteam).length
     if (size < 2 || used.has(subteam)) continue
     out.push({
-      name: SUBTEAM_LABEL[subteam],
+      name: subteamLabel(season, subteam),
       kind: 'subteam',
       subteam,
-      topic: `Everyone on ${SUBTEAM_LABEL[subteam].toLowerCase()}.`,
+      topic: `Everyone on ${subteamLabel(season, subteam).toLowerCase()}.`,
       createdAt: now,
     })
   }

@@ -74,7 +74,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
     }
 
     for (const m of season.members) {
-      if (match(m.name, m.username, m.subteam)) {
+      if (match(m.name, m.username, ...(m.subteams ?? []))) {
         out.push({
           id: m.id,
           kind: ROLE_LABEL[m.role],

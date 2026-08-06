@@ -4,6 +4,7 @@ import { Avatar, Button, IconButton, Meter } from '@/components/ui'
 import { useStore, currentMember } from '@/store/useStore'
 import { describeRecurrence, parseOccurrenceId } from '@/domain/recurrence'
 import { eventStaffing } from '@/domain/staffing'
+import { describeSubteams, inSubteam } from '@/domain/subteams'
 import { EVENT_TYPE_LABEL, ROLE_LABEL, type RsvpStatus } from '@/domain/types'
 import { longStamp } from '@/lib/date'
 import { bytes } from '@/lib/format'
@@ -60,7 +61,7 @@ export function EventDetailScreen() {
     .filter((m): m is NonNullable<typeof m> => Boolean(m))
 
   const staffing = eventStaffing(season, rsvpKey)
-  const driveGap = cantMake.some((m) => m.subteam === 'drive')
+  const driveGap = cantMake.some((m) => inSubteam(m, 'drive'))
 
   return (
     <div className="screen">
@@ -185,7 +186,7 @@ export function EventDetailScreen() {
                   <div key={m.id} className="row" style={{ padding: '7px 0' }}>
                     <Avatar name={m.name} size="sm" />
                     <span style={{ flex: 1, font: '500 12.5px var(--font-sans)', color: '#d6dcde' }}>{m.name}</span>
-                    <span className="meta">{m.subteam ?? ROLE_LABEL[m.role].toLowerCase()}</span>
+                    <span className="meta">{describeSubteams(season, m) || ROLE_LABEL[m.role].toLowerCase()}</span>
                   </div>
                 ))
               )}

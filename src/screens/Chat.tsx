@@ -5,7 +5,8 @@ import { useStore, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { channelMessages, groupRuns, lastMessage, unreadCount, visibleChannels } from '@/domain/chat'
 import { isStaff } from '@/domain/permissions'
-import { SUBTEAM_LABEL, type Channel, type Member } from '@/domain/types'
+import { membersOf, subteamLabel } from '@/domain/subteams'
+import type { Channel, Member } from '@/domain/types'
 import { longStamp, today as todayIso } from '@/lib/date'
 
 /**
@@ -171,7 +172,7 @@ function Thread({ channel, me }: { channel: Channel; me: Member }) {
     channel.kind === 'group'
       ? season.members.filter((m) => channel.memberIds?.includes(m.id))
       : channel.kind === 'subteam'
-        ? season.members.filter((m) => m.status === 'active' && m.subteam === channel.subteam)
+        ? membersOf(season, channel.subteam ?? '')
         : season.members.filter((m) => m.status === 'active')
 
   return (
@@ -329,7 +330,7 @@ function NewGroupSheet({ onClose }: { onClose: () => void }) {
                   onClick={() => setPicked((p) => (p.includes(m.id) ? p.filter((x) => x !== m.id) : [...p, m.id]))}
                 >
                   {m.name}
-                  {m.subteam ? ` · ${SUBTEAM_LABEL[m.subteam]}` : ''}
+                  {m.subteams?.length ? ` · ${m.subteams.map((id) => subteamLabel(season, id)).join(', ')}` : ''}
                 </Chip>
               ))}
             </div>

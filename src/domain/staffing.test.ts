@@ -13,6 +13,7 @@ function member(id: string, role: Role, patch: Partial<Member> = {}): Member {
     username: `${id}@1`,
     password: null,
     status: 'active',
+    subteams: [],
     joinedAt: '',
     ...patch,
   }
@@ -96,14 +97,26 @@ describe('policy ceilings', () => {
     expect(can('parent', 'budget.viewAmounts', open({ budgetFigures: 'members' }))).toBe(false)
   })
 
-  it('never hands a write capability to a guest, whatever the policy says', () => {
+  it('never hands a write capability to a signed-out guest, whatever the policy says', () => {
     const wideOpen = open({ rosterEditing: 'everyone', calendarEditing: 'everyone' })
     expect(can('guest', 'roster.manage', wideOpen)).toBe(false)
     expect(can('guest', 'calendar.edit', wideOpen)).toBe(false)
-    expect(can('parent', 'roster.manage', wideOpen)).toBe(false)
-    // …but a student may be given them, which is the point of the setting.
+    // …but anybody signed in may be given them, which is the point of the setting.
     expect(can('student', 'calendar.edit', wideOpen)).toBe(true)
     expect(can('student', 'roster.manage', wideOpen)).toBe(true)
+    expect(can('parent', 'roster.manage', wideOpen)).toBe(true)
+  })
+
+  it('lets everyone except a student make and hand out work by default', () => {
+    for (const role of ['coach', 'mentor', 'captain', 'parent'] as Role[]) {
+      expect(can(role, 'calendar.edit')).toBe(true)
+      expect(can(role, 'tasks.assignOthers')).toBe(true)
+    }
+    // A student still creates their own work; they just cannot assign it away.
+    expect(can('student', 'tasks.create')).toBe(true)
+    expect(can('student', 'tasks.assignOthers')).toBe(false)
+    expect(can('student', 'calendar.edit')).toBe(false)
+    expect(can('guest', 'tasks.create')).toBe(false)
   })
 
   it('never exposes contact records outside the signed-in team', () => {

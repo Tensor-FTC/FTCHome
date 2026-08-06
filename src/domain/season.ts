@@ -1,4 +1,5 @@
 import { uid, now } from '@/lib/id'
+import { BUILT_IN_SUBTEAMS } from './types'
 import { DEFAULT_POLICY } from './permissions'
 import {
   CURRENT_SEASON,
@@ -93,6 +94,7 @@ export function emptySeason(): SeasonData {
     media: [],
     weekly: [],
     scouting: [],
+    subteams: [...BUILT_IN_SUBTEAMS],
     channels: [],
     messages: [],
     competition: emptyCompetition(),
@@ -114,7 +116,10 @@ export function migrateSeason(stored: Partial<SeasonData> | undefined): SeasonDa
     team: { ...base.team, ...stored.team },
     settings: { ...base.settings, ...stored.settings, policy: { ...base.settings.policy, ...stored.settings?.policy } },
     competition: { ...base.competition, ...stored.competition },
-    members: stored.members ?? [],
+    members: (stored.members ?? []).map((m) => ({
+      ...m,
+      subteams: m.subteams ?? ((m as { subteam?: string }).subteam ? [(m as { subteam?: string }).subteam!] : []),
+    })),
     events: stored.events ?? [],
     rsvps: stored.rsvps ?? [],
     tasks: stored.tasks ?? [],
@@ -124,10 +129,21 @@ export function migrateSeason(stored: Partial<SeasonData> | undefined): SeasonDa
     media: stored.media ?? [],
     weekly: stored.weekly ?? [],
     scouting: stored.scouting ?? [],
+    // Built-ins are re-seeded so an old season gains them without losing customs.
+    subteams: mergeSubteams(stored.subteams),
     channels: stored.channels ?? [],
     messages: stored.messages ?? [],
     parts: stored.parts ?? [],
   }
+}
+
+/**
+ * A stored list may predate custom subteams, or be missing a built-in added
+ * since. Union, built-ins first, custom preserved.
+ */
+function mergeSubteams(stored: SeasonData['subteams'] | undefined) {
+  const custom = (stored ?? []).filter((s) => !BUILT_IN_SUBTEAMS.some((b) => b.id === s.id))
+  return [...BUILT_IN_SUBTEAMS, ...custom]
 }
 
 export function isConfigured(season: SeasonData): boolean {

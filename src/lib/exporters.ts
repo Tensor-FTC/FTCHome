@@ -144,7 +144,7 @@ export function rosterCsv(season: SeasonData, includeContact: boolean): string {
     const row: (string | number)[] = [
       m.name,
       ROLE_LABEL[m.role],
-      m.subteam ?? '',
+      (m.subteams ?? []).join(' / '),
       m.username,
       MEMBER_STATUS_LABEL[m.status],
     ]
