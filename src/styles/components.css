@@ -886,3 +886,91 @@ input.field::-webkit-calendar-picker-indicator:hover {
   background: var(--signal-bg);
   color: var(--signal);
 }
+
+/* ── status pill ─────────────────────────────────────────────
+   A status you can change where you read it. The select sits invisibly on top
+   of the pill so the control keeps native keyboard and mobile picker behaviour
+   while looking like the label it replaces. */
+.status-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--srf-2);
+  color: var(--ink-3);
+  font: 500 10.5px var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex: none;
+}
+
+.status-pill-sm {
+  height: 22px;
+  padding: 0 7px;
+  font-size: 9.5px;
+}
+
+.status-pill i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.status-pill.is-signal {
+  color: var(--signal);
+  border-color: var(--signal-line);
+  background: var(--signal-bg);
+}
+
+.status-pill.is-pressure {
+  color: var(--pressure);
+  border-color: var(--pressure-line);
+  background: var(--pressure-bg);
+}
+
+.status-pill.is-dim {
+  color: var(--signal-dim);
+}
+
+.status-pill.is-editable {
+  cursor: pointer;
+  padding-right: 6px;
+}
+
+.status-pill.is-editable:hover {
+  border-color: var(--line-3);
+}
+
+.status-pill select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  appearance: none;
+  border: none;
+  font: inherit;
+}
+
+.status-pill select:focus-visible {
+  opacity: 0;
+}
+
+.status-pill:focus-within {
+  border-color: var(--signal-line);
+  box-shadow: 0 0 0 3px rgba(198, 232, 78, 0.09);
+}
+
+.status-pill-caret {
+  font-size: 8px;
+  opacity: 0.7;
+  margin-left: 1px;
+}

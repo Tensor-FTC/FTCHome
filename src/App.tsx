@@ -24,6 +24,7 @@ import { LiveEventScreen } from '@/screens/LiveEvent'
 import { CompetitionModeScreen } from '@/screens/CompetitionMode'
 import { RosterScreen } from '@/screens/Roster'
 import { BudgetScreen } from '@/screens/Budget'
+import { ArchiveScreen } from '@/screens/Archive'
 import { StatesScreen } from '@/screens/States'
 import { SettingsScreen } from '@/screens/Settings'
 import { HelpScreen } from '@/screens/Help'
@@ -114,6 +115,7 @@ export function App() {
           <Route path="/roster" element={<RosterScreen />} />
           <Route path="/budget" element={<BudgetScreen />} />
           <Route path="/parts" element={<PartsScreen />} />
+          <Route path="/archive" element={<ArchiveScreen />} />
           <Route path="/states" element={<StatesScreen />} />
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="/help" element={<HelpScreen />} />

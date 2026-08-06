@@ -2,8 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { Avatar, Button, Chip, Field, IconButton, LockedValue, Meter, SectionLabel } from '@/components/ui'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { useArchive } from '@/domain/useArchive'
 import { money, pct } from '@/lib/format'
 import { budgetCsv, download } from '@/lib/exporters'
+import { StatusPicker } from '@/components/StatusPicker'
+import { APPROVAL_STATUS, SPONSOR_STATUS } from '@/domain/status'
 import type { SponsorState } from '@/domain/types'
 
 /**
@@ -19,8 +22,10 @@ import type { SponsorState } from '@/domain/types'
 export function BudgetScreen() {
   const season = useStore((s) => s.season)
   const allow = useCan()
+  const { current } = useArchive()
   const me = useStore(currentMember)
   const addSponsor = useStore((s) => s.addSponsor)
+  const updateSponsor = useStore((s) => s.updateSponsor)
   const removeSponsor = useStore((s) => s.removeSponsor)
   const setGoal = useStore((s) => s.setGoal)
   const updateAllocation = useStore((s) => s.updateAllocation)
@@ -231,32 +236,28 @@ export function BudgetScreen() {
               Purchase requests
             </div>
             <div className="card" style={{ overflow: 'hidden' }}>
-              {season.approvals.length === 0 && (
+              {current.approvals.length === 0 && (
                 <div style={{ padding: 15 }}>
                   <span className="meta">Nothing requested yet.</span>
                 </div>
               )}
-              {season.approvals.map((a) => {
+              {current.approvals.map((a) => {
                 const requester = season.members.find((m) => m.id === a.requestedById)
                 return (
                   <div key={a.id} style={{ padding: '13px 15px', borderBottom: '1px solid var(--line-soft)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ font: '500 13px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>{a.title}</div>
-                        <div className="meta" style={{ marginTop: 2 }}>
-                          {requester?.name ?? 'someone'} ·{' '}
-                          <span
-                            style={{
-                              color:
-                                a.state === 'approved'
-                                  ? 'var(--signal)'
-                                  : a.state === 'pending'
-                                    ? 'var(--pressure)'
-                                    : 'var(--ink-4)',
-                            }}
-                          >
-                            {a.state}
-                          </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
+                          <StatusPicker
+                            size="sm"
+                            value={a.state}
+                            options={APPROVAL_STATUS}
+                            editable={allow('approvals.decide')}
+                            label={`Status of ${a.title}`}
+                            onChange={(state) => me && decideApproval(a.id, state, me.id)}
+                          />
+                          <span className="meta">{requester?.name ?? 'someone'}</span>
                         </div>
                       </div>
                       {allow('approvals.viewAmounts') ? (
@@ -350,21 +351,17 @@ export function BudgetScreen() {
                     {s.tier}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', flex: 'none', whiteSpace: 'nowrap' }}>
-                  <div className="num" style={{ font: '600 14px/1.2 var(--font-mono)', color: 'var(--ink-body)' }}>
-                    {money(s.amount)}
-                  </div>
-                  <div
-                    style={{
-                      font: '500 9px var(--font-mono)',
-                      letterSpacing: '0.12em',
-                      marginTop: 2,
-                      color: s.state === 'Received' ? 'var(--signal)' : 'var(--pressure)',
-                    }}
-                  >
-                    {s.state.toUpperCase()}
-                  </div>
+                <div className="num" style={{ font: '600 14px/1.2 var(--font-mono)', color: 'var(--ink-body)', flex: 'none' }}>
+                  {money(s.amount)}
                 </div>
+                <StatusPicker
+                  size="sm"
+                  value={s.state}
+                  options={SPONSOR_STATUS}
+                  editable={editable}
+                  label={`Status of ${s.name}`}
+                  onChange={(state) => updateSponsor(s.id, { state })}
+                />
                 {editable && (
                   <IconButton label={`Remove ${s.name}`} small onClick={() => removeSponsor(s.id)}>
                     ×
@@ -401,9 +398,9 @@ export function BudgetScreen() {
                   />
                 </div>
                 <div className="wrap" style={{ marginBottom: 11 }}>
-                  {(['Pledged', 'Received'] as SponsorState[]).map((s) => (
-                    <Chip key={s} active={spState === s} onClick={() => setSpState(s)}>
-                      {s}
+                  {SPONSOR_STATUS.map((s) => (
+                    <Chip key={s.value} active={spState === s.value} onClick={() => setSpState(s.value)}>
+                      {s.label}
                     </Chip>
                   ))}
                 </div>

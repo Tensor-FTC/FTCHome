@@ -257,14 +257,48 @@ export interface Shoutout {
   text: string
 }
 
+/**
+ * A pit or match note on another team.
+ *
+ * Written standing in a gym with one hand, so everything except the team number
+ * is optional and the quick fields are taps rather than typing. `eventCode` ties
+ * the note to the competition it was taken at, which is what lets a season's
+ * worth of scouting stay separable and archivable per event.
+ */
 export interface ScoutingNote extends Syncable {
   teamNumber: string
   teamName: string
   note: string
+  /** Pulled from FTCScout when the note is created, so it is a fact not a guess. */
   opr?: number
   auto?: number
   rank?: number
+  /** The competition this was observed at. */
+  eventCode?: string
+  /** Match it came from, when the note is about one match rather than the pit. */
+  matchLabel?: string
+  /** 1–5, the scout's own read. Absent means they did not commit to one. */
+  rating?: number
+  /** Quick observations, tapped rather than typed. */
+  tags?: string[]
+  /** Alliance selection shortlist. */
+  wouldPick?: boolean
+  authorId?: string
+  takenAt?: string
 }
+
+/** The tap-sized observations that cover most of what a scout writes down. */
+export const SCOUT_TAGS = [
+  'Fast cycles',
+  'Reliable auto',
+  'No auto',
+  'Good climb',
+  'No climb',
+  'Strong defence',
+  'Breaks down',
+  'Great driver',
+  'Would pick',
+] as const
 
 /** A match as published by FTCScout. */
 export interface Match {

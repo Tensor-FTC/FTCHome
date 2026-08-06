@@ -3,6 +3,7 @@ import { Button, Chip, EmptyState, Field, Meter, Sheet, TextArea } from '@/compo
 import { MediaThumb } from '@/components/MediaThumb'
 import { useStore, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { useArchive } from '@/domain/useArchive'
 import { importFile, storageEstimate, blobUrl } from '@/lib/media'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { bytes } from '@/lib/format'
@@ -30,6 +31,7 @@ const FILTERS: { id: MediaKind | 'all'; label: string }[] = [
 export function BuildLogScreen() {
   const season = useStore((s) => s.season)
   const allow = useCan()
+  const { current } = useArchive()
   const me = useStore(currentMember)
   const online = useStore((s) => s.online)
   const addMedia = useStore((s) => s.addMedia)
@@ -50,8 +52,8 @@ export function BuildLogScreen() {
   }, [season.media.length])
 
   const visible = useMemo(
-    () => season.media.filter((m) => filter === 'all' || m.kind === filter),
-    [season.media, filter],
+    () => current.media.filter((m) => filter === 'all' || m.kind === filter),
+    [current.media, filter],
   )
 
   const byDay = useMemo(() => {

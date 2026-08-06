@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import { Button, Check, Chip, LockedValue, SectionLabel } from '@/components/ui'
 import { GettingStarted } from '@/components/GettingStarted'
 import { isDone } from '@/domain/tasks'
+import { StatusPicker } from '@/components/StatusPicker'
+import { TASK_STATUS } from '@/domain/status'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { useArchive } from '@/domain/useArchive'
 import { daysBetween, dueLabel, longStamp, seasonWeek, today as todayIso } from '@/lib/date'
 import { money, plural } from '@/lib/format'
 import { nextCompetition } from '@/domain/season'
@@ -21,6 +24,7 @@ import { ROLE_LABEL, type Task } from '@/domain/types'
 export function TodayScreen() {
   const season = useStore((s) => s.season)
   const allow = useCan()
+  const { current } = useArchive()
   const session = useStore((s) => s.session)
   const me = useStore(currentMember)
   const toggleTask = useStore((s) => s.toggleTask)
@@ -57,14 +61,15 @@ export function TodayScreen() {
 
   // "Assigned to you" means exactly that; a coach with nothing assigned sees the team's open work.
   const myTasks = useMemo(() => {
-    const mine = season.tasks.filter((t) => t.assigneeId === me?.id)
-    return (mine.length ? mine : season.tasks).slice(0, 8)
-  }, [season.tasks, me?.id])
+    const open = current.tasks.filter((t) => !isDone(t))
+    const mine = open.filter((t) => t.assigneeId === me?.id)
+    return (mine.length ? mine : open).slice(0, 8)
+  }, [current.tasks, me?.id])
 
   const overdue = myTasks.filter((t) => !isDone(t) && dueLabel(t.due).late).length
-  const blocked = season.tasks.filter((t) => !isDone(t) && t.blockedBy)
+  const blocked = current.tasks.filter((t) => !isDone(t) && t.blockedBy)
   const pendingApprovals = season.approvals.filter((a) => a.state === 'pending')
-  const notebookGaps = season.tasks.filter((t) => t.subteam === 'notebook' && !isDone(t)).length
+  const notebookGaps = current.tasks.filter((t) => t.subteam === 'notebook' && !isDone(t)).length
   const going = season.rsvps.filter((r) => r.eventId === nextComp?.id && r.status === 'going').length
   const budget = budgetTotals(season)
 
@@ -447,6 +452,8 @@ function Fact({
 
 function TaskRow({ task, onToggle }: { task: Task; onToggle: () => void }) {
   const members = useStore((s) => s.season.members)
+  const updateTask = useStore((s) => s.updateTask)
+  const allow = useCan()
   const due = dueLabel(task.due)
   const assignee = members.find((m) => m.id === task.assigneeId)
   return (
@@ -476,17 +483,29 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: () => void }) {
           {assignee ? ` · ${assignee.name}` : ''}
         </div>
       </div>
-      <span
-        className="mono"
-        style={{
-          font: '500 10.5px var(--font-mono)',
-          flex: 'none',
-          letterSpacing: '0.04em',
-          color: isDone(task) ? 'var(--ink-rail)' : due.late ? 'var(--alliance-red)' : 'var(--ink-3)',
-        }}
-      >
-        {isDone(task) ? 'done' : due.text}
-      </span>
+      {task.due && !isDone(task) && (
+        <span
+          className="mono"
+          style={{
+            font: '500 10.5px var(--font-mono)',
+            flex: 'none',
+            letterSpacing: '0.04em',
+            color: due.late ? 'var(--alliance-red)' : 'var(--ink-3)',
+          }}
+        >
+          {due.text}
+        </span>
+      )}
+      <StatusPicker
+        size="sm"
+        value={task.status}
+        options={TASK_STATUS}
+        editable={allow('tasks.create')}
+        label={`Status of ${task.name}`}
+        onChange={(status) =>
+          updateTask(task.id, { status, doneAt: status === 'done' ? new Date().toISOString() : undefined })
+        }
+      />
     </div>
   )
 }

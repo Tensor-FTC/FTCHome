@@ -53,8 +53,9 @@ export function TabBar() {
 const MANAGE = [
   { to: '/roster', label: 'Roster' },
   { to: '/budget', label: 'Budget & sponsors' },
-  { to: '/calendar/edit', label: 'Edit calendar', capability: 'calendar.edit' as const },
+  { to: '/calendar/edit', label: 'Plan', capability: 'calendar.edit' as const },
   { to: '/parts', label: 'Parts' },
+  { to: '/archive', label: 'Archive' },
 ]
 
 export function Rail() {

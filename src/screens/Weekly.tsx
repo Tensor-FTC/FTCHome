@@ -5,6 +5,7 @@ import { MediaThumb } from '@/components/MediaThumb'
 import { isDone } from '@/domain/tasks'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { useArchive } from '@/domain/useArchive'
 import { SUBTEAM_LABEL, type Subteam } from '@/domain/types'
 import { range } from '@/lib/date'
 import { download, weeklyMarkdown } from '@/lib/exporters'
@@ -26,13 +27,14 @@ export function WeeklyScreen() {
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
   const allow = useCan()
+  const { current } = useArchive()
   const me = useStore(currentMember)
   const upsertWeekly = useStore((s) => s.upsertWeekly)
   const publishWeekly = useStore((s) => s.publishWeekly)
   const addShoutout = useStore((s) => s.addShoutout)
   const removeShoutout = useStore((s) => s.removeShoutout)
 
-  const reports = useMemo(() => [...season.weekly].sort((a, b) => b.week - a.week), [season.weekly])
+  const reports = useMemo(() => [...current.weekly].sort((a, b) => b.week - a.week), [current.weekly])
   const report = reports.find((r) => r.id === weekId) ?? reports[0]
 
   const [editing, setEditing] = useState(false)

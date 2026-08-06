@@ -1,12 +1,14 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { Button, Chip, Field, IconButton, Select, Toggle } from '@/components/ui'
 import { RecurrenceEditor } from '@/components/RecurrenceEditor'
 import { TYPE_COLOR } from './Calendar'
 import { useStore } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { useArchive } from '@/domain/useArchive'
 import { describeRecurrence } from '@/domain/recurrence'
-import { TASK_STATUS_LABEL, TASK_STATUSES } from '@/domain/tasks'
+import { StatusPicker } from '@/components/StatusPicker'
+import { TASK_STATUS } from '@/domain/status'
 import {
   EVENT_TYPE_LABEL,
   SUBTEAM_LABEL,
@@ -313,13 +315,14 @@ function Scheduled() {
   const notify = useStore((s) => s.notify)
   const [show, setShow] = useState<'events' | 'tasks'>('events')
 
+  const { current, count } = useArchive()
   const events = useMemo(
-    () => [...season.events].sort((a, b) => a.date.localeCompare(b.date)),
-    [season.events],
+    () => [...current.events].sort((a, b) => a.date.localeCompare(b.date)),
+    [current.events],
   )
   const tasks = useMemo(
-    () => [...season.tasks].sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')),
-    [season.tasks],
+    () => [...current.tasks].sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999')),
+    [current.tasks],
   )
 
   return (
@@ -345,6 +348,16 @@ function Scheduled() {
           Tasks
         </Chip>
       </div>
+
+      {count > 0 && (
+        <p className="meta" style={{ marginBottom: 10 }}>
+          {count} older {count === 1 ? 'item is' : 'items are'} in the{' '}
+          <Link to="/archive" style={{ color: 'var(--signal)' }}>
+            archive
+          </Link>
+          .
+        </p>
+      )}
 
       {show === 'events' ? (
         events.length === 0 ? (
@@ -399,19 +412,15 @@ function Scheduled() {
                 {task.subteam ? SUBTEAM_LABEL[task.subteam] : 'No subteam'}
               </div>
             </div>
-            <select
-              className="field"
-              aria-label={`Status of ${task.name}`}
-              style={{ width: 118, flex: 'none', height: 32, font: '500 11.5px var(--font-sans)' }}
+            <StatusPicker
+              size="sm"
               value={task.status}
-              onChange={(e) => updateTask(task.id, { status: e.target.value as (typeof TASK_STATUSES)[number] })}
-            >
-              {TASK_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {TASK_STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
+              options={TASK_STATUS}
+              label={`Status of ${task.name}`}
+              onChange={(status) =>
+                updateTask(task.id, { status, doneAt: status === 'done' ? new Date().toISOString() : undefined })
+              }
+            />
             <IconButton
               label={`Delete ${task.name}`}
               small
