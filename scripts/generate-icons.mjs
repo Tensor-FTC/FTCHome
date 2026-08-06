@@ -26,9 +26,7 @@ import {
   markSvgBody,
   rasterShapes,
   solidPaths,
-  trailPaths,
   SEAM_WIDTH,
-  SCALED_TRAIL_WIDTH,
 } from './brand-geometry.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -67,20 +65,7 @@ function nearPolyline(points, px, py, width) {
   return false
 }
 
-/** Flattens a cubic to a polyline once, so the inner loop stays cheap. */
-function flattenCurve(t, steps = 22) {
-  return Array.from({ length: steps + 1 }, (_, i) => {
-    const s = i / steps
-    const u = 1 - s
-    return [
-      u * u * u * t.from[0] + 3 * u * u * s * t.c1[0] + 3 * u * s * s * t.c2[0] + s * s * s * t.to[0],
-      u * u * u * t.from[1] + 3 * u * u * s * t.c1[1] + 3 * u * s * s * t.c2[1] + s * s * s * t.to[1],
-    ]
-  })
-}
-
 const SHAPES = rasterShapes()
-const TRAIL_LINES = SHAPES.trails.map(flattenCurve)
 
 /**
  * Bounding boxes, computed once. Without them the inner loop walks every vertex
@@ -97,22 +82,17 @@ const within = (box, x, y) => x >= box[0] && x <= box[2] && y >= box[1] && y <= 
 
 const INK_HIT = SHAPES.ink.map((s) => ({ ...s, box: s.poly ? bbox(s.poly) : discBox(s.disc) }))
 const CUT_HIT = SHAPES.cuts.map((s) => ({ ...s, box: bbox(s.poly) }))
-const SEAM_HIT = SHAPES.seams.map((line) => ({ line, box: bbox(line, SHAPES.seamWidth) }))
+const SEAM_HIT = SHAPES.seams.map((s) => ({ ...s, box: bbox(s.line, s.width) }))
 const DOT_HIT = SHAPES.dots.map((d) => ({ d, box: discBox(d) }))
-const TRAIL_HIT = TRAIL_LINES.map((line) => ({ line, box: bbox(line, SHAPES.trailWidth) }))
 
 /**
  * Paint order, matching the SVG exactly: ink, then the tile colour cut back out
- * for the window, door and every seam, then the door handle and the trails on
- * top in ink again.
+ * for the window, door and every seam, then the door handle on top in ink again.
  */
 function inkAt(mx, my) {
-  for (const t of TRAIL_HIT) {
-    if (within(t.box, mx, my) && nearPolyline(t.line, mx, my, SHAPES.trailWidth)) return true
-  }
   for (const d of DOT_HIT) if (within(d.box, mx, my) && inDisc(d.d, mx, my)) return true
   for (const s of SEAM_HIT) {
-    if (within(s.box, mx, my) && nearPolyline(s.line, mx, my, SHAPES.seamWidth)) return false
+    if (within(s.box, mx, my) && nearPolyline(s.line, mx, my, s.width)) return false
   }
   for (const c of CUT_HIT) if (within(c.box, mx, my) && inPoly(c.poly, mx, my)) return false
   for (const s of INK_HIT) {
@@ -267,7 +247,6 @@ write(
     `export const BRAND_LIME = '${LIME}'`,
     `export const BRAND_TILE_RADIUS = ${TILE_RADIUS}`,
     `export const BRAND_SEAM_WIDTH = ${SEAM_WIDTH}`,
-    `export const BRAND_TRAIL_WIDTH = ${SCALED_TRAIL_WIDTH}`,
     '',
     '/** Filled in ink. Balls carry their holes, so these need fill-rule="evenodd". */',
     `export const BRAND_INK: string[] = ${JSON.stringify(inkPaths(), null, 2)}`,
@@ -276,13 +255,10 @@ write(
     `export const BRAND_CUTS: string[] = ${JSON.stringify(cutPaths(), null, 2)}`,
     '',
     '/** Stroked in the tile colour: the seams where one face meets another. */',
-    `export const BRAND_SEAMS: string[] = ${JSON.stringify(cutStrokes(), null, 2)}`,
+    `export const BRAND_SEAMS: { d: string; width: number }[] = ${JSON.stringify(cutStrokes(), null, 2)}`,
     '',
     '/** Back in ink, over the cuts: the door handle. */',
     `export const BRAND_DOTS: string[] = ${JSON.stringify(inkDots(), null, 2)}`,
-    '',
-    '/** Stroked in ink: the trails out of the chimney. */',
-    `export const BRAND_TRAILS: string[] = ${JSON.stringify(trailPaths(), null, 2)}`,
     '',
     '/** One flat silhouette, for anywhere the mark must survive as a single shape. */',
     `export const BRAND_SOLID: string[] = ${JSON.stringify(solidPaths(), null, 2)}`,

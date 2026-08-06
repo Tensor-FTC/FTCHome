@@ -51,7 +51,7 @@ const P = (u, v, z) => [(u - v) * KX, -(u + v) * KY - z]
 // ── the house ───────────────────────────────────────────────
 
 const W = 15 // front-left wall, across the gable
-const D = 6.5 // right wall, along the ridge
+const D = 8 // right wall, along the ridge
 const H = 12 // wall height
 const OVER = 2.6 // roof overhang past the walls
 const RISE = 11 // eave to ridge
@@ -65,14 +65,6 @@ const walls = [
   P(0, 0, H),
   P(0, W, H),
 ]
-/**
- * The vertical corner where the two walls meet. It stops at the eave rather
- * than at the wall top: above that the roof covers it, and a seam drawn there
- * lands on the roof and reads as a crack straight through it.
- */
-const wallSeamTop = -OVER * 2 * KY - H // y of the near eave corner, in local space
-const wallSeam = [P(0, 0, 0), [0, wallSeamTop]]
-
 // Roof. The gable end faces the viewer, so the peak and both slopes are visible,
 // and the plane over the right wall runs back from the ridge.
 const eaveNearRight = P(-OVER, -OVER, H)
@@ -83,6 +75,15 @@ const ridgeFront = P(-OVER, W / 2, H + RISE)
 const ridgeBack = P(D + OVER, W / 2, H + RISE)
 
 const roof = [eaveNearLeft, ridgeFront, ridgeBack, eaveFarRight, eaveNearRight]
+
+/**
+ * The vertical corner where the two walls meet, stopping at the eave.
+ *
+ * Taken from `eaveNearRight` rather than derived: it sits at the same x as the
+ * wall corner, so it *is* the end of this line. Computing the height instead
+ * got the sign wrong and ran the seam up through the roof.
+ */
+const wallSeam = [P(0, 0, 0), eaveNearRight]
 /** Where the gable end folds into the roof plane over the right wall. */
 const roofSeam = [eaveNearRight, ridgeFront]
 /** The eave: what separates the roof from the walls underneath it. */
@@ -129,9 +130,10 @@ const chimneySeams = [
   [P(CH_U0, CH_V0, CH_TOP), P(CH_U0, CH_V1, CH_TOP)],
 ]
 /**
- * Where the trails leave. Just clear of the chimney's mouth rather than at its
- * centre: starting inside the top face made every trail cut across it, which is
- * what read as random lines drawn through the roof.
+ * The point the flying objects are arranged around: just clear of the chimney's
+ * mouth. There is no drawn trail — a stroke thin enough not to dominate the
+ * mark is one that reads as a scratch at icon size, and the objects convey
+ * "out of the chimney" by where they sit.
  */
 const CHIMNEY_MOUTH = (() => {
   const [x, y] = P((CH_U0 + CH_U1) / 2, (CH_V0 + CH_V1) / 2, CH_TOP)
@@ -151,9 +153,16 @@ const panes = [
   pane(8.3, 2.9, PANE_W, PANE_H),
 ]
 
-// Door: cut out of the right wall, standing on the floor.
-const door = [P(3.1, 0, 0), P(6.3, 0, 0), P(6.3, 0, 6.6), P(3.1, 0, 6.6)]
-const doorHandle = { at: P(3.8, 0, 3.2), r: 0.42 }
+/**
+ * Door: cut out of the right wall, standing on the floor.
+ *
+ * Kept well clear of both wall edges. Ending it a fraction from the corner left
+ * a hairline of wall that read as a detached slit rather than as a door frame.
+ */
+const DOOR_U0 = 3.0
+const DOOR_U1 = 5.8
+const door = [P(DOOR_U0, 0, 0), P(DOOR_U1, 0, 0), P(DOOR_U1, 0, 6.6), P(DOOR_U0, 0, 6.6)]
+const doorHandle = { at: P(DOOR_U0 + 0.7, 0, 3.2), r: 0.42 }
 
 // ── what comes out of it ────────────────────────────────────
 
@@ -164,20 +173,27 @@ const doorHandle = { at: P(3.8, 0, 3.2), r: 0.42 }
 function ball(dx, dy, r, rotation) {
   const cx = CHIMNEY_MOUTH[0] + dx
   const cy = CHIMNEY_MOUTH[1] + dy
-  const holeR = r * 0.23
+  const holeR = r * 0.175
   const ring = Array.from({ length: 6 }, (_, i) => {
     const t = rotation + (i / 6) * Math.PI * 2
-    return { at: [cx + Math.cos(t) * r * 0.57, cy + Math.sin(t) * r * 0.57], r: holeR }
+    return { at: [cx + Math.cos(t) * r * 0.54, cy + Math.sin(t) * r * 0.54], r: holeR }
   })
   return { at: [cx, cy], r, holes: [{ at: [cx, cy], r: holeR }, ...ring] }
 }
 
-/** An isometric cube, drawn on the same axes as the house so it belongs to it. */
+/**
+ * A cube, on true isometric axes rather than the house's.
+ *
+ * The house is deliberately shallow so its ridge does not climb away from the
+ * chimney; borrowing that for a small free-floating cube squashed the top face
+ * into a sliver and made every cube look like a bent card.
+ */
+const CUBE_KY = 0.5
 function cube(dx, dy, w) {
   const cx = CHIMNEY_MOUTH[0] + dx
   const cy = CHIMNEY_MOUTH[1] + dy
   const a = w * KX
-  const b = w * KY
+  const b = w * CUBE_KY
   const T = [cx, cy - w]
   const R = [cx + a, cy - w + b]
   const BR = [cx + a, cy + b]
@@ -199,26 +215,6 @@ function cube(dx, dy, w) {
 const balls = [ball(6.0, -14.4, 4.2, 0.2), ball(-9.6, -6.2, 3.2, 0.9), ball(9.8, -2.2, 2.6, 1.7)]
 const cubes = [cube(-2.8, -12.6, 2.8), cube(12.0, -8.4, 3.0), cube(6.8, -6.6, 1.7)]
 
-/**
- * Three trails leaving the chimney, each ending just short of something.
- *
- * They start at separate points across the mouth rather than all at its centre.
- * A single shared origin made three lines fan into what read as an arrowhead
- * pointing down at the roof, which is not what a chimney does. Different
- * lengths and real curvature also matter: equal straight spokes look like a
- * starburst, and a starburst is exactly the "random lines" problem.
- */
-const trails = [
-  { from: [-0.9, 0.1], c1: [-2.6, -1.6], c2: [-4.6, -3.2], to: [-6.4, -4.6] },
-  { from: [0.1, -0.4], c1: [-0.5, -3.4], c2: [-1.2, -6.6], to: [-1.6, -9.4] },
-  { from: [1.0, 0.2], c1: [2.6, -1.0], c2: [3.9, -2.6], to: [5.0, -4.4] },
-].map((t) => ({
-  from: [CHIMNEY_MOUTH[0] + t.from[0], CHIMNEY_MOUTH[1] + t.from[1]],
-  c1: [CHIMNEY_MOUTH[0] + t.c1[0], CHIMNEY_MOUTH[1] + t.c1[1]],
-  c2: [CHIMNEY_MOUTH[0] + t.c2[0], CHIMNEY_MOUTH[1] + t.c2[1]],
-  to: [CHIMNEY_MOUTH[0] + t.to[0], CHIMNEY_MOUTH[1] + t.to[1]],
-}))
-export const TRAIL_WIDTH = 0.95
 
 // ── fit everything into the box ─────────────────────────────
 
@@ -237,7 +233,6 @@ function allPoints() {
   for (const b of balls) {
     pts.push([b.at[0] - b.r, b.at[1] - b.r], [b.at[0] + b.r, b.at[1] + b.r])
   }
-  for (const t of trails) pts.push(t.from, t.c1, t.c2, t.to)
   return pts
 }
 
@@ -267,11 +262,6 @@ function circlePath({ at, r }) {
 
 function linePath(points) {
   return points.map((p, i) => `${i ? 'L' : 'M'}${T(p)[0]} ${T(p)[1]}`).join(' ')
-}
-
-function curvePath(t) {
-  const [f, c1, c2, to] = [T(t.from), T(t.c1), T(t.c2), T(t.to)]
-  return `M${f[0]} ${f[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${to[0]} ${to[1]}`
 }
 
 /**
@@ -317,13 +307,16 @@ export function cutPaths() {
   return [...panes.map(polyPath), polyPath(door)]
 }
 
+/** Seam width scales with the shape: a cube fold is not a roof eave. */
+export const CUBE_SEAM = 0.5
+
 export function cutStrokes() {
   return [
-    linePath(eaveSeam),
-    linePath(roofSeam),
-    linePath(wallSeam),
-    ...chimneySeams.map(linePath),
-    ...cubes.flatMap((c) => c.seams.map(linePath)),
+    { d: linePath(eaveSeam), width: SEAM },
+    { d: linePath(roofSeam), width: SEAM },
+    { d: linePath(wallSeam), width: SEAM },
+    ...chimneySeams.map((l) => ({ d: linePath(l), width: SEAM })),
+    ...cubes.flatMap((c) => c.seams.map((l) => ({ d: linePath(l), width: CUBE_SEAM }))),
   ]
 }
 
@@ -331,12 +324,7 @@ export function inkDots() {
   return [circlePath(doorHandle)]
 }
 
-export function trailPaths() {
-  return trails.map(curvePath)
-}
-
 export const SEAM_WIDTH = SEAM
-export const SCALED_TRAIL_WIDTH = r2(TRAIL_WIDTH)
 
 /**
  * The mark as SVG. `tile` is the colour the seams are cut in — pass the tile
@@ -347,12 +335,6 @@ export function markSvgBody(ink, tile) {
   if (!tile) {
     return solidPaths()
       .map((d) => `<path d="${d}" fill="${ink}"/>`)
-      .concat(
-        trailPaths().map(
-          (d) =>
-            `<path d="${d}" fill="none" stroke="${ink}" stroke-width="${SCALED_TRAIL_WIDTH}" stroke-linecap="round"/>`,
-        ),
-      )
       .join('')
   }
 
@@ -360,14 +342,10 @@ export function markSvgBody(ink, tile) {
     ...inkPaths().map((d) => `<path d="${d}" fill="${ink}" fill-rule="evenodd"/>`),
     ...cutPaths().map((d) => `<path d="${d}" fill="${tile}"/>`),
     ...cutStrokes().map(
-      (d) =>
-        `<path d="${d}" fill="none" stroke="${tile}" stroke-width="${SEAM}" stroke-linecap="round" stroke-linejoin="round"/>`,
+      (s) =>
+        `<path d="${s.d}" fill="none" stroke="${tile}" stroke-width="${s.width}" stroke-linecap="round" stroke-linejoin="round"/>`,
     ),
     ...inkDots().map((d) => `<path d="${d}" fill="${ink}"/>`),
-    ...trailPaths().map(
-      (d) =>
-        `<path d="${d}" fill="none" stroke="${ink}" stroke-width="${SCALED_TRAIL_WIDTH}" stroke-linecap="round"/>`,
-    ),
   ].join('')
 }
 
@@ -388,15 +366,12 @@ export function rasterShapes() {
     ],
     cuts: [...panes.map((p) => ({ poly: poly(p) })), { poly: poly(door) }],
     seams: [
-      poly(eaveSeam),
-      poly(roofSeam),
-      poly(wallSeam),
-      ...chimneySeams.map(poly),
-      ...cubes.flatMap((c) => c.seams.map(poly)),
+      { line: poly(eaveSeam), width: SEAM },
+      { line: poly(roofSeam), width: SEAM },
+      { line: poly(wallSeam), width: SEAM },
+      ...chimneySeams.map((l) => ({ line: poly(l), width: SEAM })),
+      ...cubes.flatMap((c) => c.seams.map((l) => ({ line: poly(l), width: CUBE_SEAM }))),
     ],
     dots: [disc(doorHandle)],
-    trails: trails.map((t) => ({ from: T(t.from), c1: T(t.c1), c2: T(t.c2), to: T(t.to) })),
-    seamWidth: SEAM,
-    trailWidth: TRAIL_WIDTH,
   }
 }

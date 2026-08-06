@@ -5,11 +5,8 @@ import {
   BRAND_INK,
   BRAND_LIME,
   BRAND_SEAMS,
-  BRAND_SEAM_WIDTH,
   BRAND_SOLID,
   BRAND_TILE_RADIUS,
-  BRAND_TRAILS,
-  BRAND_TRAIL_WIDTH,
 } from './brandArt'
 
 /**
@@ -34,22 +31,19 @@ function Glyph({ ink, tile }: { ink: string; tile: string }) {
       {BRAND_CUTS.map((d) => (
         <path key={d} d={d} fill={tile} />
       ))}
-      {BRAND_SEAMS.map((d) => (
+      {BRAND_SEAMS.map((seam) => (
         <path
-          key={d}
-          d={d}
+          key={seam.d}
+          d={seam.d}
           fill="none"
           stroke={tile}
-          strokeWidth={BRAND_SEAM_WIDTH}
+          strokeWidth={seam.width}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       ))}
       {BRAND_DOTS.map((d) => (
         <path key={d} d={d} fill={ink} />
-      ))}
-      {BRAND_TRAILS.map((d) => (
-        <path key={d} d={d} fill="none" stroke={ink} strokeWidth={BRAND_TRAIL_WIDTH} strokeLinecap="round" />
       ))}
     </>
   )
@@ -65,9 +59,6 @@ function Solid({ ink }: { ink: string }) {
     <>
       {BRAND_SOLID.map((d) => (
         <path key={d} d={d} fill={ink} />
-      ))}
-      {BRAND_TRAILS.map((d) => (
-        <path key={d} d={d} fill="none" stroke={ink} strokeWidth={BRAND_TRAIL_WIDTH} strokeLinecap="round" />
       ))}
     </>
   )
