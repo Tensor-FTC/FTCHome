@@ -1,8 +1,12 @@
 import {
   BRAND_BOX,
-  BRAND_FILLED,
+  BRAND_CUTS,
+  BRAND_DOTS,
+  BRAND_INK,
   BRAND_LIME,
-  BRAND_OUTLINED,
+  BRAND_SEAMS,
+  BRAND_SEAM_WIDTH,
+  BRAND_SOLID,
   BRAND_TILE_RADIUS,
   BRAND_TRAILS,
   BRAND_TRAIL_WIDTH,
@@ -16,22 +20,33 @@ import {
  * favicon and the PNG app icons by `npm run icons`. That is the whole point:
  * the mark in the top bar, the one in the browser tab and the one on a phone
  * home screen are the same numbers, so they cannot drift apart.
+ *
+ * The faces are separated by lines drawn *in the tile colour on top of a solid
+ * silhouette*, rather than by shrinking each face off its neighbours. A gap you
+ * draw is a gap you control; a gap you leave is a crack.
  */
-function Glyph({ ink }: { ink: string }) {
+function Glyph({ ink, tile }: { ink: string; tile: string }) {
   return (
     <>
-      {BRAND_OUTLINED.map((shape) => (
+      {BRAND_INK.map((d) => (
+        <path key={d} d={d} fill={ink} fillRule="evenodd" />
+      ))}
+      {BRAND_CUTS.map((d) => (
+        <path key={d} d={d} fill={tile} />
+      ))}
+      {BRAND_SEAMS.map((d) => (
         <path
-          key={shape.d}
-          d={shape.d}
+          key={d}
+          d={d}
           fill="none"
-          stroke={ink}
-          strokeWidth={shape.width}
+          stroke={tile}
+          strokeWidth={BRAND_SEAM_WIDTH}
+          strokeLinecap="round"
           strokeLinejoin="round"
         />
       ))}
-      {BRAND_FILLED.map((d) => (
-        <path key={d} d={d} fill={ink} fillRule="evenodd" />
+      {BRAND_DOTS.map((d) => (
+        <path key={d} d={d} fill={ink} />
       ))}
       {BRAND_TRAILS.map((d) => (
         <path key={d} d={d} fill="none" stroke={ink} strokeWidth={BRAND_TRAIL_WIDTH} strokeLinecap="round" />
@@ -41,8 +56,26 @@ function Glyph({ ink }: { ink: string }) {
 }
 
 /**
- * The mark on its lime tile. `plate={false}` gives the bare glyph for places
- * that supply their own background.
+ * One flat silhouette. Used wherever the mark has to survive as a single shape:
+ * on a plate whose colour we do not know, the seams would be cut in the wrong
+ * colour and the mark would fall apart.
+ */
+function Solid({ ink }: { ink: string }) {
+  return (
+    <>
+      {BRAND_SOLID.map((d) => (
+        <path key={d} d={d} fill={ink} />
+      ))}
+      {BRAND_TRAILS.map((d) => (
+        <path key={d} d={d} fill="none" stroke={ink} strokeWidth={BRAND_TRAIL_WIDTH} strokeLinecap="round" />
+      ))}
+    </>
+  )
+}
+
+/**
+ * The mark on its lime tile. `plate={false}` gives the bare silhouette in the
+ * tile colour, for places that supply their own background.
  */
 export function Brand({
   size = 34,
@@ -63,10 +96,14 @@ export function Brand({
       aria-hidden="true"
       style={{ display: 'block', flex: 'none' }}
     >
-      {plate && (
-        <rect width={BRAND_BOX} height={BRAND_BOX} rx={BRAND_BOX * BRAND_TILE_RADIUS} fill={tile} />
+      {plate ? (
+        <>
+          <rect width={BRAND_BOX} height={BRAND_BOX} rx={BRAND_BOX * BRAND_TILE_RADIUS} fill={tile} />
+          <Glyph ink={ink} tile={tile} />
+        </>
+      ) : (
+        <Solid ink={tile} />
       )}
-      <Glyph ink={plate ? ink : tile} />
     </svg>
   )
 }

@@ -14,7 +14,22 @@ import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { BOX, INK, LIME, SHAPES, TILE_RADIUS, TRAILS, TRAIL_WIDTH, markSvgBody, pathData } from './brand-geometry.mjs'
+import {
+  BOX,
+  INK,
+  LIME,
+  TILE_RADIUS,
+  cutPaths,
+  cutStrokes,
+  inkDots,
+  inkPaths,
+  markSvgBody,
+  rasterShapes,
+  solidPaths,
+  trailPaths,
+  SEAM_WIDTH,
+  SCALED_TRAIL_WIDTH,
+} from './brand-geometry.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -34,7 +49,9 @@ function inPoly(poly, px, py) {
   return inside
 }
 
-/** Distance from a point to a segment — how the stroked shapes get thickness. */
+const inDisc = (c, px, py) => (px - c.at[0]) ** 2 + (py - c.at[1]) ** 2 <= c.r * c.r
+
+/** Distance from a point to a segment — how the seams and trails get width. */
 function distToSegment(px, py, [ax, ay], [bx, by]) {
   const dx = bx - ax
   const dy = by - ay
@@ -43,60 +60,72 @@ function distToSegment(px, py, [ax, ay], [bx, by]) {
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 }
 
-function nearOutline(poly, px, py, width, closed = true) {
-  const n = closed ? poly.length : poly.length - 1
-  for (let i = 0; i < n; i++) {
-    if (distToSegment(px, py, poly[i], poly[(i + 1) % poly.length]) <= width / 2) return true
+function nearPolyline(points, px, py, width) {
+  for (let i = 0; i + 1 < points.length; i++) {
+    if (distToSegment(px, py, points[i], points[i + 1]) <= width / 2) return true
   }
   return false
 }
 
-/** Flattens the cubic trails to polylines once, so the inner loop stays cheap. */
-function flattenTrail(d, steps = 24) {
-  const nums = d.match(/-?\d+(?:\.\d+)?/g).map(Number)
-  const [x0, y0, x1, y1, x2, y2, x3, y3] = nums
+/** Flattens a cubic to a polyline once, so the inner loop stays cheap. */
+function flattenCurve(t, steps = 22) {
   return Array.from({ length: steps + 1 }, (_, i) => {
-    const t = i / steps
-    const u = 1 - t
+    const s = i / steps
+    const u = 1 - s
     return [
-      u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3,
-      u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3,
+      u * u * u * t.from[0] + 3 * u * u * s * t.c1[0] + 3 * u * s * s * t.c2[0] + s * s * s * t.to[0],
+      u * u * u * t.from[1] + 3 * u * u * s * t.c1[1] + 3 * u * s * s * t.c2[1] + s * s * s * t.to[1],
     ]
   })
 }
 
-const TRAIL_LINES = TRAILS.map((d) => flattenTrail(d))
+const SHAPES = rasterShapes()
+const TRAIL_LINES = SHAPES.trails.map(flattenCurve)
 
 /**
  * Bounding boxes, computed once. Without them the inner loop walks every vertex
  * of every shape for all four million supersamples of a 512px icon, which turns
  * a build step into a coffee break.
  */
-function bbox(points, pad) {
+function bbox(points, pad = 0) {
   const xs = points.map((p) => p[0])
   const ys = points.map((p) => p[1])
   return [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad]
 }
-
-const HIT = [
-  ...SHAPES.map((shape) => ({ ...shape, box: bbox(shape.outer, shape.stroke ? shape.stroke : 0) })),
-]
-const TRAIL_HIT = TRAIL_LINES.map((line) => ({ line, box: bbox(line, TRAIL_WIDTH) }))
-
+const discBox = (c, pad = 0) => [c.at[0] - c.r - pad, c.at[1] - c.r - pad, c.at[0] + c.r + pad, c.at[1] + c.r + pad]
 const within = (box, x, y) => x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]
 
-function isInk(mx, my) {
-  for (const shape of HIT) {
-    if (!within(shape.box, mx, my)) continue
-    if (shape.stroke) {
-      if (nearOutline(shape.outer, mx, my, shape.stroke)) return true
+const INK_HIT = SHAPES.ink.map((s) => ({ ...s, box: s.poly ? bbox(s.poly) : discBox(s.disc) }))
+const CUT_HIT = SHAPES.cuts.map((s) => ({ ...s, box: bbox(s.poly) }))
+const SEAM_HIT = SHAPES.seams.map((line) => ({ line, box: bbox(line, SHAPES.seamWidth) }))
+const DOT_HIT = SHAPES.dots.map((d) => ({ d, box: discBox(d) }))
+const TRAIL_HIT = TRAIL_LINES.map((line) => ({ line, box: bbox(line, SHAPES.trailWidth) }))
+
+/**
+ * Paint order, matching the SVG exactly: ink, then the tile colour cut back out
+ * for the window, door and every seam, then the door handle and the trails on
+ * top in ink again.
+ */
+function inkAt(mx, my) {
+  for (const t of TRAIL_HIT) {
+    if (within(t.box, mx, my) && nearPolyline(t.line, mx, my, SHAPES.trailWidth)) return true
+  }
+  for (const d of DOT_HIT) if (within(d.box, mx, my) && inDisc(d.d, mx, my)) return true
+  for (const s of SEAM_HIT) {
+    if (within(s.box, mx, my) && nearPolyline(s.line, mx, my, SHAPES.seamWidth)) return false
+  }
+  for (const c of CUT_HIT) if (within(c.box, mx, my) && inPoly(c.poly, mx, my)) return false
+  for (const s of INK_HIT) {
+    if (!within(s.box, mx, my)) continue
+    if (s.poly) {
+      if (inPoly(s.poly, mx, my)) return true
       continue
     }
-    if (!inPoly(shape.outer, mx, my)) continue
-    if (shape.holes.some((h) => inPoly(h, mx, my))) continue
+    if (!inDisc(s.disc, mx, my)) continue
+    if (s.holes.some((h) => inDisc(h, mx, my))) return false
     return true
   }
-  return TRAIL_HIT.some((t) => within(t.box, mx, my) && nearOutline(t.line, mx, my, TRAIL_WIDTH, false))
+  return false
 }
 
 function inRoundedSquare(px, py, size, r) {
@@ -132,7 +161,7 @@ function render(size, maskable) {
           const fy = y + (sy + 0.5) / SS
           let c = null
           if (inRoundedSquare(fx / scale, fy / scale, BOX, BOX * TILE_RADIUS)) c = LIME_RGB
-          if (c && isInk((fx - off) / markScale, (fy - off) / markScale)) c = INK_RGB
+          if (c && inkAt((fx - off) / markScale, (fy - off) / markScale)) c = INK_RGB
           if (c) {
             r += c[0]
             g += c[1]
@@ -204,13 +233,11 @@ function encodePng(size, rgba) {
 
 // ── outputs ─────────────────────────────────────────────────
 
-const GENERATED = '// Generated by scripts/generate-icons.mjs — do not edit by hand.'
-
 function tileSvg(size) {
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${size}" height="${size}">`,
     `<rect width="${BOX}" height="${BOX}" rx="${BOX * TILE_RADIUS}" fill="${LIME}"/>`,
-    markSvgBody(INK),
+    markSvgBody(INK, LIME),
     '</svg>',
   ].join('')
 }
@@ -219,8 +246,7 @@ mkdirSync(resolve(ROOT, 'public/brand'), { recursive: true })
 
 const wrote = []
 function write(rel, content) {
-  const file = resolve(ROOT, rel)
-  writeFileSync(file, content)
+  writeFileSync(resolve(ROOT, rel), content)
   wrote.push(rel)
 }
 
@@ -231,26 +257,35 @@ write(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="512" height="512">${markSvgBody('currentColor')}</svg>`,
 )
 
-const { outlined, filled } = pathData()
 write(
   'src/components/brandArt.ts',
   [
-    GENERATED,
+    '// Generated by scripts/generate-icons.mjs — do not edit by hand.',
     '// Geometry lives in scripts/brand-geometry.mjs; run `npm run icons` after changing it.',
     '',
     `export const BRAND_BOX = ${BOX}`,
     `export const BRAND_LIME = '${LIME}'`,
     `export const BRAND_TILE_RADIUS = ${TILE_RADIUS}`,
+    `export const BRAND_SEAM_WIDTH = ${SEAM_WIDTH}`,
+    `export const BRAND_TRAIL_WIDTH = ${SCALED_TRAIL_WIDTH}`,
     '',
-    '/** Shapes drawn as outlines, so the tile colour shows through them. */',
-    `export const BRAND_OUTLINED: { d: string; width: number }[] = ${JSON.stringify(outlined, null, 2)}`,
+    '/** Filled in ink. Balls carry their holes, so these need fill-rule="evenodd". */',
+    `export const BRAND_INK: string[] = ${JSON.stringify(inkPaths(), null, 2)}`,
     '',
-    '/** Solid shapes. Holes are cut with fill-rule="evenodd". */',
-    `export const BRAND_FILLED: string[] = ${JSON.stringify(filled, null, 2)}`,
+    '/** Filled in the tile colour, on top: the window panes and the door. */',
+    `export const BRAND_CUTS: string[] = ${JSON.stringify(cutPaths(), null, 2)}`,
     '',
-    '/** The trails out of the chimney. */',
-    `export const BRAND_TRAILS: string[] = ${JSON.stringify(TRAILS, null, 2)}`,
-    `export const BRAND_TRAIL_WIDTH = ${TRAIL_WIDTH}`,
+    '/** Stroked in the tile colour: the seams where one face meets another. */',
+    `export const BRAND_SEAMS: string[] = ${JSON.stringify(cutStrokes(), null, 2)}`,
+    '',
+    '/** Back in ink, over the cuts: the door handle. */',
+    `export const BRAND_DOTS: string[] = ${JSON.stringify(inkDots(), null, 2)}`,
+    '',
+    '/** Stroked in ink: the trails out of the chimney. */',
+    `export const BRAND_TRAILS: string[] = ${JSON.stringify(trailPaths(), null, 2)}`,
+    '',
+    '/** One flat silhouette, for anywhere the mark must survive as a single shape. */',
+    `export const BRAND_SOLID: string[] = ${JSON.stringify(solidPaths(), null, 2)}`,
     '',
   ].join('\n'),
 )
