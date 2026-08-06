@@ -67,6 +67,8 @@ Nineteen screens, all backed by real state rather than fixtures.
 | 11 | States | The live outbox — what is queued, how big, when it goes |
 | 01–03 | Guest onboarding · Parts · Team identity | No-account hub, your own bill of materials with CSV import/export, FTCScout lookup |
 | — | Help | How it works: the five tabs, where numbers come from, what your role can do |
+| 13 | Chat | Team, subteam and group channels, unread per device, offline-queued |
+| A6–A7 | Cloud sign-in · Waiting for a coach | Email, magic link, Google, GitHub; a join request a coach accepts |
 | — | Settings | Five tabs: You, Team (who can see what), Data, Sync, App |
 
 ### Beyond the prototype
@@ -99,6 +101,15 @@ Nineteen screens, all backed by real state rather than fixtures.
 - **CAD viewer** — STL (binary and ASCII) and OBJ render in a WebGL viewer written directly against
   the GL API, lazy-loaded into its own 6 kB chunk. `.f3d`/`.f3z` and STEP say plainly why they
   cannot be drawn and what to export instead, rather than showing an empty canvas.
+- **Real accounts, and a coach in the loop** — email and password, an emailed link, Google or
+  GitHub, all through Supabase Auth. Signing in proves who you are; a coach decides who is on the
+  roster, so a public sign-up page is not also a way onto every team. The team-code path stays
+  first-class because OAuth needs a network and a competition venue often does not have one.
+- **Per-person grants** — a coach can hand one capability to one member by name, so a trusted
+  captain runs the budget and a treasurer parent approves purchases without either pretending to be
+  a coach. Handing out access and changing team settings are never grantable.
+- **Chat** — a team channel, subteam channels derived from the roster, and groups. Same outbox as
+  everything else, so a message typed with no signal sends itself later.
 - **Staffing that fits real teams** — several coaches with no head, mentors carrying it with no
   coach, or a coach lost in January. The roster names a single point of failure and refuses to let
   the last adult be removed or demoted.

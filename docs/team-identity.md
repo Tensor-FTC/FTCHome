@@ -3,8 +3,36 @@
 **The question:** what happens if a team sets up FTC Home under someone else's team number — by
 typo, or deliberately — and how would we fix it?
 
-This is a design note, not a description of shipped behaviour. It records the options and the
-recommendation so the decision is not re-litigated from scratch later.
+Part design note, part description of what is built. The options are recorded so the decision is
+not re-litigated from scratch later; [what is actually implemented](#what-is-actually-implemented)
+says which of them shipped.
+
+---
+
+## The scenario, concretely
+
+> Somebody who dislikes a team signs up, creates a coach account naming that team's number, and
+> then never uses it. What happens to the real team?
+
+**Nothing.** They set up their own workspace and carry on. The impostor is left holding an empty
+room nobody visits.
+
+That is not luck; it is the one design decision that makes this whole class of problem
+uninteresting. A team number is a **label a workspace displays**, not a key one workspace holds and
+another cannot. `teams.workspace_id` is the identity, two workspaces may both say 11138, and
+neither blocks the other. `claim_team` refuses only on a workspace that already has active members
+— which is the impostor's own, never the real team's.
+
+So the attack costs the attacker a sign-up and yields an empty database nobody sees. No lockout, no
+exposure, nothing for anybody to resolve, and no support queue.
+
+What it does *not* prevent is **confusion**: two workspaces exist, and a new student could be handed
+the wrong link. The mitigations there are ordinary rather than clever — a coach hands out the link,
+and a coach accepts every person who asks to join. Somebody who lands in the impostor's workspace
+sees nothing and is accepted by nobody, because the impostor is not there to accept them either.
+
+`last_active_at` is written on every change, so a dormant workspace is visible if this is ever
+hosted and somebody wants to sweep them up. It is not load-bearing.
 
 ---
 
@@ -108,8 +136,20 @@ all — it is about the handover that happens every June.
 
 ### G. Verify against FIRST's own systems
 
-The correct answer, and unavailable: there is no public API that maps a team number to a verified
-adult contact. The FIRST API covers event data, not identity. Not pursuable.
+The correct answer, and unavailable.
+
+FIRST publishes no sign-in service and no identity API. The FTC Events API covers event data —
+schedules, scores, rankings — and authenticates the *caller* with a key requested by email; it has
+no concept of an end user, and there is nothing for a person to log in to. There is no OAuth, no
+OpenID Connect, no endpoint mapping a team number to a verified adult contact, and no supported way
+to ask "is this person on this team's registration".
+
+So "sign in with FIRST" is not a matter of effort. It cannot be built by anyone outside FIRST. If
+that ever changes it immediately becomes the right answer and most of this page becomes
+unnecessary.
+
+The nearest honest substitute is the one already shipped: a coach, who knows the team, accepting
+people by name.
 
 ---
 
@@ -128,6 +168,20 @@ If FTC Home is ever hosted, do these in order:
 Explicitly **not** recommended: requiring verification before a team can start. The app's whole
 premise is that a coach can be useful with it inside two minutes, offline, at a kickoff event. A
 verification wall at the front door costs far more than the problem it prevents.
+
+## What is actually implemented
+
+Of the above, three are in the app today:
+
+- **A — non-exclusive team numbers.** `teams.workspace_id` is the identity; the number is a label.
+  This is what makes the squatting scenario a non-event.
+- **C — first-come, plus a coach in the loop.** Anybody can sign in; only a coach puts somebody on
+  a roster. A wrong workspace is therefore a room you cannot get into rather than a leak.
+- **E's precondition — `last_active_at`,** recorded on every write, so dormant workspaces are
+  visible if expiry is ever wanted.
+
+F (transfer tokens) and B (website verification) are not built. Neither is needed while the app is
+self-hosted, and both are cheap to add if it stops being.
 
 ## The one thing worth doing now
 

@@ -3,13 +3,14 @@
 One walkthrough, start to finish: get it on the web, get it onto phones and laptops as an app, and
 optionally connect a database so the whole team shares one season.
 
-The three parts are independent and each one works without the next:
+The parts are independent, and each one works without the next:
 
 | Part | What you get | Time | Cost |
 |---|---|---|---|
-| **1 · Website** | A URL anyone on the team can open | ~10 min | Free |
+| **1 · Website** | A URL anyone on the team can open | ~10 min | Free, or ~$12/yr with your own domain |
 | **2 · App** | Home-screen and desktop install, works with no signal | ~1 min per device | Free |
 | **3 · Database** | Everyone sees the same season, on every device | ~15 min | Free tier |
+| **4 · Accounts** | Email, Google and GitHub sign-in; coaches accept people | ~10 min | Free |
 
 You can stop after part 1 and have a working app — it just lives on one device per person.
 
@@ -48,7 +49,10 @@ anywhere you host it:
 1. **https**, or browsers will not offer to install it.
 2. **Unknown paths must fall back to `index.html`**, or a link straight to `/live` returns a 404.
 
-### Option A — GitHub Pages (recommended, already wired up)
+> **Want a real domain like `ftchome.app` rather than `you.github.io/FTCHome`?**
+> Skip to [Option C](#option-c--a-real-domain). It is about ten minutes and the price of a domain.
+
+### Option A — GitHub Pages (free, already wired up)
 
 A workflow is included at `.github/workflows/deploy.yml`. It typechecks, runs the tests, builds
 with the right base path, and deploys.
@@ -77,7 +81,38 @@ Add a rewrite so deep links work. On Netlify, a `_redirects` file containing:
 
 Vercel and Cloudflare Pages do this automatically for single-page apps.
 
-### Option C — your school's own web server
+### Option C — a real domain
+
+This is the one to pick if the team is going to use it properly. Two parts: buy
+a name, then point a host at it.
+
+**1 · Buy the domain.** [Cloudflare Registrar](https://dash.cloudflare.com) sells at
+cost with no upsells (~$10–12/yr for `.com`, and `.app` and `.dev` are HTTPS-only
+by default, which suits this). Namecheap and Porkbun are fine too. Anything short
+that a student can type on a phone at a competition.
+
+**2 · Host it.** All three of these are free for a site this size, connect to the
+GitHub repo, redeploy on every push, and issue the HTTPS certificate for you:
+
+| Host | Custom domain setup |
+|---|---|
+| **Cloudflare Pages** | Workers & Pages → Create → connect the repo. Build `npm run build`, output `dist`. Custom domains → add yours. If the domain is also at Cloudflare, DNS is filled in automatically. |
+| **Vercel** | Import the repo, accept the detected Vite settings, then Settings → Domains → add yours and copy the DNS records it shows. |
+| **Netlify** | Add new site → import the repo. Build `npm run build`, publish `dist`. Domain management → add a custom domain. |
+
+Whichever you pick, leave the base path alone — a site at the root of a domain
+needs no `BASE_PATH`, which is one fewer thing to get wrong than Pages.
+
+Point the DNS records the host gives you at your registrar, wait for the
+certificate (usually under a minute, occasionally an hour), and that is the whole
+job. The GitHub Actions workflow in this repo is only needed for Pages; these
+hosts build it themselves.
+
+**Then update the OAuth redirect.** If you set up part 4, add the new URL to
+Supabase → Authentication → URL Configuration, or Google sign-in comes back to
+the old address.
+
+### Option D — your school's own web server
 
 ```bash
 npm run build
@@ -238,6 +273,11 @@ Check that you pasted the **anon** key rather than the service_role key, that th
 trailing slash, and that `0001_init.sql` actually ran (**Table Editor** should show a `records`
 table). The error message says which of the three it got past.
 
+**Google sign-in comes back to a 404, or says the redirect is not allowed.**
+The URL has to be listed in Supabase → Authentication → URL Configuration →
+Redirect URLs, exactly, including any subpath. Add both the deployed URL and
+`http://localhost:5173` if you develop locally.
+
 **Changes are not reaching the other devices.**
 Open **Settings → Sync → See the queue**. If items are stuck there, the device has no signal or the
 secret is wrong. If the queue is empty and the other device still looks stale, that device has not
@@ -251,3 +291,85 @@ schedule**, and if it is still wrong the record needs fixing at the source in FI
 Browser data *is* the storage. If sync was set up, the season is still in your Supabase project and
 comes back when you reconnect. If it was not, restore from a backup file. This is the reason to do
 one or the other.
+
+
+---
+
+## Part 4 · Accounts
+
+Optional, and only worth doing once part 3 is done — accounts sign in against
+the same Supabase project.
+
+Without this, people sign in with the shared team code plus a personal password
+stored on their own device. That works completely offline, which is why it is
+still the default at competitions. With it, everyone has an account that follows
+them between devices, and a coach controls who is on the roster.
+
+### 4.1 Run the second migration
+
+**SQL Editor → New query**, paste
+[`supabase/migrations/0002_accounts.sql`](../supabase/migrations/0002_accounts.sql),
+Run. That adds membership, the rules for who may accept whom, and a
+`claim_team` function so a brand-new team's first coach is not waiting on an
+approval only they could give.
+
+### 4.2 Turn on the sign-in methods
+
+**Authentication → Providers.**
+
+- **Email** is on by default. Leave "Confirm email" on — it is what stops
+  somebody signing up as an address they do not own.
+- **Google**: create an OAuth client at
+  [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services
+  → Credentials → OAuth client ID → Web application. Paste the callback URL
+  Supabase shows you into "Authorised redirect URIs", then paste the client ID
+  and secret back into Supabase.
+- **GitHub**: Settings → Developer settings → OAuth Apps → New. Same idea — the
+  callback URL comes from Supabase.
+
+### 4.3 Set the redirect URLs
+
+**Authentication → URL Configuration.** Site URL is where the app lives. Add
+every address it is reachable at to Redirect URLs — the deployed one, and
+`http://localhost:5173` if you develop locally. A missing entry here is the
+single most common reason a Google sign-in lands on an error.
+
+### 4.4 The first coach
+
+Sign in with your own account, then in the app choose **Set up my team**. That
+calls `claim_team`, which makes you a coach of a team that has no members yet
+and refuses on a team that already does.
+
+### 4.5 Everyone else
+
+They open the same URL, sign in however they like, and land on a *waiting*
+screen where they say who they are. You see them on the roster under **Asking to
+join**, pick their role, and accept. Nothing about the team is visible to them
+before that.
+
+Signing in proves who somebody is. It does not put them on your team — that is
+your decision, and it is the reason a public sign-up page is not also a way onto
+every team's roster.
+
+### Giving one person extra access
+
+Roster → tap a member → **Also allowed to**. A trusted captain can approve
+purchases; a treasurer parent can run the budget. It is per person and adds to
+whatever their role already allows.
+
+Two things are deliberately never grantable: handing out access, and changing
+team settings. Either one would let a granted account grant itself the rest.
+
+### Can we sign in with our FIRST account instead?
+
+No, and not because it is hard.
+
+FIRST publishes no sign-in service and no identity API. The FTC Events API
+covers *event data* — schedules, scores, rankings — and needs a key you request
+by email; it cannot tell an app who you are, and there is nothing to log in to.
+Nobody outside FIRST can verify a person against a team's registration, so no
+third-party app can do this. If that ever changes it would be the right answer;
+today it does not exist.
+
+The nearest honest substitute is what is already here: a coach, who knows the
+team, accepting people by name.
