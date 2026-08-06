@@ -147,10 +147,10 @@ function pane(v0, z0, w, h) {
 const PANE_W = 3.1
 const PANE_H = 2.7
 const panes = [
-  pane(4.4, 6.4, PANE_W, PANE_H),
-  pane(8.3, 6.4, PANE_W, PANE_H),
-  pane(4.4, 2.9, PANE_W, PANE_H),
-  pane(8.3, 2.9, PANE_W, PANE_H),
+  pane(4.4, 5.6, PANE_W, PANE_H),
+  pane(8.3, 5.6, PANE_W, PANE_H),
+  pane(4.4, 2.1, PANE_W, PANE_H),
+  pane(8.3, 2.1, PANE_W, PANE_H),
 ]
 
 /**
@@ -166,19 +166,50 @@ const doorHandle = { at: P(DOOR_U0 + 0.7, 0, 3.2), r: 0.42 }
 
 // ── what comes out of it ────────────────────────────────────
 
+/** An ellipse as a polygon, so every hole goes through one hit test. */
+function ellipsePoly(cx, cy, rx, ry, rot, steps = 20) {
+  const cos = Math.cos(rot)
+  const sin = Math.sin(rot)
+  return Array.from({ length: steps }, (_, i) => {
+    const t = (i / steps) * Math.PI * 2
+    const x = Math.cos(t) * rx
+    const y = Math.sin(t) * ry
+    return [cx + x * cos - y * sin, cy + x * sin + y * cos]
+  })
+}
+
 /**
- * A game ball: perforated, the way an FTC ball is. Positioned relative to the
- * chimney mouth so the whole group moves with the house.
+ * A game ball: perforated, the way an FTC ball is.
+ *
+ * The holes sit on a *sphere* and are projected, not scattered across a disc.
+ * That is the whole difference between reading as a ball and reading as a
+ * flower: a round hole seen off-axis keeps its full width across the line of
+ * sight and foreshortens along it, so the outer holes are ellipses that squash
+ * harder toward the rim. Equal circles everywhere is what made these look flat.
  */
+const HOLE_LAT = 0.95 // radians from the pole — how far the ring sits toward the rim
+
 function ball(dx, dy, r, rotation) {
   const cx = CHIMNEY_MOUTH[0] + dx
   const cy = CHIMNEY_MOUTH[1] + dy
-  const holeR = r * 0.175
-  const ring = Array.from({ length: 6 }, (_, i) => {
-    const t = rotation + (i / 6) * Math.PI * 2
-    return { at: [cx + Math.cos(t) * r * 0.54, cy + Math.sin(t) * r * 0.54], r: holeR }
-  })
-  return { at: [cx, cy], r, holes: [{ at: [cx, cy], r: holeR }, ...ring] }
+  const h = r * 0.19
+  const holes = [ellipsePoly(cx, cy, h, h, 0)]
+
+  for (let i = 0; i < 6; i++) {
+    const phi = rotation + (i / 6) * Math.PI * 2
+    const out = r * Math.sin(HOLE_LAT)
+    holes.push(
+      ellipsePoly(
+        cx + Math.cos(phi) * out,
+        cy + Math.sin(phi) * out,
+        // Radial axis, foreshortened by the cosine of the latitude.
+        h * Math.cos(HOLE_LAT),
+        h,
+        phi,
+      ),
+    )
+  }
+  return { at: [cx, cy], r, holes }
 }
 
 /**
@@ -212,8 +243,8 @@ function cube(dx, dy, w) {
 }
 
 /** Sizes and offsets follow the supplied logo: a big ball high right, cubes between. */
-const balls = [ball(6.0, -14.4, 4.2, 0.2), ball(-9.6, -6.2, 3.2, 0.9), ball(9.8, -2.2, 2.6, 1.7)]
-const cubes = [cube(-2.8, -12.6, 2.8), cube(12.0, -8.4, 3.0), cube(6.8, -6.6, 1.7)]
+const balls = [ball(5.6, -11.0, 4.2, 0.2), ball(-7.0, -4.4, 3.1, 0.9), ball(8.6, -0.4, 2.7, 1.7)]
+const cubes = [cube(-1.8, -10.4, 2.7), cube(12.4, -8.8, 2.7), cube(3.0, -3.2, 1.7)]
 
 
 // ── fit everything into the box ─────────────────────────────
@@ -280,7 +311,7 @@ export function solidPaths() {
 
 /** Balls as a path with their holes punched out, for the full-colour marks. */
 function ballPath(b) {
-  return [circlePath(b), ...b.holes.map(circlePath)].join(' ')
+  return [circlePath(b), ...b.holes.map(polyPath)].join(' ')
 }
 
 /** For the flat silhouette, a ball is just a disc — holes would fill in at 16px. */
@@ -362,7 +393,7 @@ export function rasterShapes() {
       { poly: poly(roof) },
       { poly: poly(chimney) },
       ...cubes.map((c) => ({ poly: poly(c.outline) })),
-      ...balls.map((b) => ({ disc: disc(b), holes: b.holes.map(disc) })),
+      ...balls.map((b) => ({ disc: disc(b), holes: b.holes.map((h) => poly(h)) })),
     ],
     cuts: [...panes.map((p) => ({ poly: poly(p) })), { poly: poly(door) }],
     seams: [

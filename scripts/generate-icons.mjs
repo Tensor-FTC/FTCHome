@@ -102,7 +102,8 @@ function inkAt(mx, my) {
       continue
     }
     if (!inDisc(s.disc, mx, my)) continue
-    if (s.holes.some((h) => inDisc(h, mx, my))) return false
+    // Holes are ellipses, so they are polygons rather than discs.
+    if (s.holes.some((h) => inPoly(h, mx, my))) return false
     return true
   }
   return false
