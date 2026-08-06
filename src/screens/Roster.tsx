@@ -3,7 +3,16 @@ import { Avatar, Button, Chip, Field, IconButton, LockedValue, Sheet, TextArea }
 import { useStore } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { isLastStaff, staffingIssues } from '@/domain/staffing'
-import { ROLE_LABEL, SUBTEAM_LABEL, type Member, type Role, type Subteam } from '@/domain/types'
+import { can, CAPABILITY_LABEL, GRANTABLE, type Capability } from '@/domain/permissions'
+import {
+  AUTH_PROVIDER_LABEL,
+  MEMBER_STATUS_LABEL,
+  ROLE_LABEL,
+  SUBTEAM_LABEL,
+  type Member,
+  type Role,
+  type Subteam,
+} from '@/domain/types'
 import { download, rosterCsv } from '@/lib/exporters'
 
 const ADDABLE_ROLES: Role[] = ['student', 'captain', 'mentor', 'coach', 'parent']
@@ -31,8 +40,14 @@ export function RosterScreen() {
   const [editing, setEditing] = useState<Member | null>(null)
 
   const manage = allow('roster.manage')
+  const canApprove = allow('members.approve')
+  const canGrant = allow('members.grant')
+  const requests = season.members.filter((m) => m.status === 'requested')
   const readMedical = allow('roster.readContact')
-  const pending = season.members.filter((m) => m.pending).length
+  const pending = season.members.filter((m) => m.status === 'invited').length
+  const approveMember = useStore((s) => s.approveMember)
+  const declineMember = useStore((s) => s.declineMember)
+  const setGrants = useStore((s) => s.setGrants)
   const issues = staffingIssues(season)
 
   function onAdd(e: FormEvent) {
@@ -139,6 +154,34 @@ export function RosterScreen() {
           </form>
         )}
 
+        {canApprove && requests.length > 0 && (
+          <div className="section">
+            <div className="label" style={{ marginBottom: 9, color: 'var(--signal)' }}>
+              Asking to join · {requests.length}
+            </div>
+            <div className="card" style={{ overflow: 'hidden' }}>
+              {requests.map((request) => (
+                <JoinRequest
+                  key={request.id}
+                  member={request}
+                  onAccept={(role) => {
+                    approveMember(request.id, role)
+                    notify(`${request.name} is on the team`)
+                  }}
+                  onDecline={() => {
+                    declineMember(request.id)
+                    notify(`Declined ${request.name}`)
+                  }}
+                />
+              ))}
+            </div>
+            <p className="field-note">
+              Signing in proves who somebody is, not that they are on your team. Nothing is visible to
+              them until you accept.
+            </p>
+          </div>
+        )}
+
         {issues.length > 0 && (
           <div className="section">
             {issues.map((issue) => (
@@ -162,7 +205,9 @@ export function RosterScreen() {
         )}
 
         <div className="section">
-          {season.members.map((member) => (
+          {season.members
+            .filter((m) => m.status !== 'requested' && m.status !== 'declined')
+            .map((member) => (
             <div key={member.id} className="row">
               <Avatar name={member.name} staff={member.role === 'coach' || member.role === 'mentor'} />
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -176,7 +221,7 @@ export function RosterScreen() {
                 >
                   {ROLE_LABEL[member.role].toUpperCase()}
                   {member.subteam ? ` · ${SUBTEAM_LABEL[member.subteam].toUpperCase()}` : ''}
-                  {member.pending ? ' · INVITE PENDING' : ''}
+                  {member.status === 'active' ? '' : ` · ${MEMBER_STATUS_LABEL[member.status].toUpperCase()}`}
                 </div>
               </div>
 
@@ -205,7 +250,7 @@ export function RosterScreen() {
                 </IconButton>
               )}
             </div>
-          ))}
+            ))}
 
           {!readMedical && (
             <p className="meta" style={{ marginTop: 14 }}>
@@ -220,9 +265,11 @@ export function RosterScreen() {
         <MemberSheet
           member={editing}
           lockRole={isLastStaff(season.members, editing.id)}
+          canGrant={canGrant}
           onClose={() => setEditing(null)}
-          onSave={(patch) => {
+          onSave={(patch, grants) => {
             updateMember(editing.id, patch)
+            if (grants) setGrants(editing.id, grants)
             setEditing(null)
             notify(`${editing.name} updated`)
           }}
@@ -235,16 +282,20 @@ export function RosterScreen() {
 function MemberSheet({
   member,
   lockRole,
+  canGrant,
   onClose,
   onSave,
 }: {
   member: Member
   /** True when this is the only adult left — demoting them locks the team out. */
   lockRole: boolean
+  /** Only a coach hands out individual capabilities. */
+  canGrant: boolean
   onClose: () => void
-  onSave: (patch: Partial<Member>) => void
+  onSave: (patch: Partial<Member>, grants?: Capability[]) => void
 }) {
   const [role, setRole] = useState<Role>(member.role)
+  const [grants, setGrantsDraft] = useState<Capability[]>(member.grants ?? [])
   const [subteam, setSubteam] = useState<Subteam | ''>(member.subteam ?? '')
   const [email, setEmail] = useState(member.contact?.email ?? '')
   const [phone, setPhone] = useState(member.contact?.phone ?? '')
@@ -263,12 +314,15 @@ function MemberSheet({
           variant="primary"
           block
           onClick={() =>
-            onSave({
-              role,
-              subteam: subteam || undefined,
-              contact: { email, phone },
-              medical: { allergies, notes, guardian, guardianPhone },
-            })
+            onSave(
+              {
+                role,
+                subteam: subteam || undefined,
+                contact: { email, phone },
+                medical: { allergies, notes, guardian, guardianPhone },
+              },
+              canGrant ? grants : undefined,
+            )
           }
         >
           Save
@@ -300,6 +354,36 @@ function MemberSheet({
           )}
         </div>
 
+        {canGrant && (
+          <div>
+            <div className="label" style={{ marginBottom: 8 }}>
+              Also allowed to
+            </div>
+            <p className="meta pretty" style={{ marginBottom: 9 }}>
+              On top of what a {ROLE_LABEL[role].toLowerCase()} can already do. This is how a trusted
+              captain gets the budget, or a treasurer parent gets to approve spending, without pretending
+              they are a coach.
+            </p>
+            <div className="wrap">
+              {GRANTABLE.filter((c) => !can(role, c)).map((c) => (
+                <Chip
+                  key={c}
+                  active={grants.includes(c)}
+                  onClick={() =>
+                    setGrantsDraft((g) => (g.includes(c) ? g.filter((x) => x !== c) : [...g, c]))
+                  }
+                >
+                  {CAPABILITY_LABEL[c] ?? c}
+                </Chip>
+              ))}
+            </div>
+            <p className="field-note">
+              Handing out coach powers and changing team settings are never grantable — they would let a
+              granted account grant itself everything else.
+            </p>
+          </div>
+        )}
+
         <div>
           <div className="label" style={{ marginBottom: 8 }}>
             Subteam
@@ -324,5 +408,62 @@ function MemberSheet({
         <TextArea label="Medical notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
+  )
+}
+
+
+/**
+ * One person asking to be let in.
+ *
+ * The role they picked is shown as their *claim*, editable before accepting,
+ * because "I'm a coach" typed into a box is not evidence and the person
+ * accepting is the one who knows.
+ */
+function JoinRequest({
+  member,
+  onAccept,
+  onDecline,
+}: {
+  member: Member
+  onAccept: (role: Role) => void
+  onDecline: () => void
+}) {
+  const [role, setRole] = useState<Role>(member.role)
+
+  return (
+    <div style={{ padding: '14px 15px', borderBottom: '1px solid var(--line-soft)' }}>
+      <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
+        <Avatar name={member.name} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ font: '500 13px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>{member.name}</div>
+          <div className="meta-mono">
+            {member.email ?? member.username}
+            {member.authProvider ? ` · ${AUTH_PROVIDER_LABEL[member.authProvider].toLowerCase()}` : ''}
+          </div>
+          {member.requestNote && (
+            <p className="meta pretty" style={{ marginTop: 6 }}>
+              &ldquo;{member.requestNote}&rdquo;
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="wrap" style={{ marginTop: 11 }}>
+        {(['student', 'captain', 'parent', 'mentor', 'coach'] as Role[]).map((r) => (
+          <Chip key={r} active={role === r} onClick={() => setRole(r)}>
+            {ROLE_LABEL[r]}
+          </Chip>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 9, marginTop: 12 }}>
+        <Button variant="primary" size="sm" block onClick={() => onAccept(role)}>
+          Accept as {ROLE_LABEL[role].toLowerCase()}
+        </Button>
+        <Button size="sm" onClick={onDecline}>
+          Decline
+        </Button>
+      </div>
+    </div>
   )
 }

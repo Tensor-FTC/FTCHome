@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { toggledStatus } from '@/domain/tasks'
+import { GRANTABLE, type Capability } from '@/domain/permissions'
+import type { AuthUser } from '@/lib/auth'
 import {
   calendarFromScout,
   emptySeason,
@@ -19,6 +21,7 @@ import {
 } from '@/lib/ftcScout'
 import type {
   Allocation,
+  AuthProvider,
   Approval,
   CalendarEvent,
   CompetitionEvent,
@@ -90,6 +93,19 @@ interface StoreState {
   addMember: (name: string, role: Role, subteam?: Member['subteam']) => Member
   updateMember: (id: string, patch: Partial<Member>) => void
   removeMember: (id: string) => void
+  /** Sign in with a Supabase account, matching it to a member or raising a request. */
+  signInWithCloudUser: (user: AuthUser) => { ok: boolean; awaitingApproval: boolean; message: string }
+  requestToJoin: (input: {
+    name: string
+    email?: string
+    authUserId?: string
+    role: Role
+    note?: string
+    provider?: AuthProvider
+  }) => Member
+  approveMember: (id: string, role?: Role) => void
+  declineMember: (id: string) => void
+  setGrants: (id: string, grants: Capability[]) => void
 
   // calendar
   addEvent: (event: Omit<CalendarEvent, 'id' | 'updatedAt'>) => CalendarEvent
@@ -244,7 +260,7 @@ export const useStore = create<StoreState>((set, get) => {
       }
       set({ session })
       void saveSession(session)
-      if (member.pending) get().updateMember(memberId, { pending: false })
+      if (member.status === 'invited') get().updateMember(memberId, { status: 'active' })
       return true
     },
 
@@ -286,7 +302,7 @@ export const useStore = create<StoreState>((set, get) => {
 
     async setMemberPassword(memberId, password) {
       const verifier = await hashPassword(password)
-      get().updateMember(memberId, { password: verifier, pending: false })
+      get().updateMember(memberId, { password: verifier, status: 'active' })
     },
 
     async verifyTeamCode(code) {
@@ -321,7 +337,7 @@ export const useStore = create<StoreState>((set, get) => {
         subteam,
         username: `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
         password: null,
-        pending: true,
+        status: 'invited',
         joinedAt: now(),
       }
       commit((d) => void d.members.push(member), {
@@ -331,6 +347,119 @@ export const useStore = create<StoreState>((set, get) => {
         label: `Member · ${name}`,
       })
       return member
+    },
+
+    /**
+     * Bring a Supabase account onto this device.
+     *
+     * Matching is by auth id first, then by email, because a coach usually adds
+     * somebody by email before that person has ever signed in. Anybody who
+     * matches nothing becomes a *request* rather than a member: knowing a URL
+     * is not the same as being on a team, and a coach decides which is which.
+     */
+    signInWithCloudUser(user) {
+      const members = get().season.members
+      let member =
+        members.find((m) => m.authUserId === user.id) ??
+        (user.email ? members.find((m) => m.email?.toLowerCase() === user.email.toLowerCase()) : undefined)
+
+      if (!member) {
+        member = get().requestToJoin({
+          name: user.name || user.email.split('@')[0] || 'New member',
+          email: user.email,
+          authUserId: user.id,
+          role: 'student',
+          provider: user.provider,
+        })
+      } else if (member.authUserId !== user.id || member.authProvider !== user.provider) {
+        // First cloud sign-in for someone a coach added by email: bind the account.
+        get().updateMember(member.id, { authUserId: user.id, authProvider: user.provider, email: user.email })
+        member = { ...member, authUserId: user.id, authProvider: user.provider, email: user.email }
+      }
+
+      const approved = member.status === 'active'
+      const session: Session = {
+        memberId: member.id,
+        role: approved ? member.role : 'guest',
+        teamNumber: get().season.team.number,
+        signedInAt: now(),
+        guest: false,
+        authUserId: user.id,
+        email: user.email,
+        via: user.provider,
+        awaitingApproval: !approved,
+      }
+      set({ session })
+      void saveSession(session)
+
+      return {
+        ok: true,
+        awaitingApproval: !approved,
+        message: approved
+          ? `Signed in as ${member.name}`
+          : 'Your request is with the coaches. You are in as soon as one of them accepts it.',
+      }
+    },
+
+    requestToJoin({ name, email, authUserId, role, note, provider }) {
+      const team = get().season.team
+      const member: Member = {
+        id: uid('mem-'),
+        updatedAt: now(),
+        name,
+        role,
+        username: email || `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
+        password: null,
+        status: 'requested',
+        email,
+        authUserId,
+        authProvider: provider,
+        requestNote: note,
+        joinedAt: now(),
+      }
+      commit((d) => void d.members.push(member), {
+        table: 'members',
+        op: 'upsert',
+        record: member,
+        label: `Join request · ${name}`,
+      })
+      return member
+    },
+
+    approveMember(id, role) {
+      const approver = get().session.memberId
+      const existing = get().season.members.find((m) => m.id === id)
+      get().updateMember(id, {
+        status: 'active',
+        role: role ?? existing?.role ?? 'student',
+        approvedById: approver ?? undefined,
+        approvedAt: now(),
+      })
+      // If it is *this* device waiting, take the session off hold immediately.
+      const session = get().session
+      if (session.memberId === id && session.awaitingApproval) {
+        const next: Session = {
+          ...session,
+          awaitingApproval: false,
+          role: role ?? existing?.role ?? 'student',
+        }
+        set({ session: next })
+        void saveSession(next)
+      }
+    },
+
+    declineMember(id) {
+      get().updateMember(id, {
+        status: 'declined',
+        approvedById: get().session.memberId ?? undefined,
+        approvedAt: now(),
+      })
+    },
+
+    setGrants(id, grants) {
+      // Never store a grant the permission layer would refuse to honour; a
+      // stored-but-ignored grant is a coach believing they gave access.
+      get().updateMember(id, { grants: grants.filter((g) => GRANTABLE.includes(g)) })
     },
 
     updateMember(id, patch) {

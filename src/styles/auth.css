@@ -104,3 +104,38 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* A quiet inline link for switching between sign-in modes. */
+.link-quiet {
+  font: 400 12px var(--font-sans);
+  color: var(--ink-3);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.link-quiet:hover {
+  color: var(--signal);
+}
+
+/* "or" between the provider buttons and the email form. */
+.rule-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 500 9.5px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-5);
+}
+
+.rule-label::before,
+.rule-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}

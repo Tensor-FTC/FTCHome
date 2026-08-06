@@ -1,4 +1,4 @@
-import { EVENT_TYPE_LABEL, ROLE_LABEL, type PartItem, type SeasonData } from '@/domain/types'
+import { EVENT_TYPE_LABEL, MEMBER_STATUS_LABEL, ROLE_LABEL, type PartItem, type SeasonData } from '@/domain/types'
 import { isDone } from '@/domain/tasks'
 import { toRRule } from '@/domain/recurrence'
 import { fromIso } from './date'
@@ -146,7 +146,7 @@ export function rosterCsv(season: SeasonData, includeContact: boolean): string {
       ROLE_LABEL[m.role],
       m.subteam ?? '',
       m.username,
-      m.pending ? 'invite pending' : 'active',
+      MEMBER_STATUS_LABEL[m.status],
     ]
     if (includeContact) {
       row.push(m.contact?.email ?? '', m.contact?.phone ?? '', m.medical?.guardian ?? '', m.medical?.guardianPhone ?? '')

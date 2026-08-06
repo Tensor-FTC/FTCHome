@@ -1,3 +1,5 @@
+import type { Capability } from './permissions'
+
 /** Core domain model. One season of one team, plus whatever it takes to survive a gym. */
 
 export type Role = 'coach' | 'mentor' | 'captain' | 'student' | 'parent' | 'guest'
@@ -53,6 +55,15 @@ export interface Team extends Syncable {
   goal: number
 }
 
+/**
+ * Where a person is in the process of belonging to the team.
+ *
+ * `requested` is the one that matters: anybody can ask to join a team, and a
+ * coach decides. Without it, knowing the team code was the same as being on the
+ * team, which is not a decision a six-character string should be making.
+ */
+export type MemberStatus = 'invited' | 'requested' | 'active' | 'declined' | 'suspended'
+
 export interface Member extends Syncable {
   name: string
   role: Role
@@ -60,11 +71,49 @@ export interface Member extends Syncable {
   username: string
   /** Null until the member first signs in and sets their own password. */
   password: PasswordVerifier | null
-  pending: boolean
+  status: MemberStatus
+  /**
+   * Extra capabilities this person has been given by name.
+   *
+   * The role says what someone is; this says what a coach has decided they may
+   * additionally do. It is how a trusted captain gets to approve spending, or a
+   * treasurer parent gets the budget, without inventing a new role for every
+   * team's arrangement.
+   */
+  grants?: Capability[]
+  /** Sign-in address, when the account is a cloud one. */
+  email?: string
+  /** Supabase auth user id, once they have signed in with a real account. */
+  authUserId?: string
+  /** Which of the sign-in methods they last used, for the roster to show. */
+  authProvider?: AuthProvider
+  /** Who let them in, and when. Kept because "who approved this" gets asked. */
+  approvedById?: string
+  approvedAt?: string
+  /** Free-text note from a join request, so a coach knows who is asking. */
+  requestNote?: string
   /** Mentor/coach-only. Gated at read time by permissions, not by the UI alone. */
   medical?: MedicalRecord
   contact?: ContactRecord
   joinedAt: string
+}
+
+export const MEMBER_STATUS_LABEL: Record<MemberStatus, string> = {
+  invited: 'Invite pending',
+  requested: 'Waiting for approval',
+  active: 'Active',
+  declined: 'Declined',
+  suspended: 'Suspended',
+}
+
+export type AuthProvider = 'password' | 'magic-link' | 'google' | 'github' | 'device'
+
+export const AUTH_PROVIDER_LABEL: Record<AuthProvider, string> = {
+  password: 'Email and password',
+  'magic-link': 'Email link',
+  google: 'Google',
+  github: 'GitHub',
+  device: 'Team code on this device',
 }
 
 /** FTCScout "quick stats": average contribution, with a rank among all teams. */
@@ -408,6 +457,15 @@ export interface Session {
   guest: boolean
   /** Set when the user hides the getting-started checklist by hand. */
   onboardingDismissed?: boolean
+  /** Set when signed in through Supabase rather than a device credential. */
+  authUserId?: string
+  email?: string
+  via?: AuthProvider
+  /**
+   * True while a cloud account is signed in but not yet approved onto a team.
+   * They can see the app's shell and their own request, and nothing else.
+   */
+  awaitingApproval?: boolean
 }
 
 /** A pending write. The queue is user-visible, so it carries a human label and a size. */

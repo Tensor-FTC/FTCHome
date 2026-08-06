@@ -39,7 +39,7 @@ export function fixtureSeason(anchor = today()): SeasonData {
     subteam,
     username: `${name.toLowerCase().replace(/[^a-z]/g, '')}@11138`,
     password: null,
-    pending: false,
+    status: 'active' as const,
     joinedAt: now(),
     medical: { notes: '', allergies: '', guardian: '', guardianPhone: '' },
     contact: { email: '', phone: '' },

@@ -13,7 +13,7 @@ describe('season store', () => {
 
   it('adds a member as a pending invite with a derived username', () => {
     const member = useStore.getState().addMember('Q. Tester', 'student', 'software')
-    expect(member.pending).toBe(true)
+    expect(member.status).toBe('invited')
     expect(member.password).toBeNull()
     expect(member.username).toBe('qtester@11138')
     expect(useStore.getState().season.members.find((m) => m.id === member.id)).toBeDefined()

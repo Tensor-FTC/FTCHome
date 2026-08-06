@@ -76,11 +76,11 @@ export function LaunchScreen() {
       >
         {configured ? (
           <>
-            <Button variant="primary" size="lg" block onClick={() => navigate('/signin')}>
-              Sign in to my team
+            <Button variant="primary" size="lg" block onClick={() => navigate('/signin/cloud')}>
+              Sign in with an account
             </Button>
-            <Button block onClick={() => navigate('/signin/mentor')}>
-              Mentor or volunteer
+            <Button block onClick={() => navigate('/signin')}>
+              Use the team code
             </Button>
           </>
         ) : (

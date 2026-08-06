@@ -25,6 +25,8 @@ import { CompetitionModeScreen } from '@/screens/CompetitionMode'
 import { RosterScreen } from '@/screens/Roster'
 import { BudgetScreen } from '@/screens/Budget'
 import { ArchiveScreen } from '@/screens/Archive'
+import { CloudSignInScreen } from '@/screens/auth/CloudSignIn'
+import { AwaitingApprovalScreen } from '@/screens/auth/AwaitingApproval'
 import { ScoutScreen } from '@/screens/Scout'
 import { StatesScreen } from '@/screens/States'
 import { SettingsScreen } from '@/screens/Settings'
@@ -46,6 +48,12 @@ function RequireSession({ children }: { children: React.ReactNode }) {
   const ready = useStore((s) => s.ready)
   if (!ready) return null
   if (!session.memberId && !session.guest) return <Navigate to="/" replace />
+  /*
+   * Signed in, but nobody has put them on the team. They get their own request
+   * and nothing else — the gate is here rather than per-screen so a new screen
+   * cannot forget it.
+   */
+  if (session.awaitingApproval) return <Navigate to="/pending" replace />
   return <>{children}</>
 }
 
@@ -90,6 +98,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<LaunchScreen />} />
         <Route path="/signin" element={<TeamAccessScreen />} />
+        <Route path="/signin/cloud" element={<CloudSignInScreen />} />
+        <Route path="/pending" element={<AwaitingApprovalScreen />} />
         <Route path="/signin/who" element={<WhoAreYouScreen />} />
         <Route path="/signin/member/:memberId" element={<PersonalSignInScreen />} />
         <Route path="/signin/mentor" element={<MentorSignInScreen />} />

@@ -78,7 +78,7 @@ export function staffingIssues(season: SeasonData): StaffingIssue[] {
     })
   }
 
-  const unclaimed = allStaff.filter((m) => m.pending)
+  const unclaimed = allStaff.filter((m) => m.status === 'invited')
   if (unclaimed.length && unclaimed.length === allStaff.length) {
     issues.push({
       id: 'staff-unclaimed',

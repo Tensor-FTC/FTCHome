@@ -55,7 +55,7 @@ export function WhoAreYouScreen() {
                 }}
               >
                 {ROLE_LABEL[member.role].toUpperCase()}
-                {member.pending ? ' · PENDING' : ''}
+                {member.status === 'invited' ? ' · PENDING' : ''}
               </span>
             </span>
           </button>

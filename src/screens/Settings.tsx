@@ -278,7 +278,7 @@ function TeamTab() {
           <SectionLabel>People</SectionLabel>
           <div className="card card-pad">
             <div className="meta" style={{ marginBottom: 10 }}>
-              {season.members.length} members · {season.members.filter((m) => m.pending).length} invites
+              {season.members.length} members · {season.members.filter((m) => m.status === 'invited').length} invites
               pending
             </div>
             {issues.length === 0 ? (

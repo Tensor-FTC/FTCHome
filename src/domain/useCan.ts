@@ -1,14 +1,31 @@
 import { useMemo } from 'react'
-import { useStore } from '@/store/useStore'
-import { can, type Capability } from './permissions'
+import { useStore, currentMember } from '@/store/useStore'
+import { can, canMember, type Capability } from './permissions'
 
 /**
- * Capability check bound to the signed-in role *and* the team's visibility
- * policy. Screens call `allow('budget.viewAmounts')` rather than testing roles,
- * so widening or tightening a team's settings takes effect everywhere at once.
+ * What the signed-in person may do.
+ *
+ * Three layers, resolved here so no screen has to remember the order: the
+ * fixed role matrix, the team's visibility policy, and anything a coach has
+ * granted this person by name.
+ *
+ * Falls back to the session role when there is no member record — a guest
+ * browsing, or a device signed in before the roster has synced. A coach using
+ * Settings → "check what others see" also has a session role that deliberately
+ * differs from their member record, and that preview has to win.
  */
 export function useCan(): (capability: Capability) => boolean {
   const role = useStore((s) => s.session.role)
+  const awaiting = useStore((s) => s.session.awaitingApproval)
+  const me = useStore(currentMember)
   const policy = useStore((s) => s.season.settings.policy)
-  return useMemo(() => (capability: Capability) => can(role, capability, policy), [role, policy])
+
+  return useMemo(() => {
+    // Somebody whose request has not been accepted has no standing at all yet.
+    if (awaiting) return () => false
+    // Role preview: the session role has been changed away from the member's own.
+    if (me && me.role !== role) return (c: Capability) => can(role, c, policy)
+    if (me) return (c: Capability) => canMember(me, c, policy)
+    return (c: Capability) => can(role, c, policy)
+  }, [role, awaiting, me, policy])
 }

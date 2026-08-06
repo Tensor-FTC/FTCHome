@@ -1,4 +1,4 @@
-import type { Audience, Role, TeamPolicy } from './types'
+import type { Audience, Member, Role, TeamPolicy } from './types'
 
 /**
  * What a role may do.
@@ -15,6 +15,11 @@ import type { Audience, Role, TeamPolicy } from './types'
  *     hiding the budget from the students raising the money is usually wrong,
  *     but some teams genuinely need it tighter.
  *
+ * On top of both, a coach can grant a capability to *one person* by name. Real
+ * teams do not divide neatly by role — a trusted captain runs the budget, a
+ * parent is the treasurer — and inventing a role for each arrangement is worse
+ * than letting a coach say who specifically may do what.
+ *
  * Withheld values are never sent to the DOM: a locked chip, not a hidden div.
  */
 
@@ -22,6 +27,8 @@ export type Capability =
   | 'roster.manage'
   | 'roster.readContact'
   | 'calendar.edit'
+  | 'events.rsvp'
+  | 'volunteer.signUp'
   | 'tasks.create'
   | 'tasks.assignOthers'
   | 'budget.viewAmounts'
@@ -29,6 +36,11 @@ export type Capability =
   | 'approvals.viewAmounts'
   | 'approvals.decide'
   | 'approvals.request'
+  | 'members.approve'
+  | 'members.grant'
+  | 'chat.post'
+  | 'chat.manageChannels'
+  | 'chat.moderate'
   | 'media.upload'
   | 'media.delete'
   | 'weekly.edit'
@@ -43,6 +55,8 @@ const MATRIX: Record<Capability, Role[]> = {
   'roster.manage': ['coach', 'mentor'],
   'roster.readContact': ['coach', 'mentor'],
   'calendar.edit': ['coach', 'mentor', 'captain'],
+  'events.rsvp': ['coach', 'mentor', 'captain', 'student', 'parent'],
+  'volunteer.signUp': ['coach', 'mentor', 'captain', 'student', 'parent'],
   'tasks.create': ['coach', 'mentor', 'captain', 'student'],
   'tasks.assignOthers': ['coach', 'mentor', 'captain'],
   'budget.viewAmounts': ['coach', 'mentor', 'captain', 'student'],
@@ -50,6 +64,11 @@ const MATRIX: Record<Capability, Role[]> = {
   'approvals.viewAmounts': ['coach', 'mentor'],
   'approvals.decide': ['coach', 'mentor'],
   'approvals.request': ['coach', 'mentor', 'captain', 'student'],
+  'members.approve': ['coach', 'mentor'],
+  'members.grant': ['coach'],
+  'chat.post': ['coach', 'mentor', 'captain', 'student', 'parent'],
+  'chat.manageChannels': ['coach', 'mentor', 'captain'],
+  'chat.moderate': ['coach', 'mentor'],
   'media.upload': ['coach', 'mentor', 'captain', 'student'],
   'media.delete': ['coach', 'mentor', 'captain'],
   'weekly.edit': ['coach', 'mentor', 'captain'],
@@ -69,6 +88,46 @@ const POLICY_DRIVEN: Partial<Record<Capability, keyof TeamPolicy>> = {
   'roster.readContact': 'contactRecords',
   'roster.manage': 'rosterEditing',
   'calendar.edit': 'calendarEditing',
+}
+
+/**
+ * Capabilities a coach may hand to one person.
+ *
+ * Not everything is on this list. Granting `members.grant` would let a coach
+ * create another coach in all but name, and granting `policy.manage` would let
+ * a granted user re-grant themselves anything — both are how a delegation
+ * system quietly becomes a privilege-escalation bug.
+ */
+export const GRANTABLE: Capability[] = [
+  'approvals.decide',
+  'approvals.viewAmounts',
+  'budget.edit',
+  'budget.viewAmounts',
+  'roster.manage',
+  'calendar.edit',
+  'tasks.assignOthers',
+  'weekly.publish',
+  'media.delete',
+  'season.export',
+  'members.approve',
+  'chat.manageChannels',
+  'chat.moderate',
+]
+
+export const CAPABILITY_LABEL: Partial<Record<Capability, string>> = {
+  'approvals.decide': 'Approve or hold purchases',
+  'approvals.viewAmounts': 'See what purchases cost',
+  'budget.edit': 'Edit the budget and log sponsors',
+  'budget.viewAmounts': 'See budget figures',
+  'roster.manage': 'Add and edit members',
+  'calendar.edit': 'Add to the calendar',
+  'tasks.assignOthers': 'Assign tasks to other people',
+  'weekly.publish': 'Publish the weekly page',
+  'media.delete': 'Delete from the build log',
+  'season.export': 'Export the season',
+  'members.approve': 'Accept people who ask to join',
+  'chat.manageChannels': 'Create and rename chat channels',
+  'chat.moderate': 'Delete other people’s messages',
 }
 
 /**
@@ -113,6 +172,10 @@ export const DEFAULT_POLICY: TeamPolicy = {
   archiveAfterDays: 30,
 }
 
+/**
+ * Whether a role may do something. Grants are applied by `canMember` — this is
+ * the role-and-policy layer, and the tests assert it in isolation.
+ */
 export function can(role: Role, capability: Capability, policy?: TeamPolicy): boolean {
   const key = POLICY_DRIVEN[capability]
   if (key && policy) {
@@ -126,6 +189,26 @@ export function can(role: Role, capability: Capability, policy?: TeamPolicy): bo
     }
   }
   return MATRIX[capability].includes(role)
+}
+
+/**
+ * The real check: role, policy, then anything granted to this person by name.
+ *
+ * A grant only ever adds. There is no negative grant, because "everyone except
+ * Sam" is a policy decision dressed up as a personal one, and the roster is
+ * where that argument belongs.
+ */
+export function canMember(
+  member: Pick<Member, 'role' | 'grants' | 'status'> | null | undefined,
+  capability: Capability,
+  policy?: TeamPolicy,
+): boolean {
+  if (!member) return can('guest', capability, policy)
+  // Somebody waiting to be approved, or removed from the team, has a role but
+  // no standing to use it.
+  if (member.status !== 'active') return can('guest', capability, policy)
+  if (can(member.role, capability, policy)) return true
+  return Boolean(member.grants?.includes(capability) && GRANTABLE.includes(capability))
 }
 
 /** Roles that count as staff for "coach tools on" affordances. */
