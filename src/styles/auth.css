@@ -139,3 +139,38 @@
   height: 1px;
   background: var(--line);
 }
+
+/* ── identity providers ──────────────────────────────────────
+   Deliberately the same weight as the app's own buttons: a provider button
+   that shouts is a provider button people tap by accident. */
+.provider-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 46px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-3);
+  background: var(--srf-2);
+  color: var(--ink-body);
+  font: 500 13.5px var(--font-sans);
+  cursor: pointer;
+  transition: border-color var(--m-tap), background var(--m-tap);
+}
+
+.provider-btn:hover:not(:disabled) {
+  border-color: var(--ink-4);
+  background: var(--srf-3);
+}
+
+.provider-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.provider-btn:focus-visible {
+  outline: none;
+  border-color: var(--signal-line);
+  box-shadow: 0 0 0 3px rgba(198, 232, 78, 0.09);
+}

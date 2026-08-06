@@ -4,8 +4,10 @@ import { AuthLayout } from './AuthLayout'
 import { Brand } from '@/components/Brand'
 import { Button, Field } from '@/components/ui'
 import { useStore } from '@/store/useStore'
+import { ProviderButton } from '@/components/ProviderButton'
 import {
   currentAuthUser,
+  OAUTH_PROVIDERS,
   isAuthConfigured,
   looksLikeAuthCallback,
   sendPasswordReset,
@@ -138,12 +140,14 @@ export function CloudSignInScreen() {
       {mode !== 'reset' && (
         <>
           <div className="stack" style={{ gap: 9, marginBottom: 16 }}>
-            <Button block disabled={busyOrChecking} onClick={() => void run(() => signInWithProvider('google'))}>
-              Continue with Google
-            </Button>
-            <Button block disabled={busyOrChecking} onClick={() => void run(() => signInWithProvider('github'))}>
-              Continue with GitHub
-            </Button>
+            {OAUTH_PROVIDERS.map((p) => (
+              <ProviderButton
+                key={p}
+                provider={p}
+                disabled={busyOrChecking}
+                onClick={() => void run(() => signInWithProvider(p))}
+              />
+            ))}
           </div>
           <div className="rule-label">or</div>
         </>
