@@ -39,6 +39,12 @@ jobs:
         run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+          # Optional. Set these as repository secrets and every device gets
+          # accounts and sync without anybody pasting keys into Settings.
+          # The anon key is designed to ship to browsers; the service_role key
+          # never goes here, or anywhere else the build can see.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Single-page-app fallback
         # Pages has no rewrite rules; a copy of index.html as 404.html makes a
