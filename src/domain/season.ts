@@ -94,6 +94,8 @@ export function emptySeason(): SeasonData {
     media: [],
     weekly: [],
     scouting: [],
+    channels: [],
+    messages: [],
     competition: emptyCompetition(),
     parts: [],
     settings: emptySettings(),
@@ -123,6 +125,8 @@ export function migrateSeason(stored: Partial<SeasonData> | undefined): SeasonDa
     media: stored.media ?? [],
     weekly: stored.weekly ?? [],
     scouting: stored.scouting ?? [],
+    channels: stored.channels ?? [],
+    messages: stored.messages ?? [],
     parts: stored.parts ?? [],
   }
 }

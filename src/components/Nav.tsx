@@ -11,7 +11,7 @@ import { ROLE_LABEL } from '@/domain/types'
 export const TABS = [
   { to: '/today', label: 'Today', shape: 'square' },
   { to: '/calendar', label: 'Calendar', shape: 'square' },
-  { to: '/weekly', label: 'Weekly', shape: 'square' },
+  { to: '/chat', label: 'Chat', shape: 'square' },
   { to: '/build', label: 'Build', shape: 'square' },
   { to: '/live', label: 'Live', shape: 'circle' },
 ] as const
@@ -51,6 +51,7 @@ export function TabBar() {
 }
 
 const MANAGE = [
+  { to: '/weekly', label: 'Weekly' },
   { to: '/roster', label: 'Roster' },
   { to: '/budget', label: 'Budget & sponsors' },
   { to: '/calendar/edit', label: 'Plan', capability: 'calendar.edit' as const },

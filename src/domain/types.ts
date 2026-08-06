@@ -448,6 +448,53 @@ export interface Settings {
   lastScoutSyncAt: string | null
 }
 
+/**
+ * A place the team talks.
+ *
+ * Three kinds, because they are governed differently. The team channel always
+ * exists and cannot be left — it is where "bring your notebook tomorrow" goes.
+ * Subteam channels are derived from the roster, so nobody has to maintain
+ * membership by hand. Groups are whoever somebody picked, for the drive team
+ * or the four people writing the notebook this week.
+ */
+export type ChannelKind = 'team' | 'subteam' | 'group'
+
+export interface Channel extends Syncable {
+  name: string
+  kind: ChannelKind
+  /** Set for `subteam` channels; membership follows the roster. */
+  subteam?: Subteam
+  /** Set for `group` channels; membership is exactly this list. */
+  memberIds?: string[]
+  topic?: string
+  createdById?: string
+  createdAt: string
+  archived?: boolean
+  /**
+   * Staff-only. For a channel where coaches coordinate without the students
+   * reading it — which teams do anyway, in a separate app.
+   */
+  staffOnly?: boolean
+}
+
+export interface ChatMessage extends Syncable {
+  channelId: string
+  authorId: string
+  /**
+   * Copied at send time rather than looked up.
+   *
+   * A message is a record of who said something. Resolving the name through
+   * the roster means a member who leaves in March silently rewrites every
+   * message they ever sent to "Unknown".
+   */
+  authorName: string
+  body: string
+  sentAt: string
+  editedAt?: string
+  /** True until the outbox has pushed it, so the UI can mark it in flight. */
+  queued?: boolean
+}
+
 export interface Session {
   memberId: string | null
   role: Role
@@ -457,6 +504,14 @@ export interface Session {
   guest: boolean
   /** Set when the user hides the getting-started checklist by hand. */
   onboardingDismissed?: boolean
+  /**
+   * Last time this device opened each channel, for unread counts.
+   *
+   * Deliberately in the session and never synced: unread is a property of a
+   * device and a person, not of the team, and syncing it would mark a phone
+   * read because somebody opened a laptop.
+   */
+  readAt?: Record<string, string>
   /** Set when signed in through Supabase rather than a device credential. */
   authUserId?: string
   email?: string
@@ -484,6 +539,8 @@ export interface OutboxEntry {
 
 export type SyncTable =
   | 'teams'
+  | 'channels'
+  | 'messages'
   | 'members'
   | 'events'
   | 'rsvps'
@@ -509,6 +566,8 @@ export interface SeasonData {
   media: MediaItem[]
   weekly: WeeklyReport[]
   scouting: ScoutingNote[]
+  channels: Channel[]
+  messages: ChatMessage[]
   competition: CompetitionEvent
   parts: PartItem[]
   settings: Settings

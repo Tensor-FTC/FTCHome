@@ -28,6 +28,7 @@ import { ArchiveScreen } from '@/screens/Archive'
 import { CloudSignInScreen } from '@/screens/auth/CloudSignIn'
 import { AwaitingApprovalScreen } from '@/screens/auth/AwaitingApproval'
 import { ScoutScreen } from '@/screens/Scout'
+import { ChatScreen } from '@/screens/Chat'
 import { StatesScreen } from '@/screens/States'
 import { SettingsScreen } from '@/screens/Settings'
 import { HelpScreen } from '@/screens/Help'
@@ -126,6 +127,8 @@ export function App() {
           <Route path="/roster" element={<RosterScreen />} />
           <Route path="/budget" element={<BudgetScreen />} />
           <Route path="/parts" element={<PartsScreen />} />
+          <Route path="/chat" element={<ChatScreen />} />
+          <Route path="/chat/:channelId" element={<ChatScreen />} />
           <Route path="/scout" element={<ScoutScreen />} />
           <Route path="/archive" element={<ArchiveScreen />} />
           <Route path="/states" element={<StatesScreen />} />

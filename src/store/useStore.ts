@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { toggledStatus } from '@/domain/tasks'
 import { GRANTABLE, type Capability } from '@/domain/permissions'
+import { missingDefaults } from '@/domain/chat'
 import type { AuthUser } from '@/lib/auth'
 import {
   calendarFromScout,
@@ -22,6 +23,8 @@ import {
 import type {
   Allocation,
   AuthProvider,
+  Channel,
+  ChatMessage,
   Approval,
   CalendarEvent,
   CompetitionEvent,
@@ -147,6 +150,14 @@ interface StoreState {
   publishWeekly: (id: string) => void
   addShoutout: (weekId: string, who: string, text: string) => void
   removeShoutout: (weekId: string, shoutoutId: string) => void
+
+  // chat
+  ensureChannels: () => void
+  createChannel: (input: { name: string; memberIds: string[]; topic?: string; staffOnly?: boolean }) => Channel
+  updateChannel: (id: string, patch: Partial<Channel>) => void
+  sendMessage: (channelId: string, body: string) => ChatMessage | null
+  removeMessage: (id: string) => void
+  markChannelRead: (channelId: string) => void
 
   // scouting
   upsertScouting: (note: Omit<ScoutingNote, 'id' | 'updatedAt'> & { id?: string }) => void
@@ -830,6 +841,109 @@ export const useStore = create<StoreState>((set, get) => {
         },
         { table: 'weekly_reports', op: 'upsert', record: next, label: 'Shoutout removed' },
       )
+    },
+
+    // ── chat ────────────────────────────────────────────────
+    /**
+     * Create the channels the roster implies, if they are not there yet.
+     *
+     * Called when Chat is first opened rather than at sign-up: a team of one
+     * does not need a mechanical channel, and six empty rooms is a worse first
+     * impression than one with people in it.
+     */
+    ensureChannels() {
+      const wanted = missingDefaults(get().season)
+      if (!wanted.length) return
+      const created = wanted.map((c) => ({ ...c, id: uid('ch-'), updatedAt: now() }) as Channel)
+      for (const channel of created) {
+        commit((d) => void d.channels.push(channel), {
+          table: 'channels',
+          op: 'upsert',
+          record: channel,
+          label: `Channel · ${channel.name}`,
+        })
+      }
+    },
+
+    createChannel({ name, memberIds, topic, staffOnly }) {
+      const me = get().session.memberId
+      const channel: Channel = {
+        id: uid('ch-'),
+        updatedAt: now(),
+        name: name.trim(),
+        kind: 'group',
+        // Whoever made it is always in it; leaving your own group out is the
+        // classic way to create a room you cannot see.
+        memberIds: [...new Set([...memberIds, me].filter((x): x is string => Boolean(x)))],
+        topic: topic?.trim() || undefined,
+        staffOnly,
+        createdById: me ?? undefined,
+        createdAt: now(),
+      }
+      commit((d) => void d.channels.push(channel), {
+        table: 'channels',
+        op: 'upsert',
+        record: channel,
+        label: `Channel · ${channel.name}`,
+      })
+      return channel
+    },
+
+    updateChannel(id, patch) {
+      const existing = get().season.channels.find((c) => c.id === id)
+      if (!existing) return
+      const next = stamped({ ...existing, ...patch })
+      commit(
+        (d) => {
+          const i = d.channels.findIndex((c) => c.id === id)
+          if (i >= 0) d.channels[i] = next
+        },
+        { table: 'channels', op: 'upsert', record: next, label: `Channel · ${next.name}` },
+      )
+    },
+
+    sendMessage(channelId, body) {
+      const text = body.trim()
+      if (!text) return null
+      const me = currentMember(get())
+      const message: ChatMessage = {
+        id: uid('msg-'),
+        updatedAt: now(),
+        channelId,
+        authorId: me?.id ?? 'unknown',
+        // Copied, not looked up: a member who leaves in March must not rewrite
+        // every message they ever sent to "Unknown".
+        authorName: me?.name ?? 'Someone',
+        body: text,
+        sentAt: now(),
+      }
+      commit((d) => void d.messages.push(message), {
+        table: 'messages',
+        op: 'upsert',
+        record: message,
+        label: `Message · ${text.slice(0, 32)}`,
+      })
+      // Sending is also reading; otherwise your own message shows as unread.
+      get().markChannelRead(channelId)
+      return message
+    },
+
+    removeMessage(id) {
+      const message = get().season.messages.find((m) => m.id === id)
+      if (!message) return
+      commit((d) => void (d.messages = d.messages.filter((m) => m.id !== id)), {
+        table: 'messages',
+        op: 'delete',
+        record: message,
+        label: 'Message deleted',
+      })
+    },
+
+    markChannelRead(channelId) {
+      const session = get().session
+      const next: Session = { ...session, readAt: { ...session.readAt, [channelId]: now() } }
+      set({ session: next })
+      void saveSession(next)
     },
 
     // ── scouting ────────────────────────────────────────────
