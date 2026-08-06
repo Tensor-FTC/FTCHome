@@ -155,11 +155,11 @@ describe('season store', () => {
     await expect(signIn(member.id, 'firstpassword')).resolves.toBe(true)
   })
 
-  it('adopts the first team code offered, then enforces it', async () => {
-    const { verifyTeamCode } = useStore.getState()
-    await expect(verifyTeamCode('team-code-2026')).resolves.toBe(true)
-    await expect(verifyTeamCode('team-code-2026')).resolves.toBe(true)
-    await expect(verifyTeamCode('guessed-wrong')).resolves.toBe(false)
+  it('refuses a first account on a team that already has members', async () => {
+    // Otherwise "I am the first person here" would mint a coach on any team.
+    await expect(
+      useStore.getState().createFirstAccount({ name: 'Intruder', password: 'longenough' }),
+    ).rejects.toThrow(/already has members/)
   })
 
   it('signs a session down to guest on sign-out', () => {

@@ -28,7 +28,7 @@ export function GettingStarted() {
       {
         id: 'members',
         label: 'Add the rest of the team',
-        hint: 'They get the team code and set their own password.',
+        hint: 'They set their own password the first time they sign in.',
         done: season.members.length > 1,
         to: '/roster',
         allowed: allow('roster.manage'),

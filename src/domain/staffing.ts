@@ -84,7 +84,7 @@ export function staffingIssues(season: SeasonData): StaffingIssue[] {
       id: 'staff-unclaimed',
       severity: 'advisory',
       title: 'No adult has signed in yet',
-      detail: `${unclaimed.map((m) => m.name).join(', ')} still ${unclaimed.length === 1 ? 'has' : 'have'} an unclaimed invite. They set their own password the first time they sign in with the team code.`,
+      detail: `${unclaimed.map((m) => m.name).join(', ')} still ${unclaimed.length === 1 ? 'has' : 'have'} an unclaimed invite. They set their own password the first time they sign in.`,
     })
   }
 

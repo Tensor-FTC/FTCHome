@@ -15,8 +15,8 @@ const ADDABLE_ROLES: Role[] = ['student', 'captain', 'mentor', 'coach', 'parent'
  * the one thing no API knows, so it is entered here and starts genuinely empty.
  * There is no invented roster and no sample data to delete later.
  *
- * Each person added is an invite, not an account — they get the team code and
- * set their own password on first sign-in.
+ * Each person added is an invite, not an account — they set their own
+ * password the first time they sign in.
  */
 export function RegisterScreen() {
   const navigate = useNavigate()
@@ -66,7 +66,7 @@ export function RegisterScreen() {
       </p>
       <p className="body" style={{ color: 'var(--ink-3)', marginBottom: 20 }}>
         {hasCoach
-          ? 'Add the rest of the team. They get the team code and set their own password.'
+          ? 'Add the rest of the team. They set their own password the first time they sign in.'
           : 'Start with the coach — a team needs one before anyone else can be gated correctly.'}
       </p>
 

@@ -131,19 +131,40 @@ recognise, and make sure the certificate is valid.
 Same URL, same code — a Progressive Web App. There is no separate build, no app store, and no
 review process. Open the site once on a device and install it from the browser.
 
-| Device | How to install |
-|---|---|
-| **Android** | Chrome offers a prompt, or **⋮ → Add to Home screen**. |
-| **iPhone / iPad** | Safari: **Share → Add to Home Screen**. Safari has no install API, so this step is manual — it cannot be automated by any website. |
-| **Windows / ChromeOS** | Chrome or Edge: the install icon at the right of the address bar. |
-| **macOS** | Chrome or Edge as above. Safari: **File → Add to Dock**. |
-| **Linux** | Chrome or Edge as above. |
+### iPhone and iPad
 
-**Settings → App → Install** works this out for you and shows either a one-click button or the
-exact manual steps for the browser you are actually in. It never shows a button that would do
+**It has to be Safari.** Chrome and Firefox on iOS cannot install a web app — Apple only gives that
+ability to Safari, so there is no way around it and no button any website can show you.
+
+1. Open the URL in **Safari**.
+2. Tap the **Share** button — the square with an arrow coming out of the top, in the bottom bar.
+3. Scroll down the list of actions and tap **Add to Home Screen**.
+4. Tap **Add**, top right.
+
+It now launches full screen from the home screen, with no Safari bar, and works with no signal.
+
+### Windows
+
+Chrome or Edge. An **install icon** appears at the right-hand end of the address bar — a small
+monitor with a downward arrow. Click it, then **Install**.
+
+You get a real window with its own taskbar icon and no browser chrome. It also shows up in Start.
+
+If the icon is not there: **⋮ → Cast, save and share → Install this page as an app** (Chrome), or
+**⋯ → Apps → Install this site as an app** (Edge).
+
+### Mac
+
+- **Chrome or Edge**: same install icon in the address bar as Windows.
+- **Safari**: **File → Add to Dock**, then **Add**. (Safari 17 or newer.)
+
+Either way it lands in the Dock and opens in its own window.
+
+### Anywhere
+
+**Settings → App → Install** inside the app works out which browser and platform you are on and
+shows either a one-click button or the exact manual steps. It never shows a button that would do
 nothing.
-
-Firefox does not install desktop web apps. The site still works normally there.
 
 ### What installing actually changes
 
@@ -350,6 +371,18 @@ before that.
 Signing in proves who somebody is. It does not put them on your team — that is
 your decision, and it is the reason a public sign-up page is not also a way onto
 every team's roster.
+
+### There is no team password
+
+There used to be one, and it was removed because it protected nothing. One
+string that every member knows, that lives in a group chat and is never rotated,
+adds nothing on top of individual passwords and a coach accepting people — and a
+device that has never synced holds an empty season anyway, so there was nothing
+on it to gate.
+
+Whoever opens a freshly set-up app first creates their own account and is that
+team's coach. There is nobody to approve them, so requiring approval would be a
+deadlock. Everyone after that goes through the roster.
 
 ### Giving one person extra access
 

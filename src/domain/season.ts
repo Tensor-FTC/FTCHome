@@ -53,7 +53,6 @@ export function emptyTeam(): Team {
     region: DEFAULT_REGION,
     seasonStats: null,
     syncedAt: null,
-    code: null,
     goal: 0,
   }
 }

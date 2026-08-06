@@ -119,18 +119,16 @@ describe('backup', () => {
     expect(restored.events).toHaveLength(season.events.length)
   })
 
-  it('strips credentials so a shared file leaks neither the team code nor a password', async () => {
+  it('strips password verifiers, so a file a team emails around leaks nobody', async () => {
     const { hashPassword } = await import('./crypto')
     const withSecrets = {
       ...season,
-      team: { ...season.team, code: await hashPassword('team-code') },
       members: [{ ...season.members[0], password: await hashPassword('personal') }, ...season.members.slice(1)],
     }
     const json = backupJson(withSecrets)
     expect(json).not.toContain('PBKDF2')
 
     const restored = parseBackup(json)
-    expect(restored.team.code).toBeNull()
     expect(restored.members.every((m) => m.password === null)).toBe(true)
   })
 

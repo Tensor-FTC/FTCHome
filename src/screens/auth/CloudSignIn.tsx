@@ -37,8 +37,8 @@ const TITLE: Record<Mode, string> = {
  * member lands on the roster as a request. That split is the whole point: a
  * link that anyone can open should not be a way onto anybody's roster.
  *
- * The team-code path is still here and still first-class. This screen needs the
- * network; a competition venue often does not have one.
+ * This screen needs the network. A device that is already signed in keeps its
+ * session offline, which is the case that actually matters at a venue.
  */
 export function CloudSignInScreen() {
   const navigate = useNavigate()
@@ -112,10 +112,10 @@ export function CloudSignInScreen() {
           once, under Settings → Sync, and then everyone signs in with their own account.
         </p>
         <p className="meta pretty" style={{ marginBottom: 22 }}>
-          Until then the team code works fine — it just keeps each device separate.
+          Until then each device keeps its own accounts, which works but does not share anything.
         </p>
         <Button variant="primary" block onClick={() => navigate('/signin')}>
-          Use the team code
+          Set up on this device
         </Button>
       </AuthLayout>
     )
@@ -234,7 +234,7 @@ export function CloudSignInScreen() {
       <p className="field-note" style={{ marginTop: 20 }}>
         {looksLikeAuthCallback() && checking
           ? 'Finishing sign-in…'
-          : 'No signal? The team code still works and needs no network at all.'}
+          : 'Signing in needs a network once. After that this device stays signed in offline.'}
       </p>
     </AuthLayout>
   )

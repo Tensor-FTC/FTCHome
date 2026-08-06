@@ -49,8 +49,6 @@ export interface Team extends Syncable {
   /** When the identity above was last pulled. Null means never — not yet set up. */
   syncedAt: string | null
 
-  /** PBKDF2 verifier for the shared team code. Never the code itself. */
-  code: PasswordVerifier | null
   /** Fundraising goal — a team decision, so it is local. */
   goal: number
 }

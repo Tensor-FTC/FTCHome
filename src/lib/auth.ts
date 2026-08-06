@@ -14,11 +14,10 @@ import type { AuthProvider } from '@/domain/types'
  *    the roster, and a coach decides it. Signing in proves who you are and
  *    nothing else; see `requestToJoin` in the store.
  *
- * The device credential path (a team code plus a personal password, hashed on
- * device) is *not* replaced by any of this. A team at a competition with no
- * signal still has to be able to sign in, and an OAuth round trip cannot happen
- * in a gym. Cloud accounts are the better default when there is a network;
- * device accounts are what makes the app work when there is not.
+ * A team with no Supabase project still gets accounts — they are just local to
+ * one device, with the password hashed on it. There is no shared team secret in
+ * either path: one string everybody knows protects nothing that individual
+ * passwords and a coach's approval do not already cover.
  */
 
 export const OAUTH_PROVIDERS = ['google', 'github'] as const

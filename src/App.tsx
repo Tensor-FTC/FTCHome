@@ -6,7 +6,7 @@ import { requestPersistence } from '@/lib/media'
 import { BrandLaunch, Wordmark } from '@/components/Brand'
 
 import { LaunchScreen } from '@/screens/Launch'
-import { TeamAccessScreen } from '@/screens/auth/TeamAccess'
+import { SignInScreen } from '@/screens/auth/SignIn'
 import { WhoAreYouScreen } from '@/screens/auth/WhoAreYou'
 import { PersonalSignInScreen } from '@/screens/auth/PersonalSignIn'
 import { MentorSignInScreen } from '@/screens/auth/MentorSignIn'
@@ -98,7 +98,7 @@ export function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<LaunchScreen />} />
-        <Route path="/signin" element={<TeamAccessScreen />} />
+        <Route path="/signin" element={<SignInScreen />} />
         <Route path="/signin/cloud" element={<CloudSignInScreen />} />
         <Route path="/pending" element={<AwaitingApprovalScreen />} />
         <Route path="/signin/who" element={<WhoAreYouScreen />} />

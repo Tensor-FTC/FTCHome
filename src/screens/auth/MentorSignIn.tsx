@@ -13,7 +13,7 @@ import { passwordStrength } from '@/lib/crypto'
  * flow: grey chip instead of lime, an account picker instead of a team number.
  * The colour of the screen tells a mentor immediately they are in the right place.
  *
- * No team code field at all — a mentor may cover several teams, and the account
+ * A mentor may cover several teams, and the account
  * carries the permissions.
  */
 export function MentorSignInScreen() {
@@ -88,7 +88,7 @@ export function MentorSignInScreen() {
         Mentor sign-in
       </h1>
       <p className="body" style={{ color: 'var(--ink-3)', marginBottom: 26 }}>
-        Mentor accounts are separate from the team code and can span several teams.
+        Mentor accounts can span several teams.
       </p>
 
       <form onSubmit={onSubmit} className="stack" style={{ gap: 11 }}>
@@ -129,7 +129,7 @@ export function MentorSignInScreen() {
       </form>
 
       <Button variant="quiet" block style={{ marginTop: 14 }} onClick={() => navigate('/signin')}>
-        I&rsquo;m a student — use the team code
+        I&rsquo;m a student
       </Button>
     </AuthLayout>
   )

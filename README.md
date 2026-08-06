@@ -53,7 +53,7 @@ Nineteen screens, all backed by real state rather than fixtures.
 | | Screen | What is actually live |
 |---|---|---|
 | 00 | Launch | One-shot mark animation, honours `prefers-reduced-motion` |
-| A1–A5 | Team access · Who are you · Personal sign-in · Mentor sign-in · Register | Two-factor-by-design: a shared team code gets you to the door, your own password says who you are |
+| A1–A5 | Sign in · Who are you · Personal sign-in · Mentor sign-in · Register | Account-first, no shared secret: the first account on an empty team is its coach, everyone after goes through the roster |
 | R1 | Roster | Add/edit/remove members, subteams, mentor-only medical and contact records |
 | 04 | Today | Next competition, today's meeting with RSVP, assigned tasks, gated approvals, blockers |
 | 05 / C1 | Calendar · Plan | Month grid of labelled entries, repeating meetings expanded on read, task due dates, agenda, season timeline derived from the team's own competition dates, `.ics` export with `RRULE` and `EXDATE` |
@@ -103,8 +103,10 @@ Nineteen screens, all backed by real state rather than fixtures.
   cannot be drawn and what to export instead, rather than showing an empty canvas.
 - **Real accounts, and a coach in the loop** — email and password, an emailed link, Google or
   GitHub, all through Supabase Auth. Signing in proves who you are; a coach decides who is on the
-  roster, so a public sign-up page is not also a way onto every team. The team-code path stays
-  first-class because OAuth needs a network and a competition venue often does not have one.
+  roster, so a public sign-up page is not also a way onto every team. There is **no shared team
+  password**: it protected nothing that individual passwords and an approval did not already cover,
+  and a device that has never synced holds an empty season anyway. A team with no Supabase project
+  still gets accounts, hashed on the device.
 - **Per-person grants** — a coach can hand one capability to one member by name, so a trusted
   captain runs the budget and a treasurer parent approves purchases without either pretending to be
   a coach. Handing out access and changing team settings are never grantable.

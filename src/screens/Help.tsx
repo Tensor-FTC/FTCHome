@@ -141,8 +141,9 @@ export function HelpScreen() {
               </p>
               <p className="body pretty" style={{ color: 'var(--ink-3)', marginTop: 12 }}>
                 Install it and that gets better: the app opens in its own window from your home screen,
-                dock or Start menu, and every screen is cached before you lose signal. The same install
-                works on a phone and on a laptop — <strong>Settings → Install</strong> shows the exact
+                dock or Start menu, and every screen is cached before you lose signal. On iPhone that is
+                <strong>Share → Add to Home Screen</strong> in Safari; on Windows and Mac it is the install
+                icon in Chrome or Edge&rsquo;s address bar. <strong>Settings → App</strong> shows the exact
                 steps for whatever you are on.
               </p>
               <div style={{ display: 'flex', gap: 9, marginTop: 12, flexWrap: 'wrap' }}>

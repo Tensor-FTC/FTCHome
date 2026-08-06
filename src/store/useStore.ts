@@ -89,8 +89,8 @@ interface StoreState {
   setRole: (role: Role) => void
   dismissOnboarding: () => void
   setMemberPassword: (memberId: string, password: string) => Promise<void>
-  verifyTeamCode: (code: string) => Promise<boolean>
-  setTeamCode: (code: string) => Promise<void>
+  /** Creates the first account on an empty team and signs in as its coach. */
+  createFirstAccount: (input: { name: string; email?: string; password: string }) => Promise<Member>
 
   // roster
   addMember: (name: string, role: Role, subteam?: Member['subteam']) => Member
@@ -316,25 +316,42 @@ export const useStore = create<StoreState>((set, get) => {
       get().updateMember(memberId, { password: verifier, status: 'active' })
     },
 
-    async verifyTeamCode(code) {
-      const team = get().season.team
-      // A team that has not set a code yet accepts the first one offered and adopts it.
-      if (!team.code) {
-        await get().setTeamCode(code)
-        return true
-      }
-      return verifyPassword(code, team.code)
-    },
+    /**
+     * The first account on an empty team.
+     *
+     * Whoever sets the app up is the coach, with no approval step — there is
+     * nobody to approve them, and requiring one would be a deadlock. Every
+     * account after this one goes through the roster.
+     *
+     * Guarded on the team being genuinely empty so it cannot be used to mint a
+     * second coach on a team that already has people.
+     */
+    async createFirstAccount({ name, email, password }) {
+      const existing = get().season.members.filter((m) => m.status === 'active')
+      if (existing.length) throw new Error('This team already has members. Ask one of them to add you.')
 
-    async setTeamCode(code) {
-      const verifier = await hashPassword(code)
-      const next = stamped({ ...get().season.team, code: verifier })
-      commit(
-        (d) => {
-          d.team = next
-        },
-        { table: 'teams', op: 'upsert', record: next, label: 'Team code' },
-      )
+      const verifier = await hashPassword(password)
+      const team = get().season.team
+      const member: Member = {
+        id: uid('mem-'),
+        updatedAt: now(),
+        name: name.trim(),
+        role: 'coach',
+        username: email?.trim() || `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
+        password: verifier,
+        status: 'active',
+        email: email?.trim() || undefined,
+        authProvider: 'device',
+        joinedAt: now(),
+      }
+      commit((d) => void d.members.push(member), {
+        table: 'members',
+        op: 'upsert',
+        record: member,
+        label: `Member · ${member.name}`,
+      })
+      get().signInAs(member.id)
+      return member
     },
 
     // ── roster ──────────────────────────────────────────────

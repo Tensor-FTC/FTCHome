@@ -121,7 +121,7 @@ export function PersonalSignInScreen() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={firstTime ? 'your own, not the team code' : ''}
+          placeholder={firstTime ? 'choose one now' : ''}
           autoComplete={firstTime ? 'new-password' : 'current-password'}
           big
           error={error}

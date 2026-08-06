@@ -239,12 +239,11 @@ export interface SeasonBackup {
 
 /**
  * Backups deliberately omit credential verifiers. A file a team emails around
- * should not carry the team code or anybody's password hash.
+ * should not carry anybody's password hash.
  */
 export function backupJson(season: SeasonData): string {
   const scrubbed: SeasonData = {
     ...season,
-    team: { ...season.team, code: null },
     members: season.members.map((m) => ({ ...m, password: null })),
   }
   const payload: SeasonBackup = {

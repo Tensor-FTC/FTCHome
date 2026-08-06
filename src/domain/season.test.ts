@@ -78,13 +78,11 @@ describe('season construction', () => {
   it('preserves local-only fields across a refresh', () => {
     const first = teamFromScout(SCOUT_TEAM_11138, emptySeason().team)
     first.goal = 9200
-    first.code = { algo: 'PBKDF2-SHA256', iterations: 1, salt: 's', hash: 'h' }
 
     const refreshed = teamFromScout({ ...SCOUT_TEAM_11138, city: 'Redmond' }, first)
     expect(refreshed.city).toBe('Redmond')
     // The team's own decisions survive an identity refresh.
     expect(refreshed.goal).toBe(9200)
-    expect(refreshed.code).not.toBeNull()
   })
 })
 
