@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['brand/logo.svg', 'favicon.svg'],
+      includeAssets: ['brand/logo.svg', 'brand/mark.svg', 'favicon.svg', 'brand/apple-touch-icon.png'],
       manifest: {
         id: '/?app=ftc-home',
         name: 'FTC Home — FTC season manager',
@@ -35,7 +35,7 @@ export default defineConfig({
         icons: [
           { src: 'brand/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'brand/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'brand/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'brand/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'brand/logo.svg', sizes: 'any', type: 'image/svg+xml' },
         ],
       },

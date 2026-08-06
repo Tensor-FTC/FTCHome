@@ -1,49 +1,29 @@
 /**
- * Rasterises the FTC Home mark to PNG app icons.
+ * Renders the FTC Home mark to every form the app ships it in.
  *
  * Deliberately dependency-free: it scan-converts the same geometry the SVG uses
  * and encodes the PNG with node's built-in zlib, so `npm run build` never needs
- * a native image toolchain. Run it after editing public/brand/logo.svg.
+ * a native image toolchain.
  *
  *   node scripts/generate-icons.mjs
+ *
+ * Writes public/favicon.svg, public/brand/*.svg, the PNG icons, and
+ * src/components/brandArt.ts — everything downstream of scripts/brand-geometry.mjs.
  */
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { BOX, INK, LIME, SHAPES, TILE_RADIUS, TRAILS, TRAIL_WIDTH, markSvgBody, pathData } from './brand-geometry.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
-const LIME = [0xc8, 0xf7, 0x51]
-const DARK = [0x0b, 0x0e, 0x10]
+const hex = (s) => [parseInt(s.slice(1, 3), 16), parseInt(s.slice(3, 5), 16), parseInt(s.slice(5, 7), 16)]
+const LIME_RGB = hex(LIME)
+const INK_RGB = hex(INK)
 
-/**
- * The mark, on a 64×64 design box: a roof chevron over four field tiles.
- * Transcribed from src/components/Brand.tsx — keep in step with it and
- * with public/favicon.svg.
- */
-const ROOF = [
-  [32, 8],
-  [56, 28],
-  [48, 28],
-  [32, 15],
-  [16, 28],
-  [8, 28],
-]
-const TILES = [rect(20, 32, 10, 10), rect(34, 32, 10, 10), rect(20, 46, 10, 10), rect(34, 46, 10, 10)]
-const BOX = 64
-const RADIUS = 0.24
+// ── geometry helpers for the rasteriser ─────────────────────
 
-function rect(x, y, w, h) {
-  return [
-    [x, y],
-    [x + w, y],
-    [x + w, y + h],
-    [x, y + h],
-  ]
-}
-
-/** Even-odd point-in-polygon. */
 function inPoly(poly, px, py) {
   let inside = false
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -54,13 +34,76 @@ function inPoly(poly, px, py) {
   return inside
 }
 
+/** Distance from a point to a segment — how the stroked shapes get thickness. */
+function distToSegment(px, py, [ax, ay], [bx, by]) {
+  const dx = bx - ax
+  const dy = by - ay
+  const len = dx * dx + dy * dy
+  const t = len === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len))
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+}
+
+function nearOutline(poly, px, py, width, closed = true) {
+  const n = closed ? poly.length : poly.length - 1
+  for (let i = 0; i < n; i++) {
+    if (distToSegment(px, py, poly[i], poly[(i + 1) % poly.length]) <= width / 2) return true
+  }
+  return false
+}
+
+/** Flattens the cubic trails to polylines once, so the inner loop stays cheap. */
+function flattenTrail(d, steps = 24) {
+  const nums = d.match(/-?\d+(?:\.\d+)?/g).map(Number)
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = nums
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps
+    const u = 1 - t
+    return [
+      u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3,
+      u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3,
+    ]
+  })
+}
+
+const TRAIL_LINES = TRAILS.map((d) => flattenTrail(d))
+
+/**
+ * Bounding boxes, computed once. Without them the inner loop walks every vertex
+ * of every shape for all four million supersamples of a 512px icon, which turns
+ * a build step into a coffee break.
+ */
+function bbox(points, pad) {
+  const xs = points.map((p) => p[0])
+  const ys = points.map((p) => p[1])
+  return [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) + pad, Math.max(...ys) + pad]
+}
+
+const HIT = [
+  ...SHAPES.map((shape) => ({ ...shape, box: bbox(shape.outer, shape.stroke ? shape.stroke : 0) })),
+]
+const TRAIL_HIT = TRAIL_LINES.map((line) => ({ line, box: bbox(line, TRAIL_WIDTH) }))
+
+const within = (box, x, y) => x >= box[0] && x <= box[2] && y >= box[1] && y <= box[3]
+
+function isInk(mx, my) {
+  for (const shape of HIT) {
+    if (!within(shape.box, mx, my)) continue
+    if (shape.stroke) {
+      if (nearOutline(shape.outer, mx, my, shape.stroke)) return true
+      continue
+    }
+    if (!inPoly(shape.outer, mx, my)) continue
+    if (shape.holes.some((h) => inPoly(h, mx, my))) continue
+    return true
+  }
+  return TRAIL_HIT.some((t) => within(t.box, mx, my) && nearOutline(t.line, mx, my, TRAIL_WIDTH, false))
+}
+
 function inRoundedSquare(px, py, size, r) {
   if (px < 0 || py < 0 || px > size || py > size) return false
   const cx = Math.min(Math.max(px, r), size - r)
   const cy = Math.min(Math.max(py, r), size - r)
-  const dx = px - cx
-  const dy = py - cy
-  return dx * dx + dy * dy <= r * r
+  return (px - cx) ** 2 + (py - cy) ** 2 <= r * r
 }
 
 /**
@@ -87,17 +130,9 @@ function render(size, maskable) {
         for (let sx = 0; sx < SS; sx++) {
           const fx = x + (sx + 0.5) / SS
           const fy = y + (sy + 0.5) / SS
-          // background plate, in output space
-          const bgX = fx / scale
-          const bgY = fy / scale
           let c = null
-          if (inRoundedSquare(bgX, bgY, BOX, BOX * RADIUS)) c = LIME
-          // mark, in mark space
-          const mx = (fx - off) / markScale
-          const my = (fy - off) / markScale
-          if (c) {
-            if (inPoly(ROOF, mx, my) || TILES.some((t) => inPoly(t, mx, my))) c = DARK
-          }
+          if (inRoundedSquare(fx / scale, fy / scale, BOX, BOX * TILE_RADIUS)) c = LIME_RGB
+          if (c && isInk((fx - off) / markScale, (fy - off) / markScale)) c = INK_RGB
           if (c) {
             r += c[0]
             g += c[1]
@@ -119,6 +154,8 @@ function render(size, maskable) {
   }
   return px
 }
+
+// ── PNG encoding ────────────────────────────────────────────
 
 const CRC_TABLE = (() => {
   const t = new Int32Array(256)
@@ -147,10 +184,9 @@ function chunk(type, data) {
 
 function encodePng(size, rgba) {
   const stride = size * 4
-  // one filter byte (0 = None) per scanline
   const raw = Buffer.alloc((stride + 1) * size)
   for (let y = 0; y < size; y++) {
-    raw[y * (stride + 1)] = 0
+    raw[y * (stride + 1)] = 0 // filter: None
     Buffer.from(rgba.buffer, y * stride, stride).copy(raw, y * (stride + 1) + 1)
   }
   const ihdr = Buffer.alloc(13)
@@ -166,14 +202,66 @@ function encodePng(size, rgba) {
   ])
 }
 
-const outDir = resolve(ROOT, 'public/brand')
-mkdirSync(outDir, { recursive: true })
+// ── outputs ─────────────────────────────────────────────────
+
+const GENERATED = '// Generated by scripts/generate-icons.mjs — do not edit by hand.'
+
+function tileSvg(size) {
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="${size}" height="${size}">`,
+    `<rect width="${BOX}" height="${BOX}" rx="${BOX * TILE_RADIUS}" fill="${LIME}"/>`,
+    markSvgBody(INK),
+    '</svg>',
+  ].join('')
+}
+
+mkdirSync(resolve(ROOT, 'public/brand'), { recursive: true })
+
+const wrote = []
+function write(rel, content) {
+  const file = resolve(ROOT, rel)
+  writeFileSync(file, content)
+  wrote.push(rel)
+}
+
+write('public/favicon.svg', tileSvg(64))
+write('public/brand/logo.svg', tileSvg(512))
+write(
+  'public/brand/mark.svg',
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${BOX} ${BOX}" width="512" height="512">${markSvgBody('currentColor')}</svg>`,
+)
+
+const { outlined, filled } = pathData()
+write(
+  'src/components/brandArt.ts',
+  [
+    GENERATED,
+    '// Geometry lives in scripts/brand-geometry.mjs; run `npm run icons` after changing it.',
+    '',
+    `export const BRAND_BOX = ${BOX}`,
+    `export const BRAND_LIME = '${LIME}'`,
+    `export const BRAND_TILE_RADIUS = ${TILE_RADIUS}`,
+    '',
+    '/** Shapes drawn as outlines, so the tile colour shows through them. */',
+    `export const BRAND_OUTLINED: { d: string; width: number }[] = ${JSON.stringify(outlined, null, 2)}`,
+    '',
+    '/** Solid shapes. Holes are cut with fill-rule="evenodd". */',
+    `export const BRAND_FILLED: string[] = ${JSON.stringify(filled, null, 2)}`,
+    '',
+    '/** The trails out of the chimney. */',
+    `export const BRAND_TRAILS: string[] = ${JSON.stringify(TRAILS, null, 2)}`,
+    `export const BRAND_TRAIL_WIDTH = ${TRAIL_WIDTH}`,
+    '',
+  ].join('\n'),
+)
+
 for (const [size, maskable, name] of [
   [192, false, 'icon-192.png'],
   [512, false, 'icon-512.png'],
+  [512, true, 'icon-maskable-512.png'],
   [180, false, 'apple-touch-icon.png'],
 ]) {
-  const file = resolve(outDir, name)
-  writeFileSync(file, encodePng(size, render(size, maskable)))
-  console.log('wrote', file)
+  write(`public/brand/${name}`, encodePng(size, render(size, maskable)))
 }
+
+for (const f of wrote) console.log('wrote', f)

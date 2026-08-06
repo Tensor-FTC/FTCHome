@@ -1,40 +1,40 @@
-/**
- * The mark: a house whose windows are the four tiles of a field — "FTC Home".
- *
- * Geometry lives here as the single source of truth; `scripts/generate-icons.mjs`
- * and `public/favicon.svg` transcribe these same numbers, so the favicon can
- * never drift from the in-app mark.
- *
- * Drawn on a 64×64 grid with an even 8px margin on every side.
- */
+import {
+  BRAND_BOX,
+  BRAND_FILLED,
+  BRAND_LIME,
+  BRAND_OUTLINED,
+  BRAND_TILE_RADIUS,
+  BRAND_TRAILS,
+  BRAND_TRAIL_WIDTH,
+} from './brandArt'
 
 /**
- * A roof chevron over the four tiles of a field — "home" and "the field", drawn
- * as geometry rather than as a literal house, which read as clip art.
+ * The mark: a house with cubes and game balls coming out of the chimney.
  *
- * Everything sits inside an 8px margin on a 64px box, so the mark is optically
- * centred and never crowds the tile's corner radius.
+ * The geometry is generated, not written here — it lives in
+ * `scripts/brand-geometry.mjs` and is emitted to `brandArt.ts` alongside the
+ * favicon and the PNG app icons by `npm run icons`. That is the whole point:
+ * the mark in the top bar, the one in the browser tab and the one on a phone
+ * home screen are the same numbers, so they cannot drift apart.
  */
-export const ROOF_PATH = 'M32 8 L56 28 L48 28 L32 15 L16 28 L8 28 Z'
-
-/** Four field tiles, 10px on a 4px gutter, centred under the roof. */
-export const TILES: [x: number, y: number][] = [
-  [20, 32],
-  [34, 32],
-  [20, 46],
-  [34, 46],
-]
-export const TILE_SIZE = 10
-
-/** Corner radius as a fraction of the tile edge. */
-export const TILE_RADIUS = 0.24
-
 function Glyph({ ink }: { ink: string }) {
   return (
     <>
-      <path d={ROOF_PATH} fill={ink} />
-      {TILES.map(([x, y]) => (
-        <rect key={`${x}-${y}`} x={x} y={y} width={TILE_SIZE} height={TILE_SIZE} rx="2" fill={ink} />
+      {BRAND_OUTLINED.map((shape) => (
+        <path
+          key={shape.d}
+          d={shape.d}
+          fill="none"
+          stroke={ink}
+          strokeWidth={shape.width}
+          strokeLinejoin="round"
+        />
+      ))}
+      {BRAND_FILLED.map((d) => (
+        <path key={d} d={d} fill={ink} fillRule="evenodd" />
+      ))}
+      {BRAND_TRAILS.map((d) => (
+        <path key={d} d={d} fill="none" stroke={ink} strokeWidth={BRAND_TRAIL_WIDTH} strokeLinecap="round" />
       ))}
     </>
   )
@@ -47,7 +47,7 @@ function Glyph({ ink }: { ink: string }) {
 export function Brand({
   size = 34,
   plate = true,
-  tile = 'var(--signal)',
+  tile = BRAND_LIME,
   ink = 'var(--srf-app)',
 }: {
   size?: number
@@ -55,24 +55,18 @@ export function Brand({
   tile?: string
   ink?: string
 }) {
-  if (!plate) {
-    return (
-      <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" style={{ display: 'block' }}>
-        <Glyph ink={ink} />
-      </svg>
-    )
-  }
-
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 64 64"
+      viewBox={`0 0 ${BRAND_BOX} ${BRAND_BOX}`}
       aria-hidden="true"
       style={{ display: 'block', flex: 'none' }}
     >
-      <rect width="64" height="64" rx={64 * TILE_RADIUS} fill={tile} />
-      <Glyph ink={ink} />
+      {plate && (
+        <rect width={BRAND_BOX} height={BRAND_BOX} rx={BRAND_BOX * BRAND_TILE_RADIUS} fill={tile} />
+      )}
+      <Glyph ink={plate ? ink : tile} />
     </svg>
   )
 }
@@ -94,12 +88,12 @@ export function BrandLaunch({ size = 132, animate = true }: { size?: number; ani
         display: 'grid',
         placeItems: 'center',
         borderRadius: '50%',
-        background: 'radial-gradient(circle at 50% 50%, rgba(200,247,81,.13) 0%, rgba(200,247,81,0) 64%)',
+        background: 'radial-gradient(circle at 50% 50%, rgba(198,232,78,.13) 0%, rgba(198,232,78,0) 64%)',
       }}
     >
       <div
         style={{
-          filter: 'drop-shadow(0 18px 44px rgba(200,247,81,.16))',
+          filter: 'drop-shadow(0 18px 44px rgba(198,232,78,.16))',
           animation: animate ? 'tilePop .68s cubic-bezier(.34,1.32,.4,1) both' : undefined,
         }}
       >

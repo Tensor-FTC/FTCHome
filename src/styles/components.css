@@ -344,7 +344,7 @@
 
 .field:focus {
   border-color: var(--signal-line);
-  box-shadow: 0 0 0 3px rgba(200, 247, 81, 0.09);
+  box-shadow: 0 0 0 3px rgba(198, 232, 78, 0.09);
 }
 
 .field-lg {

@@ -40,13 +40,13 @@
   --ink-body: #e4e9ea;
 
   /* signal — one accent, one pressure */
-  --signal: #c8f751;
+  --signal: #c6e84e;
   --signal-ink: #0b0e10;
-  --signal-bg: #161b10;
-  --signal-line: #3b4a22;
-  --signal-dim: #7e8c4e;
-  --signal-tint: #ddefb0;
-  --signal-deep: #1e2612;
+  --signal-bg: #171b10;
+  --signal-line: #3c4922;
+  --signal-dim: #7d8a4d;
+  --signal-tint: #dcecac;
+  --signal-deep: #1e2512;
 
   --pressure: #ffb020;
   --pressure-bg: #1a1710;
