@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { BrandLaunch, Wordmark } from '@/components/Brand'
 import { Button } from '@/components/ui'
 import { useStore } from '@/store/useStore'
+import { isAuthConfigured } from '@/lib/auth'
 import { isConfigured } from '@/domain/season'
 
 /**
@@ -23,6 +24,7 @@ export function LaunchScreen() {
 
   const team = season.team
   const configured = isConfigured(season)
+  const cloudAccounts = isAuthConfigured()
 
   useEffect(() => {
     setMotion(!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
@@ -77,11 +79,14 @@ export function LaunchScreen() {
         {configured ? (
           <>
             <Button variant="primary" size="lg" block onClick={() => navigate('/signin/cloud')}>
-              Sign in with an account
+              Sign in
             </Button>
-            <Button block onClick={() => navigate('/signin')}>
-              Use the team code
-            </Button>
+            {/* Only offered where there is no account provider to sign in with. */}
+            {!cloudAccounts && (
+              <Button block onClick={() => navigate('/signin')}>
+                Set up this device
+              </Button>
+            )}
           </>
         ) : (
           <Button variant="primary" size="lg" block onClick={() => navigate('/identity')}>

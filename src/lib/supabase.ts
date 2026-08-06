@@ -40,6 +40,25 @@ export function writeConfig(cfg: Partial<SupabaseConfig>): void {
   clientKey = ''
 }
 
+const ENROLLED_KEY = 'ftc-home.deviceEnrolled'
+
+/**
+ * Whether this device has already been let onto the team.
+ *
+ * The shared code is a *device enrolment* secret, not a password: it is asked
+ * once, when a device first joins a team that has no cloud accounts, and never
+ * again. Treating it as a login is what made it look pointless — because it
+ * was. Individual identity is a personal password or a real account.
+ */
+export function isDeviceEnrolled(): boolean {
+  if (typeof localStorage === 'undefined') return false
+  return localStorage.getItem(ENROLLED_KEY) === '1'
+}
+
+export function markDeviceEnrolled(): void {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(ENROLLED_KEY, '1')
+}
+
 export function isSupabaseConfigured(): boolean {
   const { url, anonKey, teamSecret } = readConfig()
   return Boolean(url && anonKey && teamSecret)
