@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { BrandLaunch } from '@/components/Brand'
+import { BrandLaunch, Wordmark } from '@/components/Brand'
 import { Button } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { isConfigured } from '@/domain/season'
@@ -46,28 +46,9 @@ export function LaunchScreen() {
     >
       <div style={{ flex: 1, display: 'grid', placeItems: 'center', minHeight: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <BrandLaunch key={replayKey} size={150} animate={motion} />
-          <div style={{ display: 'flex', alignItems: 'baseline', marginTop: -12 }}>
-            <span
-              style={{
-                font: '500 46px/1 var(--font-sans)',
-                color: '#F2F0E9',
-                letterSpacing: '-0.01em',
-                animation: motion ? 'wordIn .55s cubic-bezier(.2,.8,.3,1) .55s both' : undefined,
-              }}
-            >
-              FTC
-            </span>
-            <span
-              style={{
-                font: '400 46px/1 var(--font-sans)',
-                color: '#8B9490',
-                letterSpacing: '-0.01em',
-                animation: motion ? 'wordIn .55s cubic-bezier(.2,.8,.3,1) .72s both' : undefined,
-              }}
-            >
-              Home
-            </span>
+          <BrandLaunch key={replayKey} size={132} animate={motion} />
+          <div style={{ marginTop: 4 }}>
+            <Wordmark animate={motion} />
           </div>
           <div
             style={{
@@ -75,7 +56,7 @@ export function LaunchScreen() {
               color: 'var(--ink-rail)',
               letterSpacing: '0.3em',
               marginTop: 16,
-              animation: motion ? 'fadeIn .6s ease 1.05s both' : undefined,
+              animation: motion ? 'fadeIn .5s ease .78s both' : undefined,
             }}
           >
             ONE PLACE. ALL SEASON.
@@ -90,7 +71,7 @@ export function LaunchScreen() {
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
-          animation: motion ? 'fadeIn .5s ease 1.2s both' : undefined,
+          animation: motion ? 'fadeIn .5s ease .92s both' : undefined,
         }}
       >
         {configured ? (

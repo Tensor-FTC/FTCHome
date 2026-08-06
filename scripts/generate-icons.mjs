@@ -17,24 +17,22 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const LIME = [0xc8, 0xf7, 0x51]
 const DARK = [0x0b, 0x0e, 0x10]
 
-/** The mark, in a 78×78 design box. Same numbers as public/brand/logo.svg. */
-const Y = 3
+/**
+ * The mark, on a 64×64 design box: a roof chevron over four field tiles.
+ * Transcribed from src/components/Brand.tsx — keep in step with it and
+ * with public/favicon.svg.
+ */
 const ROOF = [
-  [39, 4],
-  [77, 41],
-  [66, 41],
-  [39, 16],
-  [12, 41],
-  [1, 41],
-].map(([x, y]) => [x, y + Y])
-const CHIMNEY = rect(50, 4 + Y, 9, 26)
-const BODY = rect(16, 41 + Y, 46, 27)
-const WINDOWS = [
-  rect(28, 47 + Y, 9, 9),
-  rect(41, 47 + Y, 9, 9),
-  rect(28, 58 + Y, 9, 9),
-  rect(41, 58 + Y, 9, 9),
+  [32, 8],
+  [56, 28],
+  [48, 28],
+  [32, 15],
+  [16, 28],
+  [8, 28],
 ]
+const TILES = [rect(20, 32, 10, 10), rect(34, 32, 10, 10), rect(20, 46, 10, 10), rect(34, 46, 10, 10)]
+const BOX = 64
+const RADIUS = 0.24
 
 function rect(x, y, w, h) {
   return [
@@ -72,12 +70,12 @@ function inRoundedSquare(px, py, size, r) {
 function render(size, maskable) {
   const SS = 4 // supersampling factor, for edge quality at 192px
   const px = new Uint8Array(size * size * 4)
-  const scale = size / 78
+  const scale = size / BOX
   // Maskable icons get cropped to a circle by some launchers; keep the mark
   // inside the 80% safe zone so the roof never loses its peak.
   const inset = maskable ? 0.8 : 1
   const markScale = scale * inset
-  const off = (size - 78 * markScale) / 2
+  const off = (size - BOX * markScale) / 2
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -93,13 +91,12 @@ function render(size, maskable) {
           const bgX = fx / scale
           const bgY = fy / scale
           let c = null
-          if (inRoundedSquare(bgX, bgY, 78, 18)) c = LIME
+          if (inRoundedSquare(bgX, bgY, BOX, BOX * RADIUS)) c = LIME
           // mark, in mark space
           const mx = (fx - off) / markScale
           const my = (fy - off) / markScale
           if (c) {
-            if (inPoly(ROOF, mx, my) || inPoly(CHIMNEY, mx, my) || inPoly(BODY, mx, my)) c = DARK
-            if (WINDOWS.some((w) => inPoly(w, mx, my))) c = LIME
+            if (inPoly(ROOF, mx, my) || TILES.some((t) => inPoly(t, mx, my))) c = DARK
           }
           if (c) {
             r += c[0]

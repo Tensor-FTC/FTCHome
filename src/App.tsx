@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { AppShell } from '@/components/AppShell'
 import { useStore, flushPendingSave } from '@/store/useStore'
 import { requestPersistence } from '@/lib/media'
+import { BrandLaunch, Wordmark } from '@/components/Brand'
 
 import { LaunchScreen } from '@/screens/Launch'
 import { TeamAccessScreen } from '@/screens/auth/TeamAccess'
@@ -124,17 +125,31 @@ export function App() {
   )
 }
 
+/**
+ * Shown while IndexedDB opens. Deliberately the same mark, wordmark and
+ * background as the launch screen, so the handover between them is invisible
+ * rather than a flash of unstyled text followed by a logo popping in.
+ */
 function BootSplash() {
   return (
     <div
       style={{
         minHeight: '100dvh',
-        display: 'grid',
-        placeItems: 'center',
-        background: 'var(--srf-void)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        background: 'radial-gradient(520px 420px at 50% 38%, #16191C 0%, #08090A 70%)',
       }}
     >
-      <span className="label">Loading season…</span>
+      {/* No animation: this can be on screen for two frames or two seconds, and
+          a pop that restarts when the real launch screen mounts looks broken. */}
+      <BrandLaunch size={132} animate={false} />
+      <Wordmark animate={false} />
+      <span className="label" style={{ marginTop: 14, letterSpacing: '0.3em' }}>
+        ONE PLACE. ALL SEASON.
+      </span>
     </div>
   )
 }
