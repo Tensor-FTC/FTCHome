@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { Button, Check, Chip, EmptyState, Field, IconButton } from '@/components/ui'
 import { useStore, partsTotals } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { money } from '@/lib/format'
 import { download, parseParts, partsCsv } from '@/lib/exporters'
 
@@ -17,7 +17,7 @@ import { download, parseParts, partsCsv } from '@/lib/exporters'
  */
 export function PartsScreen() {
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const addPart = useStore((s) => s.addPart)
   const togglePart = useStore((s) => s.togglePart)
   const removePart = useStore((s) => s.removePart)
@@ -33,7 +33,7 @@ export function PartsScreen() {
   const [unit, setUnit] = useState('')
   const [filter, setFilter] = useState<'all' | 'needed' | 'owned'>('all')
 
-  const editable = can(role, 'budget.edit') || can(role, 'tasks.create')
+  const editable = allow('budget.edit') || allow('tasks.create')
   const { need, all, haveCount, allCount } = partsTotals(season)
 
   /** Categories come from what the team has actually typed, not a fixed taxonomy. */

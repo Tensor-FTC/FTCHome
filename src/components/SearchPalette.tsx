@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isDone } from '@/domain/tasks'
 import { useStore } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { EVENT_TYPE_LABEL, ROLE_LABEL } from '@/domain/types'
 import { longStamp } from '@/lib/date'
 import { money } from '@/lib/format'
@@ -24,6 +25,7 @@ interface Hit {
  */
 export function SearchPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const season = useStore((s) => s.season)
+  const allow = useCan()
   const role = useStore((s) => s.session.role)
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
@@ -63,7 +65,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
         const who = season.members.find((m) => m.id === t.assigneeId)
         out.push({
           id: t.id,
-          kind: t.done ? 'Task · done' : 'Task',
+          kind: isDone(t) ? 'Task · done' : 'Task',
           title: t.name,
           sub: [t.subteam, who?.name].filter(Boolean).join(' · ') || 'unassigned',
           to: '/today',
@@ -84,7 +86,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
     }
 
     // Sponsor amounts follow the same gate as the Budget screen.
-    if (can(role, 'budget.viewAmounts')) {
+    if (allow('budget.viewAmounts')) {
       for (const s of season.sponsors) {
         if (match(s.name, s.tier)) {
           out.push({ id: s.id, kind: 'Sponsor', title: s.name, sub: `${money(s.amount)} · ${s.state}`, to: '/budget' })

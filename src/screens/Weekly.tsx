@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, Chip, EmptyState, IconButton, LockedValue, Meter, SectionLabel, TextArea } from '@/components/ui'
 import { MediaThumb } from '@/components/MediaThumb'
+import { isDone } from '@/domain/tasks'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { SUBTEAM_LABEL, type Subteam } from '@/domain/types'
 import { range } from '@/lib/date'
 import { download, weeklyMarkdown } from '@/lib/exporters'
@@ -24,7 +25,7 @@ export function WeeklyScreen() {
   const { weekId } = useParams()
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const me = useStore(currentMember)
   const upsertWeekly = useStore((s) => s.upsertWeekly)
   const publishWeekly = useStore((s) => s.publishWeekly)
@@ -40,7 +41,7 @@ export function WeeklyScreen() {
   const [shoutText, setShoutText] = useState('')
 
   const budget = budgetTotals(season)
-  const canEdit = can(role, 'weekly.edit')
+  const canEdit = allow('weekly.edit')
 
   // Attendance and subteam progress are derived, never typed in — that is what
   // makes them "auto" blocks the eye can trust.
@@ -50,7 +51,7 @@ export function WeeklyScreen() {
       if (!task.subteam) continue
       const entry = groups.get(task.subteam) ?? { done: 0, total: 0 }
       entry.total++
-      if (task.done) entry.done++
+      if (isDone(task)) entry.done++
       groups.set(task.subteam, entry)
     }
     return [...groups.entries()].map(([id, v]) => ({ id, ...v }))
@@ -80,7 +81,7 @@ export function WeeklyScreen() {
           <EmptyState
             title="No week yet"
             body="Your first dashboard builds itself once there's a meeting on the calendar."
-            action={can(role, 'calendar.edit') ? { label: 'Add first meeting', onClick: () => navigate('/calendar/edit') } : undefined}
+            action={allow('calendar.edit') ? { label: 'Add first meeting', onClick: () => navigate('/calendar/edit') } : undefined}
           />
         </div>
       </div>
@@ -134,7 +135,7 @@ export function WeeklyScreen() {
             <EmptyState
               title="No photo this week"
               body="A build photo is the one thing parents and sponsors actually open."
-              action={can(role, 'media.upload') ? { label: 'Add to the build log', onClick: () => navigate('/build') } : undefined}
+              action={allow('media.upload') ? { label: 'Add to the build log', onClick: () => navigate('/build') } : undefined}
             />
           )}
         </div>
@@ -189,7 +190,7 @@ export function WeeklyScreen() {
                 Budget left
               </div>
               {/* The parent-gated block: masked, not removed. */}
-              {can(role, 'budget.viewAmounts') ? (
+              {allow('budget.viewAmounts') ? (
                 <>
                   <div className="num" style={{ font: '600 24px/1 var(--font-mono)', color: 'var(--ink)' }}>
                     {money(budget.left)}
@@ -343,7 +344,7 @@ export function WeeklyScreen() {
 
         <div className="section weekly-span">
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
-            {can(role, 'weekly.publish') && !report.published && (
+            {allow('weekly.publish') && !report.published && (
               <Button variant="primary" onClick={() => publishWeekly(report.id)} disabled={!report.summary}>
                 Publish week {report.week}
               </Button>

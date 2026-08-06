@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button, IconButton } from '@/components/ui'
 import { useStore } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 
 /**
  * First-run guidance on Today.
@@ -17,6 +17,7 @@ import { can } from '@/domain/permissions'
  */
 export function GettingStarted() {
   const season = useStore((s) => s.season)
+  const allow = useCan()
   const role = useStore((s) => s.session.role)
   const dismissed = useStore((s) => s.session.onboardingDismissed)
   const dismissOnboarding = useStore((s) => s.dismissOnboarding)
@@ -30,7 +31,7 @@ export function GettingStarted() {
         hint: 'They get the team code and set their own password.',
         done: season.members.length > 1,
         to: '/roster',
-        allowed: can(role, 'roster.manage'),
+        allowed: allow('roster.manage'),
       },
       {
         id: 'meeting',
@@ -38,7 +39,7 @@ export function GettingStarted() {
         hint: 'Competitions come from FTCScout automatically — these are the ones only you know.',
         done: season.events.some((e) => e.source !== 'ftc-scout'),
         to: '/calendar/edit',
-        allowed: can(role, 'calendar.edit'),
+        allowed: allow('calendar.edit'),
       },
       {
         id: 'task',
@@ -46,7 +47,7 @@ export function GettingStarted() {
         hint: 'Anything with a name and an owner. Today shows what is yours and what is late.',
         done: season.tasks.length > 0,
         to: '/today',
-        allowed: can(role, 'tasks.create'),
+        allowed: allow('tasks.create'),
       },
       {
         id: 'budget',
@@ -54,7 +55,7 @@ export function GettingStarted() {
         hint: 'Then log sponsors as they commit, so progress is visible to the whole team.',
         done: season.team.goal > 0 || season.sponsors.length > 0,
         to: '/budget',
-        allowed: can(role, 'budget.edit'),
+        allowed: allow('budget.edit'),
       },
       {
         id: 'media',
@@ -62,7 +63,7 @@ export function GettingStarted() {
         hint: 'One per build day is enough — the weekly page and the notebook both pull from it.',
         done: season.media.length > 0,
         to: '/build',
-        allowed: can(role, 'media.upload'),
+        allowed: allow('media.upload'),
       },
     ]
     return all.filter((s) => s.allowed)

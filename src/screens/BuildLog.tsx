@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Chip, EmptyState, Field, Meter, Sheet, TextArea } from '@/components/ui'
 import { MediaThumb } from '@/components/MediaThumb'
 import { useStore, currentMember } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { importFile, storageEstimate, blobUrl } from '@/lib/media'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { bytes } from '@/lib/format'
@@ -29,7 +29,7 @@ const FILTERS: { id: MediaKind | 'all'; label: string }[] = [
  */
 export function BuildLogScreen() {
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const me = useStore(currentMember)
   const online = useStore((s) => s.online)
   const addMedia = useStore((s) => s.addMedia)
@@ -153,7 +153,7 @@ export function BuildLogScreen() {
                 </div>
               )}
 
-              {can(role, 'media.upload') && (
+              {allow('media.upload') && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 13 }}>
                   <input
                     ref={fileRef}
@@ -238,7 +238,7 @@ export function BuildLogScreen() {
                 title="Nothing in the log yet"
                 body="One photo per build day is enough. It is what the notebook and the weekly dashboard both pull from."
                 action={
-                  can(role, 'media.upload') ? { label: 'Add the first photo', onClick: () => fileRef.current?.click() } : undefined
+                  allow('media.upload') ? { label: 'Add the first photo', onClick: () => fileRef.current?.click() } : undefined
                 }
               />
             </div>
@@ -295,7 +295,7 @@ export function BuildLogScreen() {
       {selected && (
         <MediaDetail
           item={selected}
-          canDelete={can(role, 'media.delete')}
+          canDelete={allow('media.delete')}
           onClose={() => setSelected(null)}
           onSave={(patch) => {
             updateMedia(selected.id, patch)

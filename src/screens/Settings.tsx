@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Chip, Field, SectionLabel, Select, Toggle } from '@/components/ui'
 import { useStore, currentMember } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { readConfig, testConnection, writeConfig } from '@/lib/supabase'
 import {
   getTeamSeason,
@@ -32,6 +32,7 @@ import { ROLE_LABEL, type Alliance, type Role } from '@/domain/types'
 export function SettingsScreen() {
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
+  const allow = useCan()
   const session = useStore((s) => s.session)
   const me = useStore(currentMember)
   const updateSettings = useStore((s) => s.updateSettings)
@@ -59,7 +60,7 @@ export function SettingsScreen() {
   const [storedBytes, setStoredBytes] = useState(0)
   const restoreRef = useRef<HTMLInputElement>(null)
 
-  const manage = can(session.role, 'settings.manage')
+  const manage = allow('settings.manage')
 
   // Shown so Settings can explain why the countdown is or is not on screen.
   const upcomingMatch = season.competition.matches.find(

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, EmptyState, LockedValue, Toggle } from '@/components/ui'
 import { useStore } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { pendingWrites, syncTarget } from '@/lib/sync'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { ago, bytes } from '@/lib/format'
@@ -21,7 +21,7 @@ import type { OutboxEntry } from '@/domain/types'
 export function StatesScreen() {
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const online = useStore((s) => s.online)
   const syncing = useStore((s) => s.syncing)
   const lastResult = useStore((s) => s.lastSyncResult)
@@ -122,7 +122,7 @@ export function StatesScreen() {
           </div>
 
           {/* ── simulate ─────────────────────────────────── */}
-          {can(role, 'settings.manage') && (
+          {allow('settings.manage') && (
             <div className="section">
               <div className="card-quiet card-pad" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -153,7 +153,7 @@ export function StatesScreen() {
               title="No week yet"
               body="Your first dashboard builds itself once there's a meeting on the calendar."
               action={
-                can(role, 'calendar.edit')
+                allow('calendar.edit')
                   ? { label: 'Add first meeting', onClick: () => navigate('/calendar/edit') }
                   : undefined
               }
@@ -189,14 +189,14 @@ export function StatesScreen() {
                     Medical &amp; contact info
                   </div>
                   <div className="meta" style={{ marginTop: 3 }}>
-                    {can(role, 'roster.readMedical')
+                    {allow('roster.readContact')
                       ? 'You can read these because you are a mentor. Students and captains cannot.'
                       : "Mentors and the listed guardian only. Your captain can't see this either."}
                   </div>
                   <div style={{ marginTop: 11 }}>
                     <LockedValue shape="•••• ••• ••••" />
                   </div>
-                  {!can(role, 'roster.readMedical') && (
+                  {!allow('roster.readContact') && (
                     <Button size="sm" style={{ marginTop: 11 }} onClick={() => navigate('/roster')}>
                       Request access
                     </Button>

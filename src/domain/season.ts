@@ -1,4 +1,5 @@
 import { uid, now } from '@/lib/id'
+import { DEFAULT_POLICY } from './permissions'
 import {
   CURRENT_SEASON,
   DEFAULT_REGION,
@@ -22,6 +23,7 @@ import type { CalendarEvent, CompetitionEvent, SeasonData, Settings, Team, TeamS
 
 export function emptySettings(): Settings {
   return {
+    policy: { ...DEFAULT_POLICY },
     alliance: 'red',
     notificationsEnabled: false,
     notifyLeadSeconds: 300,
@@ -109,7 +111,7 @@ export function migrateSeason(stored: Partial<SeasonData> | undefined): SeasonDa
     ...base,
     ...stored,
     team: { ...base.team, ...stored.team },
-    settings: { ...base.settings, ...stored.settings },
+    settings: { ...base.settings, ...stored.settings, policy: { ...base.settings.policy, ...stored.settings?.policy } },
     competition: { ...base.competition, ...stored.competition },
     members: stored.members ?? [],
     events: stored.events ?? [],

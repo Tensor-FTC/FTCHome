@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, EmptyState, Field, Sheet, Spinner, TextArea } from '@/components/ui'
 import { useStore } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { ago, clock } from '@/lib/format'
 import { nextCompetition } from '@/domain/season'
 import { matchClock } from '@/domain/matchClock'
@@ -23,7 +23,7 @@ import type { Match } from '@/domain/types'
 export function LiveEventScreen() {
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const upsertScouting = useStore((s) => s.upsertScouting)
   const loadEvent = useStore((s) => s.loadEvent)
   const busy = useStore((s) => s.scoutBusy)
@@ -368,7 +368,7 @@ export function LiveEventScreen() {
                     )}
                   </div>
 
-                  {can(role, 'scouting.edit') && (
+                  {allow('scouting.edit') && (
                     <Button
                       size="sm"
                       variant="quiet"

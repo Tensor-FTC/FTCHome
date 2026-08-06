@@ -1,4 +1,6 @@
 import { EVENT_TYPE_LABEL, ROLE_LABEL, type PartItem, type SeasonData } from '@/domain/types'
+import { isDone } from '@/domain/tasks'
+import { toRRule } from '@/domain/recurrence'
 import { fromIso } from './date'
 import { money } from './format'
 
@@ -216,9 +218,10 @@ export function calendarIcs(season: SeasonData): string {
     if (e.location) lines.push(fold(`LOCATION:${icsEscape(e.location)}`))
     const description = [e.notes, `Type: ${EVENT_TYPE_LABEL[e.type]}`].filter(Boolean).join('\n')
     if (description) lines.push(fold(`DESCRIPTION:${icsEscape(description)}`))
-    if (e.repeatWeeklyUntil) {
-      lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${e.repeatWeeklyUntil.replace(/-/g, '')}T235900Z`)
-    }
+    const rrule = toRRule(e.recurrence)
+    if (rrule) lines.push(rrule)
+    // Occurrences the team cancelled must be excluded, or the import re-creates them.
+    for (const skipped of e.exceptions ?? []) lines.push(`EXDATE${icsStamp(skipped, e.time)}`)
     lines.push('END:VEVENT')
   }
   lines.push('END:VCALENDAR')
@@ -285,6 +288,6 @@ export function weeklyMarkdown(season: SeasonData, weekId: string): string {
   const raised = season.sponsors.reduce((sum, s) => sum + s.amount, 0)
   lines.push('## Season', '', `- Raised: ${money(raised)} of ${money(season.team.goal)}`)
   lines.push(`- Roster: ${season.members.length}`)
-  lines.push(`- Open tasks: ${season.tasks.filter((t) => !t.done).length}`)
+  lines.push(`- Open tasks: ${season.tasks.filter((t) => !isDone(t)).length}`)
   return lines.join('\n')
 }

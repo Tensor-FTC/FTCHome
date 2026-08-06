@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Avatar, Button, Chip, Field, IconButton, LockedValue, Sheet, TextArea } from '@/components/ui'
 import { useStore } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { ROLE_LABEL, SUBTEAM_LABEL, type Member, type Role, type Subteam } from '@/domain/types'
 import { download, rosterCsv } from '@/lib/exporters'
 
@@ -18,7 +18,7 @@ const ADDABLE_ROLES: Role[] = ['student', 'captain', 'mentor', 'coach', 'parent'
  */
 export function RosterScreen() {
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const addMember = useStore((s) => s.addMember)
   const updateMember = useStore((s) => s.updateMember)
   const removeMember = useStore((s) => s.removeMember)
@@ -29,8 +29,8 @@ export function RosterScreen() {
   const [subteam, setSubteam] = useState<Subteam | ''>('')
   const [editing, setEditing] = useState<Member | null>(null)
 
-  const manage = can(role, 'roster.manage')
-  const readMedical = can(role, 'roster.readMedical')
+  const manage = allow('roster.manage')
+  const readMedical = allow('roster.readContact')
   const pending = season.members.filter((m) => m.pending).length
 
   function onAdd(e: FormEvent) {
@@ -52,7 +52,7 @@ export function RosterScreen() {
               {season.members.length} members · {pending} invites pending
             </div>
           </div>
-          {can(role, 'season.export') && (
+          {allow('season.export') && (
             <Button
               size="sm"
               variant="quiet"

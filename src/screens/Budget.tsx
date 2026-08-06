@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Avatar, Button, Chip, Field, IconButton, LockedValue, Meter, SectionLabel } from '@/components/ui'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { money, pct } from '@/lib/format'
 import { budgetCsv, download } from '@/lib/exporters'
 import type { SponsorState } from '@/domain/types'
@@ -18,7 +18,7 @@ import type { SponsorState } from '@/domain/types'
  */
 export function BudgetScreen() {
   const season = useStore((s) => s.season)
-  const role = useStore((s) => s.session.role)
+  const allow = useCan()
   const me = useStore(currentMember)
   const addSponsor = useStore((s) => s.addSponsor)
   const removeSponsor = useStore((s) => s.removeSponsor)
@@ -29,8 +29,8 @@ export function BudgetScreen() {
   const notify = useStore((s) => s.notify)
 
   const totals = budgetTotals(season)
-  const editable = can(role, 'budget.edit')
-  const seeAmounts = can(role, 'budget.viewAmounts')
+  const editable = allow('budget.edit')
+  const seeAmounts = allow('budget.viewAmounts')
 
   const [goalDraft, setGoalDraft] = useState(String(season.team.goal))
   const [spName, setSpName] = useState('')
@@ -124,7 +124,7 @@ export function BudgetScreen() {
                 : 'Read-only. Coaches log sponsors and set the goal.'}
             </p>
           </div>
-          {can(role, 'season.export') && (
+          {allow('season.export') && (
             <Button
               size="sm"
               variant="quiet"
@@ -259,7 +259,7 @@ export function BudgetScreen() {
                           </span>
                         </div>
                       </div>
-                      {can(role, 'approvals.viewAmounts') ? (
+                      {allow('approvals.viewAmounts') ? (
                         <span className="num" style={{ font: '600 15px var(--font-mono)', color: 'var(--ink)' }}>
                           {money(a.amount, { cents: true })}
                         </span>
@@ -267,7 +267,7 @@ export function BudgetScreen() {
                         <LockedValue />
                       )}
                     </div>
-                    {a.state === 'pending' && can(role, 'approvals.decide') && (
+                    {a.state === 'pending' && allow('approvals.decide') && (
                       <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
                         <Button variant="primary" size="sm" block onClick={() => me && decideApproval(a.id, 'approved', me.id)}>
                           Approve
@@ -282,7 +282,7 @@ export function BudgetScreen() {
               })}
             </div>
 
-            {can(role, 'approvals.request') && !can(role, 'approvals.decide') && (
+            {allow('approvals.request') && !allow('approvals.decide') && (
               <form onSubmit={onRequest} className="card-quiet card-pad" style={{ marginTop: 12 }}>
                 <div className="label" style={{ marginBottom: 11 }}>
                   Request a purchase

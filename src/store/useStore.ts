@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { toggledStatus } from '@/domain/tasks'
 import {
   calendarFromScout,
   emptySeason,
@@ -422,7 +423,8 @@ export const useStore = create<StoreState>((set, get) => {
     toggleTask(id) {
       const task = get().season.tasks.find((t) => t.id === id)
       if (!task) return
-      const next = stamped({ ...task, done: !task.done, doneAt: !task.done ? now() : undefined })
+      const status = toggledStatus(task.status)
+      const next = stamped({ ...task, status, doneAt: status === 'done' ? now() : undefined })
       commit(
         (d) => {
           const i = d.tasks.findIndex((t) => t.id === id)

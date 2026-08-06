@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { Brand } from './Brand'
 import { useStore, currentMember } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { ROLE_LABEL } from '@/domain/types'
 
 /**
@@ -59,6 +59,7 @@ const MANAGE = [
 
 export function Rail() {
   const { pathname } = useLocation()
+  const allow = useCan()
   const season = useStore((s) => s.season)
   const session = useStore((s) => s.session)
   const member = useStore(currentMember)
@@ -90,7 +91,7 @@ export function Rail() {
       {TABS.map((t) => item(t.to, t.label))}
 
       <div className="rail-group">Season management</div>
-      {MANAGE.filter((m) => !m.capability || can(session.role, m.capability)).map((m) => item(m.to, m.label))}
+      {MANAGE.filter((m) => !m.capability || allow(m.capability)).map((m) => item(m.to, m.label))}
 
       <div className="rail-group">App</div>
       {item('/help', 'How this works')}

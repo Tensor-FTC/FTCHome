@@ -10,7 +10,7 @@ export type RsvpStatus = 'going' | 'maybe' | 'cant' | 'none'
 
 export type Alliance = 'red' | 'blue'
 
-export type SponsorState = 'Pledged' | 'Received'
+export type SponsorState = 'Prospect' | 'Pledged' | 'Received' | 'Declined'
 
 export type MediaKind = 'photo' | 'video' | 'cad' | 'match'
 
@@ -98,6 +98,23 @@ export interface PasswordVerifier {
   hash: string
 }
 
+/**
+ * A repeat rule. Expanded on read by domain/recurrence.ts rather than written
+ * out as rows — a season of twice-weekly builds is ~50 rows of nothing, and
+ * editing the series afterwards would mean rewriting every one.
+ */
+export interface Recurrence {
+  freq: 'weekly' | 'monthly'
+  /** Every N weeks/months. */
+  interval: number
+  /** Weekly only. 0 = Sunday. Empty means "the weekday it starts on". */
+  days?: number[]
+  /** Ends after this many occurrences … */
+  count?: number
+  /** … or on this ISO date. */
+  until?: string
+}
+
 export interface CalendarEvent extends Syncable {
   title: string
   /** ISO date, YYYY-MM-DD. Times are local and stored separately so "—" stays possible. */
@@ -107,8 +124,14 @@ export interface CalendarEvent extends Syncable {
   type: EventType
   location?: string
   notes?: string
-  /** Repeats weekly until this ISO date. */
-  repeatWeeklyUntil?: string
+  recurrence?: Recurrence
+  /** Dates in the series that were cancelled, so one skipped week is not a delete. */
+  exceptions?: string[]
+  /**
+   * Whether this entry expects people to turn up. A deadline is on the calendar
+   * but is not a meeting, and asking the team to RSVP to one is noise.
+   */
+  attendance?: boolean
   attachments?: Attachment[]
   /**
    * Where this entry came from. FTCScout entries are replaced wholesale on
@@ -134,13 +157,18 @@ export interface Rsvp extends Syncable {
   status: RsvpStatus
 }
 
+export type TaskStatus = 'todo' | 'doing' | 'blocked' | 'done'
+
 export interface Task extends Syncable {
   name: string
+  notes?: string
   subteam?: Subteam
   assigneeId?: string
-  /** ISO date, or empty for "no date". */
+  /** ISO date, or empty for "no date". Shown on the calendar when set. */
   due: string
-  done: boolean
+  /** Optional planned start, so a task can occupy a span rather than a deadline. */
+  start?: string
+  status: TaskStatus
   doneAt?: string
   blockedBy?: string
   createdBy?: string
@@ -289,7 +317,35 @@ export interface CompetitionEvent extends Syncable {
   stale?: boolean
 }
 
+/**
+ * Who a given class of information is visible to.
+ *
+ * `everyone` includes parents and guests; `members` is the signed-in team;
+ * `staff` is coaches and mentors only.
+ */
+export type Audience = 'everyone' | 'members' | 'staff'
+
+/**
+ * Team-configurable visibility. The app defaults to open — a team is a group of
+ * people building one robot, and hiding the budget from the students raising the
+ * money is usually the wrong default. Coaches can tighten any of these.
+ *
+ * `contactRecords` is the exception and defaults to staff-only: it is minors'
+ * medical and guardian data, and that is a safeguarding decision rather than a
+ * preference.
+ */
+export interface TeamPolicy {
+  budgetFigures: Audience
+  purchaseAmounts: Audience
+  contactRecords: Audience
+  rosterEditing: Audience
+  calendarEditing: Audience
+  /** Days after which finished work moves to the archive. */
+  archiveAfterDays: number
+}
+
 export interface Settings {
+  policy: TeamPolicy
   /**
    * Fallback alliance colour for Competition Mode when no match is scheduled.
    * When a match *is* scheduled the real side is derived from it and wins.

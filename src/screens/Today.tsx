@@ -2,8 +2,9 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { Button, Check, Chip, LockedValue, SectionLabel } from '@/components/ui'
 import { GettingStarted } from '@/components/GettingStarted'
+import { isDone } from '@/domain/tasks'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
-import { can } from '@/domain/permissions'
+import { useCan } from '@/domain/useCan'
 import { daysBetween, dueLabel, longStamp, seasonWeek, today as todayIso } from '@/lib/date'
 import { money, plural } from '@/lib/format'
 import { nextCompetition } from '@/domain/season'
@@ -19,6 +20,7 @@ import { ROLE_LABEL, type Task } from '@/domain/types'
  */
 export function TodayScreen() {
   const season = useStore((s) => s.season)
+  const allow = useCan()
   const session = useStore((s) => s.session)
   const me = useStore(currentMember)
   const toggleTask = useStore((s) => s.toggleTask)
@@ -59,10 +61,10 @@ export function TodayScreen() {
     return (mine.length ? mine : season.tasks).slice(0, 8)
   }, [season.tasks, me?.id])
 
-  const overdue = myTasks.filter((t) => !t.done && dueLabel(t.due).late).length
-  const blocked = season.tasks.filter((t) => !t.done && t.blockedBy)
+  const overdue = myTasks.filter((t) => !isDone(t) && dueLabel(t.due).late).length
+  const blocked = season.tasks.filter((t) => !isDone(t) && t.blockedBy)
   const pendingApprovals = season.approvals.filter((a) => a.state === 'pending')
-  const notebookGaps = season.tasks.filter((t) => t.subteam === 'notebook' && !t.done).length
+  const notebookGaps = season.tasks.filter((t) => t.subteam === 'notebook' && !isDone(t)).length
   const going = season.rsvps.filter((r) => r.eventId === nextComp?.id && r.status === 'going').length
   const budget = budgetTotals(season)
 
@@ -70,7 +72,7 @@ export function TodayScreen() {
     e.preventDefault()
     const name = draft.trim()
     if (!name) return
-    addTask({ name, assigneeId: assigneeId || undefined, due: '', done: false, createdBy: me?.id })
+    addTask({ name, assigneeId: assigneeId || undefined, due: '', status: 'todo', createdBy: me?.id })
     setDraft('')
   }
 
@@ -165,7 +167,7 @@ export function TodayScreen() {
                 <p className="meta" style={{ margin: '6px 0 14px' }}>
                   Add one to the calendar and this becomes your countdown.
                 </p>
-                {can(session.role, 'calendar.edit') && (
+                {allow('calendar.edit') && (
                   <Link to="/calendar/edit">
                     <Button variant="primary" size="sm">
                       Add a competition
@@ -255,7 +257,7 @@ export function TodayScreen() {
               myTasks.map((task) => <TaskRow key={task.id} task={task} onToggle={() => toggleTask(task.id)} />)
             )}
 
-            {can(session.role, 'tasks.create') && (
+            {allow('tasks.create') && (
               <>
                 <form
                   onSubmit={submitTask}
@@ -273,7 +275,7 @@ export function TodayScreen() {
                     Add
                   </Button>
                 </form>
-                {can(session.role, 'tasks.assignOthers') && (
+                {allow('tasks.assignOthers') && (
                   <div className="wrap" style={{ padding: '0 14px 12px', background: '#161a1d' }}>
                     {season.members
                       .filter((m) => m.role !== 'parent')
@@ -303,9 +305,9 @@ export function TodayScreen() {
             </div>
             <div
               style={{
-                border: `1px solid ${can(session.role, 'approvals.decide') ? 'var(--signal-line)' : '#2a3134'}`,
+                border: `1px solid ${allow('approvals.decide') ? 'var(--signal-line)' : '#2a3134'}`,
                 borderRadius: 14,
-                background: can(session.role, 'approvals.decide') ? '#141810' : 'var(--srf-1)',
+                background: allow('approvals.decide') ? '#141810' : 'var(--srf-1)',
                 overflow: 'hidden',
               }}
             >
@@ -324,12 +326,12 @@ export function TodayScreen() {
                             {approval.title}
                           </div>
                           <div className="meta" style={{ marginTop: 2 }}>
-                            {can(session.role, 'approvals.viewAmounts')
+                            {allow('approvals.viewAmounts')
                               ? `Requested by ${requester?.name ?? 'someone'}`
                               : 'Awaiting mentor approval'}
                           </div>
                         </div>
-                        {can(session.role, 'approvals.viewAmounts') ? (
+                        {allow('approvals.viewAmounts') ? (
                           <div className="num" style={{ font: '600 17px var(--font-mono)', color: 'var(--ink)' }}>
                             {money(approval.amount, { cents: true })}
                           </div>
@@ -338,7 +340,7 @@ export function TodayScreen() {
                         )}
                       </div>
 
-                      {can(session.role, 'approvals.decide') ? (
+                      {allow('approvals.decide') ? (
                         <div style={{ display: 'flex', gap: 8, marginTop: 13 }}>
                           <Button
                             variant="primary"
@@ -383,7 +385,7 @@ export function TodayScreen() {
             </div>
           )}
 
-          {can(session.role, 'budget.viewAmounts') && (
+          {allow('budget.viewAmounts') && (
             <div className="section">
               <div className="label" style={{ marginBottom: 9 }}>
                 Budget
@@ -457,14 +459,14 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: () => void }) {
         alignItems: 'center',
       }}
     >
-      <Check checked={task.done} onChange={onToggle} label={`Mark "${task.name}" ${task.done ? 'not done' : 'done'}`} />
+      <Check checked={isDone(task)} onChange={onToggle} label={`Mark "${task.name}" ${isDone(task) ? 'not done' : 'done'}`} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
             font: '500 12.5px/1.35 var(--font-sans)',
             color: 'var(--ink-body)',
-            textDecoration: task.done ? 'line-through' : 'none',
-            opacity: task.done ? 0.5 : 1,
+            textDecoration: isDone(task) ? 'line-through' : 'none',
+            opacity: isDone(task) ? 0.5 : 1,
           }}
         >
           {task.name}
@@ -480,10 +482,10 @@ function TaskRow({ task, onToggle }: { task: Task; onToggle: () => void }) {
           font: '500 10.5px var(--font-mono)',
           flex: 'none',
           letterSpacing: '0.04em',
-          color: task.done ? 'var(--ink-rail)' : due.late ? 'var(--alliance-red)' : 'var(--ink-3)',
+          color: isDone(task) ? 'var(--ink-rail)' : due.late ? 'var(--alliance-red)' : 'var(--ink-3)',
         }}
       >
-        {task.done ? 'done' : due.text}
+        {isDone(task) ? 'done' : due.text}
       </span>
     </div>
   )

@@ -62,7 +62,8 @@ export function fixtureSeason(anchor = today()): SeasonData {
       endTime: '16:00',
       type: 'meet',
       source: 'local',
-      repeatWeeklyUntil: addDays(anchor, 84),
+      attendance: true,
+      recurrence: { freq: 'weekly', interval: 1, until: addDays(anchor, 84) },
     },
     {
       id: 'scout-USWABAM1',
@@ -90,7 +91,7 @@ export function fixtureSeason(anchor = today()): SeasonData {
       subteam: 'mechanical',
       assigneeId: season.members[1].id,
       due: addDays(anchor, -2),
-      done: false,
+      status: 'todo',
     },
     {
       id: uid('task-'),
@@ -99,7 +100,7 @@ export function fixtureSeason(anchor = today()): SeasonData {
       subteam: 'software',
       assigneeId: season.members[2].id,
       due: addDays(anchor, 3),
-      done: true,
+      status: 'done',
       doneAt: now(),
     },
   ]
