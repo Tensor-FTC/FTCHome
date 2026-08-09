@@ -45,8 +45,8 @@ export interface AuthResult {
  * has run the sync migration, which is the order people actually do it in.
  */
 export function isAuthConfigured(): boolean {
-  const { url, anonKey } = readConfig()
-  return Boolean(url && anonKey)
+  const { url, publishableKey } = readConfig()
+  return Boolean(url && publishableKey)
 }
 
 let authClient: SupabaseClient | null = null
@@ -58,12 +58,12 @@ let authKey = ''
  * requests that have nothing to do with a team.
  */
 async function getAuthClient(): Promise<SupabaseClient | null> {
-  const { url, anonKey } = readConfig()
-  if (!url || !anonKey) return null
-  const key = `${url}|${anonKey}`
+  const { url, publishableKey } = readConfig()
+  if (!url || !publishableKey) return null
+  const key = `${url}|${publishableKey}`
   if (authClient && authKey === key) return authClient
   const { createClient } = await import('@supabase/supabase-js')
-  authClient = createClient(url, anonKey, {
+  authClient = createClient(url, publishableKey, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   })
   authKey = key

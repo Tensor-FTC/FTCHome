@@ -217,13 +217,13 @@ dashboard: [**docs/SETUP.md**](docs/SETUP.md).
    ```sql
    select * from public.provision_team('11138', 'Robo Eclipse');
    ```
-4. In the app: **Settings → Cloud sync**. Paste the project URL, the **anon** key, and the team
+4. In the app: **Settings → Cloud sync**. Paste the project URL, the **publishable** key, and the team
    secret. Press **Test connection** for a real verdict rather than a guess.
 
 Every device on the team pastes the same three values. Sync runs on load, on reconnect, every five
 minutes, and on demand.
 
-You can also bake the URL and anon key in at build time via `.env` — see [`.env.example`](.env.example).
+You can also bake the URL and publishable key in at build time via `.env` — see [`.env.example`](.env.example).
 The team secret is always runtime-only.
 
 ---
@@ -280,8 +280,8 @@ and it is why Supabase row-level security keys on a separate team secret.
 one team, but it does not identify individuals. Anyone holding it can read and write that team's
 rows. Rotate it with `update public.teams set sync_secret = gen_random_uuid() where team_number = …`.
 
-**Never put the `service_role` key in this app.** It ships to the browser and bypasses RLS. The
-anon key is the only correct one.
+**Never put the secret key (`sb_secret_…`, formerly `service_role`) in this app.** It ships to the
+browser and bypasses RLS. The publishable key is the only correct one.
 
 If you need per-user server-side authentication — a public deployment, or students you do not
 trust with the team's own data — replace the local credential check with Supabase Auth and key the

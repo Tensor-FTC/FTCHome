@@ -229,16 +229,21 @@ shown once and it is what proves a device belongs to your team.
 **Project Settings → API**. You need two values:
 
 - **Project URL** — looks like `https://abcdefgh.supabase.co`
-- **anon public** key — a long string starting `eyJ…`
+- **Publishable key** — starts `sb_publishable_…`
 
-> Use the **anon** key. Never the `service_role` key. The anon key is meant to ship to browsers; the
-> service_role key bypasses every security policy and must never leave your machine.
+> Supabase replaced the old `anon` / `service_role` key pair with **publishable** and **secret**
+> keys. If your project is older you may still see an `anon` key starting `eyJ…` instead — that
+> works too, and the app accepts either without any change.
+
+> Use the **publishable** key. Never the **secret** key (`sb_secret_…`, formerly `service_role`).
+> The publishable key is designed to ship to browsers; the secret key bypasses every row-level
+> security policy and must never leave your machine.
 
 ### 3.5 Connect the app
 
-In FTC Home: **Settings → Sync → Connect a project**. Paste all three values — project URL, anon
-key, team secret — and press **Save**, then **Test connection** for a real verdict rather than a
-guess.
+In FTC Home: **Settings → Sync → Connect a project**. Paste all three values — project URL,
+publishable key, team secret — and press **Save**, then **Test connection** for a real verdict
+rather than a guess.
 
 ### 3.6 Add the rest of the team
 
@@ -290,7 +295,7 @@ self-signed or expired certificate will block it.
 The host is not falling back to `index.html`. See part 1.
 
 **"Test connection" fails.**
-Check that you pasted the **anon** key rather than the service_role key, that the URL has no
+Check that you pasted the **publishable** key rather than the secret key, that the URL has no
 trailing slash, and that `0001_init.sql` actually ran (**Table Editor** should show a `records`
 table). The error message says which of the three it got past.
 

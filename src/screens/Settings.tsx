@@ -578,7 +578,7 @@ function SyncTab() {
 
   const cfg = readConfig()
   const [url, setUrl] = useState(cfg.url)
-  const [anonKey, setAnonKey] = useState(cfg.anonKey)
+  const [publishableKey, setPublishableKey] = useState(cfg.publishableKey)
   const [teamSecret, setTeamSecret] = useState(cfg.teamSecret)
   const [testing, setTesting] = useState(false)
   const [verdict, setVerdict] = useState<{ ok: boolean; message: string } | null>(null)
@@ -646,10 +646,10 @@ function SyncTab() {
               placeholder="https://xxxx.supabase.co"
             />
             <Field
-              label="Anon key"
+              label="Publishable key"
               type="password"
-              value={anonKey}
-              onChange={(e) => setAnonKey(e.target.value)}
+              value={publishableKey}
+              onChange={(e) => setPublishableKey(e.target.value)}
               autoComplete="off"
             />
             <Field
@@ -666,7 +666,7 @@ function SyncTab() {
               size="sm"
               variant="primary"
               onClick={() => {
-                writeConfig({ url, anonKey, teamSecret })
+                writeConfig({ url, publishableKey, teamSecret })
                 notify('Sync settings saved')
               }}
             >
@@ -676,7 +676,7 @@ function SyncTab() {
               size="sm"
               disabled={testing}
               onClick={async () => {
-                writeConfig({ url, anonKey, teamSecret })
+                writeConfig({ url, publishableKey, teamSecret })
                 setTesting(true)
                 setVerdict(await testConnection())
                 setTesting(false)
