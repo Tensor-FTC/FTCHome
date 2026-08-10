@@ -247,8 +247,20 @@ rather than a guess.
 
 ### 3.6 Add the rest of the team
 
-Every device on the team pastes the **same three values**. That is it — they are now on the same
-season.
+There are two ways onto the season, and either is enough.
+
+**By account — the normal one.** Send them the site. They sign in with email, Google, GitHub or
+Apple, land on a waiting screen, and you accept them from **Roster → Asking to join**, picking
+their role as you accept. Nothing to paste and no secret to pass around. If the project URL and
+publishable key were baked in as repository secrets (part 2), this is the whole of it.
+
+**By team secret — for a device, not a person.** Paste all three values into **Settings → Sync**.
+This is for a shared pit laptop that nobody signs into, and it works with no account at all.
+
+Prefer accounts. The team secret is a shared password: anyone holding it can read and write
+everything for your team whether or not you ever accepted them, and removing them from the roster
+does not take it back. An account you can revoke — set their status away from active and their
+access stops.
 
 Sync runs on load, on reconnect, every five minutes, and whenever you press sync. **Settings → Sync
 → See the queue** shows exactly what is waiting to go out, which is worth looking at once so you

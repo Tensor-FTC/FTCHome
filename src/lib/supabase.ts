@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { cloudAccessToken, hasCloudSession } from './session'
 
 /**
  * Supabase is a *peer*, never a dependency. Nothing in the UI awaits it: reads
@@ -56,9 +57,23 @@ export function writeConfig(cfg: Partial<SupabaseConfig>): void {
   clientKey = ''
 }
 
+/**
+ * There are two ways to be authorised for a team's rows, and either is enough.
+ *
+ *   • **Team secret** — proves a *device* syncs for this team. Works with
+ *     nobody signed in, which is what makes a shared pit laptop possible.
+ *   • **An account** — proves a *person*, and only counts once a coach has
+ *     made them `active`. See the `records_*_member` policies in
+ *     0002_accounts.sql.
+ *
+ * Requiring the secret even when signed in (which this used to do) meant a
+ * student who had been approved by their coach still silently never synced
+ * until somebody read a UUID out to them. The database always allowed it; the
+ * client was the thing saying no.
+ */
 export function isSupabaseConfigured(): boolean {
   const { url, publishableKey, teamSecret } = readConfig()
-  return Boolean(url && publishableKey && teamSecret)
+  return Boolean(url && publishableKey && (teamSecret || hasCloudSession()))
 }
 
 let client: SupabaseClient | null = null
@@ -71,16 +86,34 @@ let clientKey = ''
  */
 export async function getSupabase(): Promise<SupabaseClient | null> {
   const cfg = readConfig()
-  if (!cfg.url || !cfg.publishableKey || !cfg.teamSecret) return null
-  const key = `${cfg.url}|${cfg.publishableKey}|${cfg.teamSecret}`
+  if (!cfg.url || !cfg.publishableKey) return null
+
+  const token = cloudAccessToken()
+  // Neither route available: no team secret and nobody signed in.
+  if (!cfg.teamSecret && !token) return null
+
+  // The token is part of the key so a refresh rebuilds the client rather than
+  // leaving a stale Bearer header on every request.
+  const key = `${cfg.url}|${cfg.publishableKey}|${cfg.teamSecret}|${token ?? ''}`
   if (client && clientKey === key) return client
+
   try {
     const { createClient } = await import('@supabase/supabase-js')
     client = createClient(cfg.url, cfg.publishableKey, {
+      // This client never manages a session of its own — auth.ts owns that.
+      // The token is injected below instead, so the two cannot fight over
+      // storage or refresh timers.
       auth: { persistSession: false, autoRefreshToken: false },
-      // RLS reads this header to scope every row to one team. See
-      // supabase/migrations/0001_init.sql.
-      global: { headers: { 'x-team-secret': cfg.teamSecret } },
+      global: {
+        headers: {
+          // Device route: RLS reads this to scope rows to one team.
+          // See supabase/migrations/0001_init.sql.
+          ...(cfg.teamSecret ? { 'x-team-secret': cfg.teamSecret } : {}),
+          // Account route: makes auth.uid() resolve, so my_teams() can match.
+          // Without this the signed-in policies in 0002 never fire.
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
     })
     clientKey = key
     return client

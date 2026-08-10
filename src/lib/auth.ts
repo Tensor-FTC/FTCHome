@@ -1,5 +1,6 @@
 import type { Session as SupabaseSession, SupabaseClient } from '@supabase/supabase-js'
 import { readConfig } from './supabase'
+import { setCloudSession } from './session'
 import type { AuthProvider } from '@/domain/types'
 
 /**
@@ -66,6 +67,16 @@ async function getAuthClient(): Promise<SupabaseClient | null> {
   authClient = createClient(url, publishableKey, {
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   })
+
+  // Mirror the session into session.ts so the sync client can present the
+  // user's token. Covers refreshes and sign-out, not just the initial login.
+  authClient.auth.onAuthStateChange((_event, session) => {
+    setCloudSession(session?.access_token)
+  })
+  void authClient.auth.getSession().then(({ data }) => {
+    setCloudSession(data.session?.access_token)
+  })
+
   authKey = key
   return authClient
 }

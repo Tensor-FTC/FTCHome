@@ -635,7 +635,12 @@ function SyncTab() {
               select * from provision_team(&#39;{season.team.number || '12345'}&#39;, &#39;
               {season.team.name || 'Your team'}&#39;)
             </span>{' '}
-            to get a team secret. Paste all three below. Use the anon key, never the service_role key.
+            to get a team secret. Paste all three below. Use the publishable key, never the secret key.
+          </p>
+          <p className="meta pretty" style={{ marginBottom: 12 }}>
+            The team secret is only needed for a shared device that nobody signs into. Everyone else
+            should sign in instead and be accepted on the roster — that gives them the same access,
+            and unlike a secret you can take it back.
           </p>
 
           <div className="stack" style={{ gap: 11 }}>

@@ -220,7 +220,9 @@ dashboard: [**docs/SETUP.md**](docs/SETUP.md).
 4. In the app: **Settings → Cloud sync**. Paste the project URL, the **publishable** key, and the team
    secret. Press **Test connection** for a real verdict rather than a guess.
 
-Every device on the team pastes the same three values. Sync runs on load, on reconnect, every five
+Everyone else just signs in and waits for a coach to accept them — no values to paste, because an
+approved account is authorisation on its own. The three-value route is for a shared device that
+nobody signs into. Sync runs on load, on reconnect, every five
 minutes, and on demand.
 
 You can also bake the URL and publishable key in at build time via `.env` — see [`.env.example`](.env.example).
