@@ -6,6 +6,7 @@
   "description": "One place, all season. Season management for FIRST Tech Challenge teams.",
   "scripts": {
     "dev": "vite",
+    "dev:mobile": "vite --host",
     "build": "tsc -b && vite build",
     "icons": "node scripts/generate-icons.mjs",
     "preview": "vite preview",
