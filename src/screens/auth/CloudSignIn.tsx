@@ -31,7 +31,7 @@ const TITLE: Record<Mode, string> = {
  * A6 · Cloud sign-in
  *
  * An account that follows you between devices: email and password, an emailed
- * link, Google or GitHub. All of it is Supabase Auth, so the credentials live
+ * link, Google, GitHub or Apple. All of it is Supabase Auth, so the credentials live
  * with the identity provider and never in this app.
  *
  * Signing in proves *who you are* and nothing more. Being on a team is a

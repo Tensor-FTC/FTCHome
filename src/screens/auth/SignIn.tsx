@@ -77,7 +77,7 @@ export function SignInScreen() {
       </p>
       <p className="meta pretty" style={{ marginBottom: 22 }}>
         Stored on this device only, hashed — nothing is sent anywhere. Connect a Supabase project
-        later and everyone can sign in with email, Google or GitHub instead.
+        later and everyone can sign in with email, Google, GitHub or Apple instead.
       </p>
 
       <form onSubmit={submit} className="stack" style={{ gap: 11 }}>
