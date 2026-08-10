@@ -5,9 +5,9 @@ import type { OAuthProvider } from '@/lib/auth'
  *
  * The marks are inline paths rather than remote images: an auth screen that
  * waits on a CDN is an auth screen that shows blank buttons on venue wifi, and
- * the whole app is built not to do that. Both are drawn at Google's and
- * GitHub's own proportions so they are recognisable at a glance, which is the
- * only reason to show a logo on a button at all.
+ * the whole app is built not to do that. Each is drawn at its owner's own
+ * proportions so it is recognisable at a glance, which is the only reason to
+ * show a logo on a button at all.
  */
 const MARKS: Record<OAuthProvider, { label: string; node: JSX.Element }> = {
   google: {
@@ -40,6 +40,19 @@ const MARKS: Record<OAuthProvider, { label: string; node: JSX.Element }> = {
         <path
           fill="currentColor"
           d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.34c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.11.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"
+        />
+      </svg>
+    ),
+  },
+  apple: {
+    label: 'Apple',
+    // Apple's Human Interface Guidelines govern this button: the mark keeps
+    // its own proportions and the label stays "Continue with Apple".
+    node: (
+      <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style={{ flex: 'none' }}>
+        <path
+          fill="currentColor"
+          d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"
         />
       </svg>
     ),

@@ -132,13 +132,14 @@ export const MEMBER_STATUS_LABEL: Record<MemberStatus, string> = {
   suspended: 'Suspended',
 }
 
-export type AuthProvider = 'password' | 'magic-link' | 'google' | 'github' | 'device'
+export type AuthProvider = 'password' | 'magic-link' | 'google' | 'github' | 'apple' | 'device'
 
 export const AUTH_PROVIDER_LABEL: Record<AuthProvider, string> = {
   password: 'Email and password',
   'magic-link': 'Email link',
   google: 'Google',
   github: 'GitHub',
+  apple: 'Apple',
   device: 'Team code on this device',
 }
 

@@ -110,7 +110,7 @@ export function CloudSignInScreen() {
           No accounts yet
         </h1>
         <p className="body" style={{ color: 'var(--ink-3)', marginBottom: 22 }}>
-          Email and Google sign-in need a Supabase project connected to this app. A coach sets that up
+          Email, Google, GitHub and Apple sign-in need a Supabase project connected to this app. A coach sets that up
           once, under Settings → Sync, and then everyone signs in with their own account.
         </p>
         <p className="meta pretty" style={{ marginBottom: 22 }}>

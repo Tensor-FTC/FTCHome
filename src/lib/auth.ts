@@ -20,7 +20,7 @@ import type { AuthProvider } from '@/domain/types'
  * passwords and a coach's approval do not already cover.
  */
 
-export const OAUTH_PROVIDERS = ['google', 'github'] as const
+export const OAUTH_PROVIDERS = ['google', 'github', 'apple'] as const
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number]
 
 export interface AuthUser {
@@ -80,7 +80,7 @@ function toUser(session: SupabaseSession | null, fallback: AuthProvider = 'passw
     email: u.email ?? '',
     name: typeof meta.full_name === 'string' ? meta.full_name : typeof meta.name === 'string' ? meta.name : undefined,
     avatarUrl: typeof meta.avatar_url === 'string' ? meta.avatar_url : undefined,
-    provider: (['google', 'github', 'magic-link'] as string[]).includes(provider)
+    provider: (['google', 'github', 'apple', 'magic-link'] as string[]).includes(provider)
       ? (provider as AuthProvider)
       : 'password',
   }
