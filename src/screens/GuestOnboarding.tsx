@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, Select, Spinner } from '@/components/ui'
 import { useStore } from '@/store/useStore'
+import { inferRegion } from '@/lib/geo'
 import {
   CURRENT_SEASON,
   INTERNATIONAL_REGIONS,
@@ -29,7 +30,11 @@ export function GuestOnboardingScreen() {
   const navigate = useNavigate()
   const storedRegion = useStore((s) => s.season.settings.region)
 
-  const [region, setRegion] = useState<Region>((storedRegion as Region) || 'UnitedStates')
+  // A stored choice always wins. Otherwise open on wherever the browser's own
+  // timezone says they are, so a rookie coach lands on their own region's
+  // events instead of scrolling a list of fifty-odd states.
+  const [guess] = useState(inferRegion)
+  const [region, setRegion] = useState<Region>((storedRegion as Region) || guess.region)
   const [events, setEvents] = useState<ScoutEvent[]>([])
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [error, setError] = useState('')
