@@ -53,8 +53,9 @@ export function AwaitingApprovalScreen() {
         <Button
           block
           onClick={() => {
-            signOut()
-            navigate('/')
+            // Awaited so the cloud session is really gone — otherwise the
+            // bridge signs this account straight back in.
+            void signOut().then(() => navigate('/'))
           }}
         >
           Sign out
@@ -121,8 +122,9 @@ export function AwaitingApprovalScreen() {
         <Button
           block
           onClick={() => {
-            signOut()
-            navigate('/')
+            // Awaited so the cloud session is really gone — otherwise the
+            // bridge signs this account straight back in.
+            void signOut().then(() => navigate('/'))
           }}
         >
           Sign out

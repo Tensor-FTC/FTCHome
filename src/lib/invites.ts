@@ -110,3 +110,37 @@ export function clearPendingInvite(): void {
     /* Nothing to clear. */
   }
 }
+
+/*
+ * The role somebody picked before signing in.
+ *
+ * Same problem as the invite code: it is chosen on the sign-up form, and then
+ * the browser leaves for Google and comes back to a fresh page. React state
+ * does not survive that, so it is parked here.
+ */
+
+const ROLE_KEY = 'ftc-home.claimedRole'
+
+export function rememberClaimedRole(role: string): void {
+  try {
+    localStorage.setItem(ROLE_KEY, role)
+  } catch {
+    /* Private mode. They will be filed as a student and a coach can fix it. */
+  }
+}
+
+export function claimedRole(): string {
+  try {
+    return localStorage.getItem(ROLE_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function clearClaimedRole(): void {
+  try {
+    localStorage.removeItem(ROLE_KEY)
+  } catch {
+    /* Nothing to clear. */
+  }
+}

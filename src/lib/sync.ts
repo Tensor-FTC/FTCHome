@@ -19,6 +19,10 @@ export interface SyncResult {
   failed: number
   skipped: boolean
   error?: string
+  /** The database accepted this account as the team's first member. */
+  claimed?: boolean
+  /** The database has this account on the team, but not yet accepted. */
+  awaitingApproval?: boolean
 }
 
 /** Rough wire size, so the queue can show "248 MB" without holding the blob. */
@@ -109,9 +113,11 @@ async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult
   const membership = await ensureMembership(teamNumber, displayName)
   if (!membership.ok) {
     result.skipped = true
+    result.awaitingApproval = membership.status === 'requested' || membership.status === 'invited'
     result.error = membership.message ?? 'This account is not on the team yet.'
     return result
   }
+  result.claimed = membership.claimed
 
   const queue = await listOutbox()
 

@@ -103,7 +103,7 @@ export function StatesScreen() {
               </div>
 
               <div style={{ display: 'flex', gap: 9, marginTop: 13, flexWrap: 'wrap' }}>
-                <Button size="sm" variant="primary" disabled={syncing || !isSupabaseConfigured()} onClick={() => void sync()}>
+                <Button size="sm" variant="primary" disabled={syncing || !isSupabaseConfigured()} onClick={() => void sync({ announce: true })}>
                   {syncing ? 'Syncing…' : 'Sync now'}
                 </Button>
                 {!isSupabaseConfigured() && (

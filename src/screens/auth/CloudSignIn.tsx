@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Brand } from '@/components/Brand'
-import { Button, Field } from '@/components/ui'
+import { Button, Chip, Field } from '@/components/ui'
+import { ROLE_LABEL, type Role } from '@/domain/types'
+import { claimedRole, clearClaimedRole, rememberClaimedRole } from '@/lib/invites'
 import { useStore } from '@/store/useStore'
 import { ProviderButton } from '@/components/ProviderButton'
 import {
@@ -17,6 +19,18 @@ import {
   signUpWithEmail,
   type AuthResult,
 } from '@/lib/auth'
+
+/**
+ * Read the parked role and forget it in one go.
+ *
+ * Once used it must not linger: signing out and back in months later should
+ * not silently re-apply a claim from a different day.
+ */
+function takeClaimedRole(): Role | undefined {
+  const stored = claimedRole()
+  clearClaimedRole()
+  return (stored || undefined) as Role | undefined
+}
 
 type Mode = 'signin' | 'signup' | 'link' | 'reset'
 
@@ -66,6 +80,9 @@ export function CloudSignInScreen() {
   const [params] = useSearchParams()
   const [mode, setMode] = useState<Mode>(() => initialMode(params.get('mode')))
   const [name, setName] = useState('')
+  // Everybody used to be filed as a student, so a mentor joining had to be
+  // found and corrected by hand — and nothing ever asked them.
+  const [role, setRole] = useState<Role>('student')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
@@ -91,7 +108,7 @@ export function CloudSignInScreen() {
     void currentAuthUser()
       .then((user) => {
         if (!live || !user || user.id === authUserId) return
-        const outcome = signInWithCloudUser(user)
+        const outcome = signInWithCloudUser(user, takeClaimedRole())
         notify(outcome.message, outcome.awaitingApproval ? 'warn' : 'ok')
         navigate(outcome.awaitingApproval ? '/pending' : '/today', { replace: true })
       })
@@ -102,13 +119,16 @@ export function CloudSignInScreen() {
   }, [configured, authUserId, signInWithCloudUser, notify, navigate])
 
   async function run(action: () => Promise<AuthResult>) {
+    // Parked before the provider takes the browser away, since React state
+    // does not survive the round trip.
+    if (mode === 'signup') rememberClaimedRole(role)
     setBusy(true)
     setResult(null)
     const outcome = await action()
     setBusy(false)
     setResult(outcome)
     if (outcome.ok && outcome.user) {
-      const joined = signInWithCloudUser(outcome.user)
+      const joined = signInWithCloudUser(outcome.user, takeClaimedRole())
       notify(joined.message, joined.awaitingApproval ? 'warn' : 'ok')
       navigate(joined.awaitingApproval ? '/pending' : '/today')
     }
@@ -175,13 +195,30 @@ export function CloudSignInScreen() {
 
       <form onSubmit={onSubmit} className="stack" style={{ gap: 11, marginTop: 16 }}>
         {mode === 'signup' && (
-          <Field
-            label="Your name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="How the team knows you"
-            autoComplete="name"
-          />
+          <>
+            <Field
+              label="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="How the team knows you"
+              autoComplete="name"
+            />
+            <div>
+              <div className="label" style={{ marginBottom: 8 }}>
+                You are the team&rsquo;s
+              </div>
+              <div className="wrap">
+                {(['student', 'captain', 'mentor', 'coach', 'parent'] as Role[]).map((r) => (
+                  <Chip key={r} active={role === r} onClick={() => setRole(r)}>
+                    {ROLE_LABEL[r]}
+                  </Chip>
+                ))}
+              </div>
+              <p className="field-note" style={{ marginTop: 6 }}>
+                What you tell the team you are. Whoever accepts you can change it.
+              </p>
+            </div>
+          </>
         )}
         <Field
           label="Email"

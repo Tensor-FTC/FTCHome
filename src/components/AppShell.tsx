@@ -5,6 +5,7 @@ import { Countdown } from './Countdown'
 import { SearchPalette, useSearchHotkey } from './SearchPalette'
 import { useStore, currentMember } from '@/store/useStore'
 import { isHoldingAdmin } from '@/domain/founder'
+import { watchTeamRecords } from '@/lib/realtime'
 import { ago } from '@/lib/format'
 import { matchAlerts } from '@/lib/notifications'
 import { canSync } from '@/lib/sync'
@@ -55,13 +56,41 @@ export function AppShell() {
     )
   }, [settings.notificationsEnabled, settings.notifyLeadSeconds, clock])
 
-  // Opportunistic sync: on mount, and every five minutes when there is signal.
+  /*
+   * Live updates, with a slow timer behind them.
+   *
+   * The socket is the real mechanism: a change on any device lands here in
+   * about a second. The interval is a safety net for the cases a socket
+   * quietly dies — a phone that slept, a captive portal, a proxy that killed
+   * an idle connection — and is deliberately slow, because with realtime
+   * working it should almost never be the thing that finds anything.
+   */
   useEffect(() => {
-    if (canSync() && !offline) void sync()
+    if (!canSync() || offline) return
+    void sync()
+
+    let stop: (() => void) | undefined
+    void watchTeamRecords(season.team.number, () => void sync()).then((fn) => {
+      stop = fn
+    })
+
     const id = setInterval(() => {
       if (canSync() && !offline) void sync()
-    }, 5 * 60_000)
-    return () => clearInterval(id)
+    }, 2 * 60_000)
+
+    return () => {
+      stop?.()
+      clearInterval(id)
+    }
+  }, [sync, offline, season.team.number])
+
+  // A phone that has been asleep has missed everything; catch up on return.
+  useEffect(() => {
+    function onWake() {
+      if (document.visibilityState === 'visible' && canSync() && !offline) void sync()
+    }
+    document.addEventListener('visibilitychange', onWake)
+    return () => document.removeEventListener('visibilitychange', onWake)
   }, [sync, offline])
 
   return (

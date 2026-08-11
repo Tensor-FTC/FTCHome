@@ -134,8 +134,10 @@ function YouTab() {
             <Button
               size="sm"
               onClick={() => {
-                signOut()
-                navigate('/')
+                // Awaited: signing out clears the Supabase session too, and
+                // navigating first would let the bridge re-adopt the account
+                // that is still signed in for another moment.
+                void signOut().then(() => navigate('/'))
               }}
             >
               Sign out

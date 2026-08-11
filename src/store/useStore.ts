@@ -3,7 +3,7 @@ import { toggledStatus } from '@/domain/tasks'
 import { GRANTABLE, canPreviewAs, type Capability } from '@/domain/permissions'
 import { missingDefaults } from '@/domain/chat'
 import { subteamId } from '@/domain/subteams'
-import type { AuthUser } from '@/lib/auth'
+import { signOutOfCloud, type AuthUser } from '@/lib/auth'
 import {
   calendarFromScout,
   emptySeason,
@@ -47,6 +47,7 @@ import type {
 } from '@/domain/types'
 import { loadSeason, loadSession, saveSeason, saveSession, clearAll } from '@/lib/idb'
 import { enqueue, sync as runSync, canSync, type SyncResult } from '@/lib/sync'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { pushMemberDecision } from '@/lib/membership'
 import { now, uid } from '@/lib/id'
 import { hashPassword, verifyPassword } from '@/lib/crypto'
@@ -88,7 +89,7 @@ interface StoreState {
   signIn: (memberId: string, password: string) => Promise<boolean>
   signInAs: (memberId: string) => void
   browseAsGuest: () => void
-  signOut: () => void
+  signOut: () => Promise<void>
   setRole: (role: Role) => void
   /** Drops a role preview and returns to the signed-in person's own role. */
   endRolePreview: () => void
@@ -112,7 +113,11 @@ interface StoreState {
   updateMember: (id: string, patch: Partial<Member>) => void
   removeMember: (id: string) => void
   /** Sign in with a Supabase account, matching it to a member or raising a request. */
-  signInWithCloudUser: (user: AuthUser) => { ok: boolean; awaitingApproval: boolean; message: string }
+  signInWithCloudUser: (
+    user: AuthUser,
+    /** What this person says they are. A coach still decides on approval. */
+    claimedRole?: Role,
+  ) => { ok: boolean; awaitingApproval: boolean; message: string }
   requestToJoin: (input: {
     name: string
     email?: string
@@ -196,7 +201,8 @@ interface StoreState {
 
   // settings + lifecycle
   updateSettings: (patch: Partial<Settings>) => void
-  sync: () => Promise<void>
+  /** `announce` puts the result on screen; automatic syncs stay quiet. */
+  sync: (options?: { announce?: boolean }) => Promise<void>
   replaceSeason: (season: SeasonData) => Promise<void>
   resetSeason: () => Promise<void>
   eraseEverything: () => Promise<void>
@@ -230,6 +236,7 @@ const ARCHIVABLE_TABLE: Record<ArchivableKind, SyncTable> = {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let pushTimer: ReturnType<typeof setTimeout> | null = null
 
 function persistSoon(season: SeasonData): void {
   if (saveTimer) clearTimeout(saveTimer)
@@ -264,7 +271,28 @@ export const useStore = create<StoreState>((set, get) => {
     persistSoon(season)
     if (outbox) {
       void enqueue(outbox.table, outbox.op, outbox.record, outbox.label, outbox.bytes)
+      pushSoon()
     }
+  }
+
+  /**
+   * Send what was just queued, shortly.
+   *
+   * Debounced rather than immediate because a single gesture is often several
+   * writes — dragging a slider, ticking four tasks, typing a name — and each
+   * one firing its own round trip would be wasteful and out of order. A second
+   * is short enough to feel live and long enough to coalesce a burst.
+   *
+   * Failure is silent here. The write is already saved and still queued, the
+   * States screen shows it waiting, and a toast for something the person did
+   * not ask for would be noise.
+   */
+  function pushSoon(): void {
+    if (pushTimer) clearTimeout(pushTimer)
+    pushTimer = setTimeout(() => {
+      pushTimer = null
+      if (canSync() && get().online && !get().season.settings.simulateOffline) void get().sync()
+    }, 1000)
   }
 
   return {
@@ -343,9 +371,18 @@ export const useStore = create<StoreState>((set, get) => {
       void saveSession(GUEST_SESSION)
     },
 
-    signOut() {
+    async signOut() {
       set({ session: GUEST_SESSION })
-      void saveSession(GUEST_SESSION)
+      await saveSession(GUEST_SESSION)
+      /*
+       * The cloud session has to go too.
+       *
+       * Clearing only the local one left the Supabase session alive, so the
+       * bridge in App.tsx asked "who is signed in?", got the same account back,
+       * and signed you straight in again. Signing out looked like a no-op and
+       * there was no way to hand the device to somebody else.
+       */
+      await signOutOfCloud()
     },
 
     setRole(role) {
@@ -496,7 +533,7 @@ export const useStore = create<StoreState>((set, get) => {
      * matches nothing becomes a *request* rather than a member: knowing a URL
      * is not the same as being on a team, and a coach decides which is which.
      */
-    signInWithCloudUser(user) {
+    signInWithCloudUser(user, claimedRole = 'student') {
       const members = get().season.members
       let member =
         members.find((m) => m.authUserId === user.id) ??
@@ -510,12 +547,30 @@ export const useStore = create<StoreState>((set, get) => {
          * Mirrors claim_team() in the migration, which enforces the same rule
          * server-side.
          */
-        const firstOnTeam = !members.some((m) => m.status === 'active')
+        /*
+         * "Nobody here yet" is only evidence on a device that would know.
+         *
+         * A phone opening the app for the first time has an empty roster
+         * whether the team has twenty members or none, so treating empty as
+         * "you founded this" made every second device think it was the first —
+         * auto-approving someone the coach never accepted, and creating a
+         * duplicate member record that the first pull then sat next to.
+         *
+         * With cloud accounts on, the database is the only thing that knows,
+         * and `claim_team` already refuses once anybody is active. So an
+         * unsynced device assumes nothing and waits; `sync` promotes them if
+         * the claim actually succeeds.
+         */
+        const rosterIsKnown = !isSupabaseConfigured() || Boolean(get().season.settings.lastSyncAt)
+        const firstOnTeam = rosterIsKnown && !members.some((m) => m.status === 'active')
         member = get().requestToJoin({
           name: user.name || user.email.split('@')[0] || 'New member',
           email: user.email,
           authUserId: user.id,
-          role: 'student',
+          // Their claim, not an assumption. Everybody was filed as a student,
+          // so a mentor joining had to be found and corrected by hand — and
+          // nothing on screen ever asked them.
+          role: claimedRole,
           provider: user.provider,
         })
         if (firstOnTeam) {
@@ -1342,7 +1397,7 @@ export const useStore = create<StoreState>((set, get) => {
       })
     },
 
-    async sync() {
+    async sync(options) {
       if (get().syncing) return
       set({ syncing: true })
       const season = structuredClone(get().season)
@@ -1354,10 +1409,44 @@ export const useStore = create<StoreState>((set, get) => {
       }
       set({ syncing: false, lastSyncResult: result, season })
       await saveSeason(season)
-      if (result.pushed || result.pulled) {
-        get().notify(`Synced · ${result.pushed} sent, ${result.pulled} received`)
-      } else if (result.error && !result.skipped) {
+
+      /*
+       * The database is the authority on whether this account founded the team,
+       * so act on its answer rather than the guess made at sign-in.
+       */
+      if (result.claimed && me && me.status !== 'active') {
+        get().approveMember(me.id)
+        get().updateMember(me.id, { foundedTeam: true })
+      } else if (result.awaitingApproval && me?.status === 'active') {
+        // The opposite correction: this device thought it was in, and is not.
+        get().updateMember(me.id, { status: 'requested', foundedTeam: undefined })
+        const held: Session = { ...get().session, awaitingApproval: true, role: 'guest' }
+        set({ session: held })
+        void saveSession(held)
+      }
+      /*
+       * Silent unless somebody asked.
+       *
+       * Sync now runs by itself — a second after any edit, and whenever another
+       * device changes something — so announcing every round trip would put a
+       * toast on screen more or less permanently. "Synced · 0 sent, 1 received"
+       * also told nobody anything useful: the change it describes is already on
+       * the screen behind it.
+       *
+       * A failure is still worth saying, but only to the person who pressed the
+       * button. Otherwise the States screen is where sync problems live.
+       */
+      if (!options?.announce) return
+      if (result.error && !result.skipped) {
         get().notify(result.error, 'warn')
+      } else if (result.pushed || result.pulled) {
+        get().notify(
+          result.pulled
+            ? `Up to date · ${result.pulled} ${result.pulled === 1 ? 'change' : 'changes'} from the team`
+            : 'Everything sent',
+        )
+      } else {
+        get().notify('Already up to date')
       }
     },
 
