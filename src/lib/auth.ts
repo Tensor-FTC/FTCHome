@@ -21,7 +21,15 @@ import type { AuthProvider } from '@/domain/types'
  * passwords and a coach's approval do not already cover.
  */
 
-export const OAUTH_PROVIDERS = ['google', 'github', 'apple'] as const
+/**
+ * Microsoft is here and Apple is not, deliberately. Most students sign in with
+ * a school account, and districts routinely block personal Google on managed
+ * devices — Microsoft is the one that always works for them. Apple needs a paid
+ * developer account and a `.p8` key that has to be re-signed every six months,
+ * which is a standing maintenance job for a button nobody needs while the app
+ * ships as a PWA.
+ */
+export const OAUTH_PROVIDERS = ['google', 'github', 'azure'] as const
 export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number]
 
 export interface AuthUser {
@@ -91,7 +99,7 @@ function toUser(session: SupabaseSession | null, fallback: AuthProvider = 'passw
     email: u.email ?? '',
     name: typeof meta.full_name === 'string' ? meta.full_name : typeof meta.name === 'string' ? meta.name : undefined,
     avatarUrl: typeof meta.avatar_url === 'string' ? meta.avatar_url : undefined,
-    provider: (['google', 'github', 'apple', 'magic-link'] as string[]).includes(provider)
+    provider: (['google', 'github', 'azure', 'magic-link'] as string[]).includes(provider)
       ? (provider as AuthProvider)
       : 'password',
   }

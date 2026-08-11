@@ -132,14 +132,19 @@ export const MEMBER_STATUS_LABEL: Record<MemberStatus, string> = {
   suspended: 'Suspended',
 }
 
-export type AuthProvider = 'password' | 'magic-link' | 'google' | 'github' | 'apple' | 'device'
+/**
+ * `azure` is Supabase's key for Microsoft — it predates the Entra rename, and
+ * it is what `app_metadata.provider` actually contains, so the wire value has
+ * to stay `azure` even though every label says Microsoft.
+ */
+export type AuthProvider = 'password' | 'magic-link' | 'google' | 'github' | 'azure' | 'device'
 
 export const AUTH_PROVIDER_LABEL: Record<AuthProvider, string> = {
   password: 'Email and password',
   'magic-link': 'Email link',
   google: 'Google',
   github: 'GitHub',
-  apple: 'Apple',
+  azure: 'Microsoft',
   device: 'Team code on this device',
 }
 

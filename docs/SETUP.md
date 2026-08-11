@@ -250,7 +250,7 @@ rather than a guess.
 There are two ways onto the season, and either is enough.
 
 **By account — the normal one.** Send them the site. They sign in with email, Google, GitHub or
-Apple, land on a waiting screen, and you accept them from **Roster → Asking to join**, picking
+Microsoft, land on a waiting screen, and you accept them from **Roster → Asking to join**, picking
 their role as you accept. Nothing to paste and no secret to pass around. If the project URL and
 publishable key were baked in as repository secrets (part 2), this is the whole of it.
 

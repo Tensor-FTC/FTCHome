@@ -31,7 +31,7 @@ const TITLE: Record<Mode, string> = {
  * A6 · Cloud sign-in
  *
  * An account that follows you between devices: email and password, an emailed
- * link, Google, GitHub or Apple. All of it is Supabase Auth, so the credentials live
+ * link, Google, GitHub or Microsoft. All of it is Supabase Auth, so the credentials live
  * with the identity provider and never in this app.
  *
  * Signing in proves *who you are* and nothing more. Being on a team is a
@@ -110,7 +110,7 @@ export function CloudSignInScreen() {
           No accounts yet
         </h1>
         <p className="body" style={{ color: 'var(--ink-3)', marginBottom: 22 }}>
-          Email, Google, GitHub and Apple sign-in need a Supabase project connected to this app. A coach sets that up
+          Email, Google, GitHub and Microsoft sign-in need a Supabase project connected to this app. A coach sets that up
           once, under Settings → Sync, and then everyone signs in with their own account.
         </p>
         <p className="meta pretty" style={{ marginBottom: 22 }}>
