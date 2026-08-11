@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   shell: { flex: 1, backgroundColor: '#0B0C0D' },
   web: { flex: 1, backgroundColor: '#0B0C0D' },
   loading: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0B0C0D',
