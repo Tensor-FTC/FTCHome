@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import {
   forwardRef,
   useEffect,
@@ -385,7 +386,22 @@ export function Sheet({
     }
   }, [onClose])
 
-  return (
+  /*
+   * Rendered into <body>, not where it was written.
+   *
+   * `position: fixed` is only relative to the viewport if no ancestor has a
+   * transform, filter or perspective — any of those make it a containing block
+   * instead. `.screen` carries `animation: riseIn … both`, and `both` keeps the
+   * final keyframe applied forever, so an *identity* transform sits on every
+   * screen for the life of the page.
+   *
+   * The effect was a modal sized and centred against the whole document rather
+   * than the window: on a short screen the Save button landed hundreds of
+   * pixels below the fold with no way to scroll to it, and the only workaround
+   * was zooming out. Portalling puts the scrim back under <body>, where fixed
+   * means fixed — and keeps it correct if anything else ever grows a transform.
+   */
+  return createPortal(
     <div className="sheet-scrim" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>
         <div className="sheet-head">
@@ -406,7 +422,8 @@ export function Sheet({
         {children}
         {footer && <div style={{ marginTop: 16 }}>{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
