@@ -50,8 +50,19 @@ function ScrollToTop() {
 function RequireSession({ children }: { children: React.ReactNode }) {
   const session = useStore((s) => s.session)
   const ready = useStore((s) => s.ready)
+  const { pathname, search } = useLocation()
   if (!ready) return null
-  if (!session.memberId && !session.guest) return <Navigate to="/" replace />
+  /*
+   * Remember where they were trying to go.
+   *
+   * Opening a link to /roster while signed out bounced to the launch screen
+   * and lost the destination, so after signing in you landed on Today and had
+   * to find the page again — and on a phone, where links are how anything gets
+   * shared, that is most of the ways in.
+   */
+  if (!session.memberId && !session.guest) {
+    return <Navigate to="/" replace state={{ from: pathname + search }} />
+  }
   /*
    * Signed in, but nobody has put them on the team. They get their own request
    * and nothing else — the gate is here rather than per-screen so a new screen
@@ -87,6 +98,7 @@ function RequireSession({ children }: { children: React.ReactNode }) {
  */
 function CloudSessionBridge() {
   const navigate = useNavigate()
+  const { state } = useLocation()
   const ready = useStore((s) => s.ready)
   const authUserId = useStore((s) => s.session.authUserId)
   const signInWithCloudUser = useStore((s) => s.signInWithCloudUser)
@@ -106,7 +118,9 @@ function CloudSessionBridge() {
       const outcome = signInWithCloudUser(user)
       // Silent on a plain reopen; a completed sign-in deserves to be told.
       if (returning) notify(outcome.message, outcome.awaitingApproval ? 'warn' : 'ok')
-      navigate(outcome.awaitingApproval ? '/pending' : '/today', { replace: true })
+      // Back to whatever link they opened, if RequireSession stashed one.
+      const from = (state as { from?: string } | null)?.from
+      navigate(outcome.awaitingApproval ? '/pending' : (from ?? '/today'), { replace: true })
     })
 
     return () => {

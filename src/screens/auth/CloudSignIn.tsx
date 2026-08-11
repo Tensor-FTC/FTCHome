@@ -17,6 +17,7 @@ import {
   signInWithLink,
   signInWithProvider,
   signUpWithEmail,
+  verifyEmailCode,
   type AuthResult,
 } from '@/lib/auth'
 
@@ -88,6 +89,9 @@ export function CloudSignInScreen() {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<AuthResult | null>(null)
   const [checking, setChecking] = useState(true)
+  // Shown once a link has been sent: on an installed iPhone app the link opens
+  // Safari instead, so the code is the only route that finishes here.
+  const [code, setCode] = useState('')
 
   const configured = isAuthConfigured()
 
@@ -264,9 +268,30 @@ export function CloudSignInScreen() {
         </p>
       )}
       {result?.ok && result.awaitingEmail && (
-        <p className="meta pretty" style={{ marginTop: 12, color: 'var(--signal)' }}>
-          {result.message}
-        </p>
+        <>
+          <p className="meta pretty" style={{ marginTop: 12, color: 'var(--signal)' }}>
+            {result.message}
+          </p>
+          <div className="stack" style={{ gap: 9, marginTop: 12 }}>
+            <Field
+              label="Or paste the code from the email"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+              placeholder="123456"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              mono
+              hint="On an iPhone the link opens Safari instead of this app, so the code is the reliable way in."
+            />
+            <Button
+              block
+              disabled={busyOrChecking || code.length < 6}
+              onClick={() => void run(() => verifyEmailCode(email, code))}
+            >
+              Sign in with the code
+            </Button>
+          </div>
+        </>
       )}
 
       <div className="wrap" style={{ marginTop: 20, gap: 14 }}>

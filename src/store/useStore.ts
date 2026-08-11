@@ -107,7 +107,7 @@ interface StoreState {
   }) => Promise<Member>
 
   // roster
-  addMember: (name: string, role: Role, subteams?: string[]) => Member
+  addMember: (name: string, role: Role, subteams?: string[], email?: string) => Member
   /** Adds a subteam to the team's own list. Idempotent on the derived id. */
   addSubteam: (label: string) => string
   updateMember: (id: string, patch: Partial<Member>) => void
@@ -306,14 +306,31 @@ export const useStore = create<StoreState>((set, get) => {
     toast: null,
 
     async hydrate() {
-      const [season, session] = await Promise.all([loadSeason(), loadSession()])
-      // Migrate rather than reset: a stored season predating a model change
-      // must not cost a team its roster.
-      const next = migrateSeason(season)
-      await saveSeason(next)
-      set({ season: next, session: session ?? GUEST_SESSION, ready: true })
-      // Identity and competition dates go stale; refresh quietly on open.
-      if (isConfigured(next)) void get().refreshTeam()
+      /*
+       * Always finish, even when storage does not.
+       *
+       * `ready` gates the whole app behind a splash, and every step here could
+       * throw: iOS Safari refuses IndexedDB in private browsing and can evict
+       * it under storage pressure, and a half-written season fails to migrate.
+       * Any of those left `ready` false forever — a launch screen with no
+       * buttons and no explanation, which is exactly what a stuck app looks
+       * like from outside.
+       *
+       * Falling back to an empty season is safe: nothing is written over, and
+       * signing in pulls the real one back down.
+       */
+      try {
+        const [season, session] = await Promise.all([loadSeason(), loadSession()])
+        // Migrate rather than reset: a stored season predating a model change
+        // must not cost a team its roster.
+        const next = migrateSeason(season)
+        await saveSeason(next)
+        set({ season: next, session: session ?? GUEST_SESSION, ready: true })
+        // Identity and competition dates go stale; refresh quietly on open.
+        if (isConfigured(next)) void get().refreshTeam()
+      } catch {
+        set({ ready: true })
+      }
     },
 
     setOnline(online) {
@@ -503,17 +520,26 @@ export const useStore = create<StoreState>((set, get) => {
       return id
     },
 
-    addMember(name, role, subteams) {
+    addMember(name, role, subteams, email) {
       const team = get().season.team
+      const address = email?.trim().toLowerCase() || undefined
       const member: Member = {
         id: uid('mem-'),
         updatedAt: now(),
         name,
         role,
         subteams: subteams ?? [],
-        username: `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
+        username: address ?? `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
         password: null,
         status: 'invited',
+        /*
+         * The address is the whole point of adding somebody ahead of time.
+         * Cloud sign-in matches a new account to an existing member by email,
+         * so a placeholder without one could never be claimed — it sat on the
+         * roster forever while the person it named signed in beside it as a
+         * stranger.
+         */
+        email: address,
         joinedAt: now(),
       }
       commit((d) => void d.members.push(member), {
@@ -586,9 +612,20 @@ export const useStore = create<StoreState>((set, get) => {
           member = get().season.members.find((m) => m.id === member!.id) ?? member
         }
       } else if (member.authUserId !== user.id || member.authProvider !== user.provider) {
-        // First cloud sign-in for someone a coach added by email: bind the account.
-        get().updateMember(member.id, { authUserId: user.id, authProvider: user.provider, email: user.email })
-        member = { ...member, authUserId: user.id, authProvider: user.provider, email: user.email }
+        /*
+         * First cloud sign-in for somebody a coach added by email. Binding the
+         * account also accepts them: a coach typing an address onto the roster
+         * *is* the decision, and making them wait for a second approval of the
+         * same choice is the step nobody understood.
+         */
+        const patch = {
+          authUserId: user.id,
+          authProvider: user.provider,
+          email: user.email,
+          ...(member.status === 'invited' ? { status: 'active' as const, approvedAt: now() } : {}),
+        }
+        get().updateMember(member.id, patch)
+        member = { ...member, ...patch }
       }
 
       const approved = member.status === 'active'

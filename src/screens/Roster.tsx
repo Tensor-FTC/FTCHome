@@ -44,6 +44,7 @@ export function RosterScreen() {
   const notify = useStore((s) => s.notify)
 
   const [name, setName] = useState('')
+  const [newEmail, setNewEmail] = useState('')
   const [newRole, setNewRole] = useState<Role>('student')
   const [subteams, setSubteams] = useState<string[]>([])
   const [editing, setEditing] = useState<Member | null>(null)
@@ -63,10 +64,15 @@ export function RosterScreen() {
     e.preventDefault()
     const trimmed = name.trim()
     if (!trimmed) return
-    addMember(trimmed, newRole, subteams)
+    addMember(trimmed, newRole, subteams, newEmail)
     setName('')
+    setNewEmail('')
     setSubteams([])
-    notify(`${trimmed} added — they set their own password on first sign-in`)
+    notify(
+      newEmail.trim()
+        ? `${trimmed} added — they go straight in when they sign in with that address`
+        : `${trimmed} added to the roster`,
+    )
   }
 
   return (
@@ -138,6 +144,15 @@ export function RosterScreen() {
                 aria-label="Full name"
                 style={{ marginBottom: 9 }}
               />
+              <Field
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                placeholder="their@email.com"
+                aria-label="Email address"
+                type="email"
+                inputMode="email"
+                style={{ marginBottom: 9 }}
+              />
               <div className="wrap" style={{ marginBottom: 9 }}>
                 {ADDABLE_ROLES.map((r) => (
                   <Chip key={r} active={newRole === r} onClick={() => setNewRole(r)}>
@@ -152,8 +167,10 @@ export function RosterScreen() {
                 Add member
               </Button>
               <p className="field-note">
-                Adding someone creates an invite, not an account. They get the team code and set their own
-                password the first time they sign in.
+                Puts them on the roster before they have signed in. When they sign in with that address
+                they are matched to this row and go straight in with the role you picked — no second
+                approval. Without an address there is nothing to match them by, so use{' '}
+                <strong>Invite somebody</strong> above instead.
               </p>
             </div>
           </form>
@@ -248,7 +265,7 @@ export function RosterScreen() {
                     border: '1px solid #2a3134',
                   }}
                 >
-                  {member.contact?.phone || member.contact?.email ? 'CONTACT ON FILE' : 'NO CONTACT'}
+                  {member.contact?.phone || member.contact?.email ? 'CONTACT ON FILE' : 'ADD CONTACT'}
                 </button>
               ) : (
                 <LockedValue shape="•••• ••" title="Coaches and mentors only" />

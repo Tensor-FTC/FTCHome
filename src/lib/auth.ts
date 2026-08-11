@@ -166,6 +166,30 @@ export async function signInWithProvider(provider: OAuthProvider): Promise<AuthR
   return { ok: true, message: 'Redirecting…' }
 }
 
+/**
+ * Finish an email sign-in with the six-digit code instead of the link.
+ *
+ * The link is the wrong shape on an installed iPhone app. Tapping it in Mail
+ * opens Safari — a different browsing context from the home-screen app — so
+ * the session lands somewhere the app cannot see, and the app itself is still
+ * sitting on the waiting screen. Typing the code keeps the whole exchange
+ * inside the window that asked for it.
+ *
+ * Supabase sends both in the same email, provided the template includes
+ * `{{ .Token }}`; the default template has only the link.
+ */
+export async function verifyEmailCode(email: string, token: string): Promise<AuthResult> {
+  const client = await getAuthClient()
+  if (!client) return NOT_CONFIGURED
+  const { data, error } = await client.auth.verifyOtp({
+    email: email.trim(),
+    token: token.trim(),
+    type: 'email',
+  })
+  if (error) return { ok: false, message: error.message }
+  return { ok: true, message: 'Signed in.', user: toUser(data.session, 'magic-link') }
+}
+
 export async function sendPasswordReset(email: string): Promise<AuthResult> {
   const client = await getAuthClient()
   if (!client) return NOT_CONFIGURED

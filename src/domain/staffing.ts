@@ -68,6 +68,26 @@ export function staffingIssues(season: SeasonData): StaffingIssue[] {
       title: 'No coach listed',
       detail: `${allStaff.map((m) => m.name).join(' and ')} ${allStaff.length === 1 ? 'is' : 'are'} carrying the coach's responsibilities as ${allStaff.length === 1 ? 'a mentor' : 'mentors'}. That works — FIRST just needs a coach of record on the team's registration.`,
     })
+  }
+
+  /*
+   * One situation, one card.
+   *
+   * "X is the only adult" and "no adult has signed in yet" both fired for a
+   * team whose single mentor had not signed in, and sat side by side saying
+   * almost the same thing. The unclaimed one wins because it is the more
+   * actionable of the two — and it already implies the other.
+   */
+  const unclaimed = allStaff.filter((m) => m.status === 'invited')
+  const noneSignedIn = unclaimed.length > 0 && unclaimed.length === allStaff.length
+
+  if (noneSignedIn) {
+    issues.push({
+      id: 'staff-unclaimed',
+      severity: 'advisory',
+      title: allStaff.length === 1 ? `${allStaff[0].name} has not signed in yet` : 'No adult has signed in yet',
+      detail: `${unclaimed.map((m) => m.name).join(', ')} ${unclaimed.length === 1 ? 'is' : 'are'} on the roster but ${unclaimed.length === 1 ? 'has' : 'have'} not signed in, so nothing can be approved yet. Send them the site, or an invite code from the roster.`,
+    })
   } else if (allStaff.length === 1) {
     issues.push({
       id: 'single-staff',
@@ -75,16 +95,6 @@ export function staffingIssues(season: SeasonData): StaffingIssue[] {
       title: `${allStaff[0].name} is the only adult on this team`,
       detail:
         'Nothing can be approved when they are unavailable. Adding a second coach or mentor removes the single point of failure.',
-    })
-  }
-
-  const unclaimed = allStaff.filter((m) => m.status === 'invited')
-  if (unclaimed.length && unclaimed.length === allStaff.length) {
-    issues.push({
-      id: 'staff-unclaimed',
-      severity: 'advisory',
-      title: 'No adult has signed in yet',
-      detail: `${unclaimed.map((m) => m.name).join(', ')} still ${unclaimed.length === 1 ? 'has' : 'have'} an unclaimed invite. They set their own password the first time they sign in.`,
     })
   }
 

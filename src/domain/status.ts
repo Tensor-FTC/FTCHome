@@ -5,15 +5,18 @@ import type { ApprovalState, SponsorState, TaskStatus } from './types'
 /**
  * Every state a record can be in, in one place.
  *
- * The tone is the point: "pledged" and "pending" are the same kind of fact —
- * something promised that has not landed — and they should look the same
- * wherever they appear, so a coach scanning a screen sees outstanding work
- * without reading a word.
+ * The tone carries meaning, so it has to mean the same thing everywhere:
+ * `pressure` is amber and says *somebody has to do something*. It belongs on a
+ * purchase waiting for a decision, and it does not belong on a sponsor who has
+ * pledged — that is good news the team went and earned, and colouring it like
+ * a warning made a full pipeline look like a list of problems.
+ *
+ * Sponsors read as a progression instead: nothing yet, promised, landed.
  */
 
 export const SPONSOR_STATUS: StatusOption<SponsorState>[] = [
-  { value: 'Prospect', label: 'Prospect', tone: 'dim' },
-  { value: 'Pledged', label: 'Pledged', tone: 'pressure' },
+  { value: 'Prospect', label: 'Prospect', tone: 'neutral' },
+  { value: 'Pledged', label: 'Pledged', tone: 'dim' },
   { value: 'Received', label: 'Received', tone: 'signal' },
   { value: 'Declined', label: 'Declined', tone: 'neutral' },
 ]

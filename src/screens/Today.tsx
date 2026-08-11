@@ -397,11 +397,35 @@ export function TodayScreen() {
                 Budget
               </div>
               <Link to="/budget" className="card card-pad" style={{ display: 'block', color: 'inherit' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                  <span className="num" style={{ font: '600 22px var(--font-mono)', color: 'var(--ink)' }}>
+                {/*
+                  * Wraps rather than collides. A team that raised $23,452,344
+                  * — a typo, but people make them — pushed the figure straight
+                  * through the label beside it, because a flex row with two
+                  * unshrinkable children has nowhere to put the overflow.
+                  */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span
+                    className="num"
+                    style={{
+                      font: '600 22px var(--font-mono)',
+                      color: 'var(--ink)',
+                      minWidth: 0,
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
                     {money(budget.left)}
                   </span>
-                  <span className="meta">left of {money(budget.raised)}</span>
+                  <span className="meta" style={{ minWidth: 0 }}>
+                    left of {money(budget.raised)}
+                  </span>
                 </div>
                 <div className="meta" style={{ marginTop: 4 }}>
                   {plural(pendingApprovals.length, 'open request')}
