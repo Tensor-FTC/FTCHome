@@ -75,15 +75,25 @@ export function LaunchScreen() {
         }}
       >
         {configured ? (
+          <Button variant="primary" size="lg" block onClick={() => navigate('/signin')}>
+            Sign in
+          </Button>
+        ) : (
           <>
-            <Button variant="primary" size="lg" block onClick={() => navigate('/signin')}>
-              Sign in
+            {/* Three separate doors rather than one "Set up my team" that had
+                to mean all of them. Which one you are is the first thing you
+                know about yourself, and the old single button made joining an
+                existing team look like it was not supported. */}
+            <Button variant="primary" size="lg" block onClick={() => navigate('/identity')}>
+              Start a new team
+            </Button>
+            <Button size="lg" block onClick={() => navigate('/join')}>
+              Join a team I&rsquo;m on
+            </Button>
+            <Button size="lg" block onClick={() => navigate('/signin/cloud')}>
+              Sign in to my account
             </Button>
           </>
-        ) : (
-          <Button variant="primary" size="lg" block onClick={() => navigate('/identity')}>
-            Set up my team
-          </Button>
         )}
 
         <div style={{ display: 'flex', gap: 10 }}>

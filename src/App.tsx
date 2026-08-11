@@ -26,6 +26,7 @@ import { RosterScreen } from '@/screens/Roster'
 import { BudgetScreen } from '@/screens/Budget'
 import { ArchiveScreen } from '@/screens/Archive'
 import { CloudSignInScreen } from '@/screens/auth/CloudSignIn'
+import { JoinTeamScreen } from '@/screens/auth/JoinTeam'
 import { AwaitingApprovalScreen } from '@/screens/auth/AwaitingApproval'
 import { ScoutScreen } from '@/screens/Scout'
 import { ChatScreen } from '@/screens/Chat'
@@ -100,6 +101,7 @@ export function App() {
         <Route path="/" element={<LaunchScreen />} />
         <Route path="/signin" element={<SignInScreen />} />
         <Route path="/signin/cloud" element={<CloudSignInScreen />} />
+        <Route path="/join" element={<JoinTeamScreen />} />
         <Route path="/pending" element={<AwaitingApprovalScreen />} />
         <Route path="/signin/who" element={<WhoAreYouScreen />} />
         <Route path="/signin/member/:memberId" element={<PersonalSignInScreen />} />

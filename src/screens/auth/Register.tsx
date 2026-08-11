@@ -26,14 +26,15 @@ export function RegisterScreen() {
   const removeMember = useStore((s) => s.removeMember)
 
   const [name, setName] = useState('')
-  const [role, setRole] = useState<Role>('coach')
+  // Students start teams. Defaulting to coach made the common case wrong and
+  // implied an adult had to be present before anything could happen.
+  const [role, setRole] = useState<Role>('student')
   const [subteams, setSubteams] = useState<string[]>([])
 
   // A team must be looked up before it can have a roster.
   if (!isConfigured(season)) return <Navigate to="/identity" replace />
 
   const team = season.team
-  const hasCoach = season.members.some((m) => m.role === 'coach')
 
   function onAdd(e: FormEvent) {
     e.preventDefault()
@@ -42,8 +43,6 @@ export function RegisterScreen() {
     addMember(trimmed, role, subteams)
     setName('')
     setSubteams([])
-    // A team starts with its coach; everyone after is a student by default.
-    if (role === 'coach') setRole('student')
   }
 
   return (
@@ -67,9 +66,8 @@ export function RegisterScreen() {
         {team.schoolName ? ` · ${team.schoolName}` : ''}
       </p>
       <p className="body" style={{ color: 'var(--ink-3)', marginBottom: 20 }}>
-        {hasCoach
-          ? 'Add the rest of the team. They set their own password the first time they sign in.'
-          : 'Start with the coach — a team needs one before anyone else can be gated correctly.'}
+        Optional — you can skip this and invite people by email once you are in. Anyone added here
+        sets their own password the first time they sign in.
       </p>
 
       <form onSubmit={onAdd} className="card-quiet card-pad" style={{ marginBottom: 14 }}>
@@ -107,7 +105,7 @@ export function RegisterScreen() {
           className="card-dashed"
           style={{ padding: 20, textAlign: 'center', font: '400 12px/1.5 var(--font-sans)', color: 'var(--ink-4)' }}
         >
-          Nobody yet. Add a coach or mentor first.
+          Nobody yet — that is fine. Invite people by email once you are in.
         </div>
       ) : (
         season.members.map((m) => (
@@ -134,10 +132,9 @@ export function RegisterScreen() {
         size="lg"
         block
         style={{ marginTop: 18 }}
-        disabled={!hasCoach}
         onClick={() => navigate('/signin')}
       >
-        {hasCoach ? 'Done — sign in' : 'Add a coach to continue'}
+        {season.members.length ? 'Done — create my account' : 'Skip — create my account'}
       </Button>
 
       <Button variant="quiet" block style={{ marginTop: 8 }} onClick={() => navigate('/identity')}>
