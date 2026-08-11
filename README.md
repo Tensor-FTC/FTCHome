@@ -3,9 +3,8 @@
 **One place, all season.** Season management for a FIRST Tech Challenge team — schedule, roster,
 budget, build log and live event data — built to keep working in a gym with no signal.
 
-Implemented from the [Claude Design project](https://claude.ai/design/p/6514df86-e97e-4f63-af05-2d7f5091f0fe),
-whose prototype and design-system spec are kept verbatim in [`design/`](design/) as the reference
-this is checked against.
+The original prototype and design-system spec are kept verbatim in [`design/`](design/) as the
+reference this implementation is checked against.
 
 ```bash
 npm install
