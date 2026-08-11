@@ -20,3 +20,11 @@ npm-debug.log*
 
 dev-dist/
 .supabase/
+
+# Editor and assistant config — local to whoever is using it, not the project.
+.claude/
+
+# Next.js build output. Committing a build cache guarantees merge conflicts on
+# files nobody edits, and bloats every clone.
+.next/
+out/
