@@ -120,6 +120,23 @@ Expect two rows, both `active`.
 
 ---
 
+## 4b · An invite skips the queue
+
+On the **laptop**, as coach: Roster → **Invite somebody** → pick a role →
+**Create an invite code**. Copy it.
+
+In a **third** browser profile (or after signing out on the phone):
+
+1. **Join a team I'm on** → team number → paste the code → **Use this invite**.
+2. Sign in with a third account.
+
+**Expect:** straight onto Today with the role the code carried. **No waiting
+screen** — that is the entire difference between being invited and asking.
+
+Try the same code again with a fourth account.
+
+**Expect:** refused. It is one use.
+
 ## 5 · Two devices agree
 
 1. **Phone:** add a task called `from-phone`.
@@ -205,8 +222,8 @@ Then turn on Airplane mode and launch from the icon. It must open.
 - **Load.** Nobody has run this with 40 members and a season of media.
 - **Conflicts.** Two people editing the same task within a few seconds is
   last-write-wins. Fine in practice, not tested adversarially.
-- **Invites.** `accept_invite()` exists in `0003_invites.sql` but no screen
-  calls it yet. Joining works through the request-and-approve flow above.
+- **Invites at scale.** One code, one use, tested by hand. Multi-use codes and
+  expiry are enforced by the database and have not been exercised.
 
 ---
 
