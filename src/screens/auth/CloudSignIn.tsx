@@ -45,6 +45,7 @@ const TITLE: Record<Mode, string> = {
 export function CloudSignInScreen() {
   const navigate = useNavigate()
   const signInWithCloudUser = useStore((s) => s.signInWithCloudUser)
+  const authUserId = useStore((s) => s.session.authUserId)
   const notify = useStore((s) => s.notify)
 
   const [mode, setMode] = useState<Mode>('signin')
@@ -58,9 +59,12 @@ export function CloudSignInScreen() {
   const configured = isAuthConfigured()
 
   /**
-   * A provider sends the browser back here with a token in the URL. Supabase
-   * consumes it on client creation, so this just asks who is signed in once the
-   * dust settles, and adopts them.
+   * Someone who is already signed in should not be shown a sign-in form.
+   *
+   * `CloudSessionBridge` in App.tsx owns adopting a provider callback, since
+   * providers return to the app's base URL rather than to this screen. This
+   * only covers arriving here directly with a live session — so it skips an
+   * account already bound to this device rather than adopting it twice.
    */
   useEffect(() => {
     if (!configured) {
@@ -70,16 +74,16 @@ export function CloudSignInScreen() {
     let live = true
     void currentAuthUser()
       .then((user) => {
-        if (!live || !user) return
+        if (!live || !user || user.id === authUserId) return
         const outcome = signInWithCloudUser(user)
         notify(outcome.message, outcome.awaitingApproval ? 'warn' : 'ok')
-        navigate(outcome.awaitingApproval ? '/pending' : '/today')
+        navigate(outcome.awaitingApproval ? '/pending' : '/today', { replace: true })
       })
       .finally(() => live && setChecking(false))
     return () => {
       live = false
     }
-  }, [configured, signInWithCloudUser, notify, navigate])
+  }, [configured, authUserId, signInWithCloudUser, notify, navigate])
 
   async function run(action: () => Promise<AuthResult>) {
     setBusy(true)

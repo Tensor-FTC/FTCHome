@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { useStore, flushPendingSave } from '@/store/useStore'
 import { requestPersistence } from '@/lib/media'
 import { BrandLaunch, Wordmark } from '@/components/Brand'
+import { currentAuthUser, isAuthConfigured, looksLikeAuthCallback } from '@/lib/auth'
 
 import { LaunchScreen } from '@/screens/Launch'
 import { SignInScreen } from '@/screens/auth/SignIn'
@@ -59,6 +60,62 @@ function RequireSession({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+/**
+ * Adopts a Supabase session wherever the browser happens to land.
+ *
+ * An identity provider sends people back to the app's *base* URL, because that
+ * is the one URL registered with Google, GitHub and Microsoft — not to whatever
+ * screen they left from. That lands them on the launch screen, and this used to
+ * be the only place that never asked who was signed in: the token in the URL
+ * was consumed and then dropped on the floor, so a successful Google sign-in
+ * looked exactly like a failed one. You came back to the same buttons.
+ *
+ * So the question is asked once, here, above the router, and every entry point
+ * — OAuth, an emailed link, a password reset, or just reopening the app a week
+ * later — is covered by the same few lines.
+ *
+ * Two things this must get right:
+ *
+ *  - **Wait for hydration.** `signInWithCloudUser` makes whoever arrives first
+ *    on an empty team its coach. Run it against a season that has not loaded
+ *    yet and every member looks like the first one, which would quietly hand
+ *    coach to a student.
+ *  - **Never re-adopt.** A session already bound to this account is left alone,
+ *    or reopening the app would throw away a role preview and bounce the person
+ *    to /today mid-task.
+ */
+function CloudSessionBridge() {
+  const navigate = useNavigate()
+  const ready = useStore((s) => s.ready)
+  const authUserId = useStore((s) => s.session.authUserId)
+  const signInWithCloudUser = useStore((s) => s.signInWithCloudUser)
+  const notify = useStore((s) => s.notify)
+  const asked = useRef(false)
+
+  useEffect(() => {
+    if (!ready || asked.current || !isAuthConfigured()) return
+    asked.current = true
+
+    // Captured before Supabase strips its own hash out of the URL.
+    const returning = looksLikeAuthCallback()
+    let live = true
+
+    void currentAuthUser().then((user) => {
+      if (!live || !user || user.id === authUserId) return
+      const outcome = signInWithCloudUser(user)
+      // Silent on a plain reopen; a completed sign-in deserves to be told.
+      if (returning) notify(outcome.message, outcome.awaitingApproval ? 'warn' : 'ok')
+      navigate(outcome.awaitingApproval ? '/pending' : '/today', { replace: true })
+    })
+
+    return () => {
+      live = false
+    }
+  }, [ready, authUserId, signInWithCloudUser, notify, navigate])
+
+  return null
+}
+
 export function App() {
   const hydrate = useStore((s) => s.hydrate)
   const ready = useStore((s) => s.ready)
@@ -97,6 +154,7 @@ export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ScrollToTop />
+      <CloudSessionBridge />
       <Routes>
         <Route path="/" element={<LaunchScreen />} />
         <Route path="/signin" element={<SignInScreen />} />
