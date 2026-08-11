@@ -160,7 +160,7 @@ export const AUDIENCE_LABEL: Record<Audience, string> = {
  * Open by default. A team is a group of people building one robot; the person
  * who raised the sponsorship should be able to see the sponsorship.
  *
- * `contactRecords` is deliberately not open: it is minors' medical and guardian
+ * `contactRecords` is deliberately not open: it is minors' phone numbers and guardian
  * data, and that is a safeguarding decision rather than a team preference.
  */
 export const DEFAULT_POLICY: TeamPolicy = {

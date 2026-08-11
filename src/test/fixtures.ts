@@ -41,7 +41,6 @@ export function fixtureSeason(anchor = today()): SeasonData {
     password: null,
     status: 'active' as const,
     joinedAt: now(),
-    medical: { notes: '', allergies: '', guardian: '', guardianPhone: '' },
     contact: { email: '', phone: '' },
   })
 

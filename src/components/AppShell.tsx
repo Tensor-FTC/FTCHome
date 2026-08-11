@@ -63,7 +63,7 @@ export function AppShell() {
   }, [sync, offline])
 
   return (
-    <div className="shell" data-alliance={settings.alliance}>
+    <div className="shell" data-alliance={clock?.alliance ?? 'red'}>
       <Rail />
 
       <div className="main">
@@ -136,7 +136,7 @@ export function AppShell() {
 
         {/*
          * Offline is a persistent grey strip, never a red banner and never a
-         * modal. In a gym nothing is broken — the only thing that changes when
+         * modal. With no internet nothing is broken — the only thing that changes when
          * signal returns is the timestamp.
          */}
         {offline && (

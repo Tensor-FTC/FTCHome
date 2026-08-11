@@ -25,7 +25,6 @@ import type { CalendarEvent, CompetitionEvent, SeasonData, Settings, Team, TeamS
 export function emptySettings(): Settings {
   return {
     policy: { ...DEFAULT_POLICY },
-    alliance: 'red',
     notificationsEnabled: false,
     notifyLeadSeconds: 300,
     season: CURRENT_SEASON,

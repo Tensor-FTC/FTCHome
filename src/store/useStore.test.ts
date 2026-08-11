@@ -169,8 +169,4 @@ describe('season store', () => {
     expect(useStore.getState().session).toMatchObject({ memberId: null, role: 'guest', guest: true })
   })
 
-  it('keeps an alliance preference for Competition Mode', () => {
-    useStore.getState().updateSettings({ alliance: 'blue' })
-    expect(useStore.getState().season.settings.alliance).toBe('blue')
-  })
 })

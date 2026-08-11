@@ -149,7 +149,7 @@ export function rosterCsv(season: SeasonData, includeContact: boolean): string {
       MEMBER_STATUS_LABEL[m.status],
     ]
     if (includeContact) {
-      row.push(m.contact?.email ?? '', m.contact?.phone ?? '', m.medical?.guardian ?? '', m.medical?.guardianPhone ?? '')
+      row.push(m.contact?.email ?? '', m.contact?.phone ?? '', m.contact?.guardian ?? '', m.contact?.guardianPhone ?? '')
     }
     rows.push(row)
   }

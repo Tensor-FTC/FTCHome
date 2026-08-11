@@ -135,7 +135,7 @@ export function HelpScreen() {
             <SectionLabel>No signal, no problem</SectionLabel>
             <div className="card card-pad">
               <p className="body pretty" style={{ color: 'var(--ink-3)', margin: 0 }}>
-                Gyms have terrible reception, so the app never waits for the network. Everything you do
+                The app never waits for the network, so it works with no internet at all. Everything you do
                 is saved on your device immediately and queued to send later. A grey strip at the top
                 means you are working from cache — nothing is broken and nothing is lost.
               </p>
@@ -207,7 +207,7 @@ export function HelpScreen() {
                 once.
               </Tip>
               <Tip label="Competition Mode">
-                From Live — a black, high-contrast board readable across a gym. Leave it running on a
+                From Live — a black, high-contrast board readable from across the room. Leave it running on a
                 laptop in the pit.
               </Tip>
               <Tip label="The countdown">
@@ -244,8 +244,8 @@ export function HelpScreen() {
 }
 
 const ROLE_HELP: Record<Role, string> = {
-  coach: 'Everything: roster, medical records, the budget, and approving spending.',
-  mentor: 'Same as a coach — approve purchases, manage the roster, read medical and contact records.',
+  coach: 'Everything: roster, contact details, the budget, and approving spending.',
+  mentor: 'Same as a coach — approve purchases, manage the roster, read contact details.',
   captain: 'Edit the calendar, assign tasks, publish the weekly page. Sees budget totals, not purchase amounts.',
   student: 'Tick off your tasks, RSVP, upload to the build log, add pit notes, request a purchase.',
   parent: 'Read-only. Sees the schedule and the weekly page, but no money and no records.',

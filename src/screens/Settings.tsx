@@ -22,7 +22,7 @@ import { installState, onInstallStateChange, platform, promptInstall } from '@/l
 import { backupJson, download, parseBackup } from '@/lib/exporters'
 import { blobBytes, clearApiCache } from '@/lib/idb'
 import { ago, bytes } from '@/lib/format'
-import { ROLE_LABEL, type Alliance, type Audience, type Role, type TeamPolicy } from '@/domain/types'
+import { ROLE_LABEL, type Audience, type Role, type TeamPolicy } from '@/domain/types'
 
 /**
  * Settings — the parts of the app that are configuration rather than season.
@@ -184,7 +184,7 @@ const POLICY_ROWS: {
   },
   {
     key: 'contactRecords',
-    title: 'Contact and medical records',
+    title: 'Contact details',
     detail: "Members' phone numbers, guardians and allergies. Never visible to guests or parents.",
     max: 'members',
   },
@@ -317,33 +317,6 @@ function TeamTab() {
           </div>
         </div>
 
-        <div className="section">
-          <SectionLabel>Pit board</SectionLabel>
-          <div className="card card-pad">
-            {/*
-             * Nothing to type: which match, field and alliance all come from the
-             * loaded schedule. The only setting is the colour to fall back to
-             * when no match is queued.
-             */}
-            <div className="label" style={{ marginBottom: 8 }}>
-              Alliance when no match is queued
-            </div>
-            <div className="wrap">
-              {(['red', 'blue'] as Alliance[]).map((a) => (
-                <Chip
-                  key={a}
-                  active={season.settings.alliance === a}
-                  onClick={() => updateSettings({ alliance: a })}
-                >
-                  {a === 'red' ? 'Red' : 'Blue'}
-                </Chip>
-              ))}
-            </div>
-            <p className="field-note">
-              During an event the countdown uses the real alliance from the schedule, not this.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -866,7 +839,7 @@ function AppTab() {
 
 /**
  * Installing matters more here than in most apps: a home-screen launch gets the
- * service worker and persistent storage, which is what "works in a gym" rests on.
+ * service worker and persistent storage, which is what "works with no internet" rests on.
  */
 function InstallCard() {
   const [state, setState] = useState(installState())

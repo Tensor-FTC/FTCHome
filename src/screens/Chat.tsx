@@ -17,7 +17,7 @@ import { longStamp, today as todayIso } from '@/lib/date'
  * Every team already has a chat — a group message nobody can search, that the
  * coach is not in, and that loses everything each September. This one sits
  * next to the calendar and the build log it keeps referring to, and it goes
- * through the same outbox as everything else, so a message typed in a gym with
+ * through the same outbox as everything else, so a message typed somewhere with
  * no signal sends itself later rather than being lost.
  *
  * Subteam membership is derived from the roster rather than maintained by

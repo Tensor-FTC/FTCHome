@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Avatar, Button, Chip, Field, IconButton, LockedValue, Sheet, TextArea } from '@/components/ui'
+import { Avatar, Button, Chip, Field, IconButton, LockedValue, Sheet } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { isLastStaff, staffingIssues } from '@/domain/staffing'
@@ -22,7 +22,7 @@ const ADDABLE_ROLES: Role[] = ['student', 'captain', 'mentor', 'coach', 'parent'
  *
  * Who is on the team, what they do, and who is still pending.
  *
- * Medical records show as a real value for mentors and as a dashed withheld chip
+ * Contact details show as a real value for staff and as a dashed withheld chip
  * for everyone else — same row, same position, visibly gated. Pending invites
  * stay in the list so a coach can see who never signed in.
  */
@@ -43,7 +43,7 @@ export function RosterScreen() {
   const canApprove = allow('members.approve')
   const canGrant = allow('members.grant')
   const requests = season.members.filter((m) => m.status === 'requested')
-  const readMedical = allow('roster.readContact')
+  const readContact = allow('roster.readContact')
   const pending = season.members.filter((m) => m.status === 'invited').length
   const approveMember = useStore((s) => s.approveMember)
   const declineMember = useStore((s) => s.declineMember)
@@ -77,7 +77,7 @@ export function RosterScreen() {
               onClick={() =>
                 download(
                   `ftc-${season.team.number}-roster.csv`,
-                  rosterCsv(season, readMedical),
+                  rosterCsv(season, readContact),
                   'text/csv;charset=utf-8',
                 )
               }
@@ -102,7 +102,7 @@ export function RosterScreen() {
           >
             <span className="dot dot-live" />
             <span style={{ flex: 1, font: '400 12px/1.5 var(--font-sans)', color: '#d5e3ae' }}>
-              Coach tools on. You can add members, set roles and read medical records.
+              Coach tools on. You can add members, set roles and read contact details.
             </span>
           </div>
         ) : (
@@ -219,7 +219,7 @@ export function RosterScreen() {
                 </div>
               </div>
 
-              {readMedical ? (
+              {readContact ? (
                 <button
                   type="button"
                   className="label"
@@ -232,10 +232,10 @@ export function RosterScreen() {
                     border: '1px solid #2a3134',
                   }}
                 >
-                  {member.medical ? 'MEDICAL ON FILE' : 'NO RECORD'}
+                  {member.contact?.phone || member.contact?.email ? 'CONTACT ON FILE' : 'NO CONTACT'}
                 </button>
               ) : (
-                <LockedValue shape="•••• ••" title="Mentors and the listed guardian only" />
+                <LockedValue shape="•••• ••" title="Coaches and mentors only" />
               )}
 
               {manage && !isLastStaff(season.members, member.id) && (
@@ -246,16 +246,16 @@ export function RosterScreen() {
             </div>
             ))}
 
-          {!readMedical && (
+          {!readContact && (
             <p className="meta" style={{ marginTop: 14 }}>
-              Medical and contact records are visible to mentors and the listed guardian only. Your captain
-              can&rsquo;t see them either.
+              Contact details are visible to coaches and mentors only. Your captain can&rsquo;t see them
+              either.
             </p>
           )}
         </div>
       </div>
 
-      {editing && readMedical && (
+      {editing && readContact && (
         <MemberSheet
           member={editing}
           lockRole={isLastStaff(season.members, editing.id)}
@@ -293,15 +293,13 @@ function MemberSheet({
   const [picked, setPicked] = useState<string[]>(member.subteams ?? [])
   const [email, setEmail] = useState(member.contact?.email ?? '')
   const [phone, setPhone] = useState(member.contact?.phone ?? '')
-  const [allergies, setAllergies] = useState(member.medical?.allergies ?? '')
-  const [notes, setNotes] = useState(member.medical?.notes ?? '')
-  const [guardian, setGuardian] = useState(member.medical?.guardian ?? '')
-  const [guardianPhone, setGuardianPhone] = useState(member.medical?.guardianPhone ?? '')
+  const [guardian, setGuardian] = useState(member.contact?.guardian ?? '')
+  const [guardianPhone, setGuardianPhone] = useState(member.contact?.guardianPhone ?? '')
 
   return (
     <Sheet
       title={member.name}
-      subtitle="Mentor-only record. Nothing here is visible to students."
+      subtitle="Staff-only record. Nothing here is visible to students."
       onClose={onClose}
       footer={
         <Button
@@ -312,8 +310,7 @@ function MemberSheet({
               {
                 role,
                 subteams: picked,
-                contact: { email, phone },
-                medical: { allergies, notes, guardian, guardianPhone },
+                contact: { email, phone, guardian, guardianPhone },
               },
               canGrant ? grants : undefined,
             )
@@ -384,8 +381,6 @@ function MemberSheet({
         <Field label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" />
         <Field label="Guardian" value={guardian} onChange={(e) => setGuardian(e.target.value)} />
         <Field label="Guardian phone" value={guardianPhone} onChange={(e) => setGuardianPhone(e.target.value)} type="tel" />
-        <Field label="Allergies" value={allergies} onChange={(e) => setAllergies(e.target.value)} />
-        <TextArea label="Medical notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
     </Sheet>
   )

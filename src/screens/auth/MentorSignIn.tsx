@@ -69,7 +69,7 @@ export function MentorSignInScreen() {
             Why it&rsquo;s separate
           </div>
           <p className="meta pretty">
-            Mentors approve spending and can read medical and contact records. Those permissions never
+            Mentors approve spending and can read contact details. Those permissions never
             travel on a code that a whole team knows.
           </p>
           <p className="meta pretty" style={{ marginTop: 10 }}>

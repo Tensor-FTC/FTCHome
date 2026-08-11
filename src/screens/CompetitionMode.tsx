@@ -12,7 +12,7 @@ type Tab = 'match' | 'rank' | 'sched'
  * 10 · Competition Mode
  *
  * Abandons the design system on purpose: pure black, no borders, no elevation,
- * 92px clock, solid alliance banner. At three metres in gym lighting, contrast
+ * 92px clock, solid alliance banner. At three metres in venue lighting, contrast
  * beats identity — and the identity has done its job by the time you are here.
  *
  * Only four facts survive: time, field, our number, who we are with and against.

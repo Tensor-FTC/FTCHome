@@ -15,8 +15,8 @@ import type { OutboxEntry } from '@/domain/types'
  * three states that decide whether a team trusts the app.
  *
  * Offline is grey and specific: what is queued, how big, and when it goes. Never
- * red, never a retry button. Red is reserved and, in a gym, a lie — nothing is
- * broken.
+ * red, never a retry button. Red is reserved and, with no internet, a lie —
+ * nothing is broken.
  */
 export function StatesScreen() {
   const navigate = useNavigate()
@@ -127,7 +127,7 @@ export function StatesScreen() {
               <div className="card-quiet card-pad" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: '500 12.5px var(--font-sans)', color: 'var(--ink-2)' }}>
-                    Rehearse the gym
+                    Rehearse offline
                   </div>
                   <div className="meta" style={{ marginTop: 2 }}>
                     Forces the offline treatment on so you can check a screen before you need it.
@@ -186,20 +186,31 @@ export function StatesScreen() {
                 </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: '500 13.5px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>
-                    Medical &amp; contact info
+                    Contact details
                   </div>
                   <div className="meta" style={{ marginTop: 3 }}>
                     {allow('roster.readContact')
-                      ? 'You can read these because you are a mentor. Students and captains cannot.'
-                      : "Mentors and the listed guardian only. Your captain can't see this either."}
+                      ? 'You can read these because you are staff. Students and captains cannot.'
+                      : "Coaches and mentors only. Your captain can't see this either."}
                   </div>
-                  <div style={{ marginTop: 11 }}>
-                    <LockedValue shape="•••• ••• ••••" />
-                  </div>
-                  {!allow('roster.readContact') && (
+                  {/*
+                   * Only mask it when it is actually withheld. Showing dots to
+                   * somebody who has just been told they may read these is a
+                   * flat contradiction, and it read as a permissions bug.
+                   */}
+                  {allow('roster.readContact') ? (
                     <Button size="sm" style={{ marginTop: 11 }} onClick={() => navigate('/roster')}>
-                      Request access
+                      Open the roster
                     </Button>
+                  ) : (
+                    <>
+                      <div style={{ marginTop: 11 }}>
+                        <LockedValue shape="•••• ••• ••••" />
+                      </div>
+                      <Button size="sm" style={{ marginTop: 11 }} onClick={() => navigate('/roster')}>
+                        Request access
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>

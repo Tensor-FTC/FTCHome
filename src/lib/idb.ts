@@ -4,7 +4,7 @@ import type { OutboxEntry, SeasonData, Session } from '@/domain/types'
 /**
  * Local storage layer. This is the source of truth the UI reads from — Supabase
  * is a peer that this syncs *to*, never something a screen waits on. A qualifier
- * gym has no signal; every screen still has to render.
+ * venue has no signal; every screen still has to render.
  *
  * Layout:
  *   doc      one row per document ('season', 'session') — the season is small
@@ -31,7 +31,7 @@ function db(): Promise<IDBPDatabase> {
         if (!database.objectStoreNames.contains('outbox')) {
           database.createObjectStore('outbox', { keyPath: 'id' })
         }
-        // FTCScout responses. Kept so competition data survives a gym with no
+        // FTCScout responses. Kept so competition data survives a venue with no
         // signal — served stale and labelled rather than blanking a screen.
         if (!database.objectStoreNames.contains('apiCache')) {
           database.createObjectStore('apiCache')

@@ -74,7 +74,14 @@ export function matchClock(season: SeasonData, nowMs: number): MatchClock | null
   }
 }
 
-/** Alliance to theme Competition Mode with: the real one if known, else the preference. */
-export function effectiveAlliance(season: SeasonData, clock: MatchClock | null): Alliance {
-  return clock?.alliance ?? season.settings.alliance
+/**
+ * Alliance to theme Competition Mode with.
+ *
+ * There used to be a red/blue setting to fall back on. It was busywork: the
+ * alliance changes every match and comes from the schedule, so the only time
+ * the setting applied was before any match was queued — when the colour means
+ * nothing anyway. Red is the neutral stand-in for that gap.
+ */
+export function effectiveAlliance(_season: SeasonData, clock: MatchClock | null): Alliance {
+  return clock?.alliance ?? 'red'
 }

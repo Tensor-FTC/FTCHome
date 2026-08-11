@@ -131,15 +131,15 @@ describe('matchClock', () => {
 })
 
 describe('effectiveAlliance', () => {
-  it('uses the real alliance when a match is scheduled', () => {
+  it('uses the real alliance from the schedule', () => {
     const season = withMatches([match({ red: ['9021', '7737'], blue: ['11138', '14672'] })])
-    season.settings.alliance = 'red'
     expect(effectiveAlliance(season, matchClock(season, NOW))).toBe('blue')
   })
 
-  it('falls back to the stored preference when nothing is scheduled', () => {
-    const season = emptySeason()
-    season.settings.alliance = 'blue'
-    expect(effectiveAlliance(season, null)).toBe('blue')
+  it('falls back to red when nothing is scheduled', () => {
+    // There is no stored preference any more: the alliance changes every match
+    // and comes from the schedule, so the only moment a setting applied was
+    // before any match existed, when the colour means nothing.
+    expect(effectiveAlliance(emptySeason(), null)).toBe('red')
   })
 })

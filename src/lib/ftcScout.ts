@@ -9,7 +9,7 @@ import { cacheGet, cachePut } from './idb'
  *
  * No API key, and the service sends permissive CORS headers, so this works from
  * the browser with zero setup. Responses are cached in IndexedDB and served
- * stale when there is no signal, which is what makes the gym case hold.
+ * stale when there is no signal, which is what makes the offline case hold.
  *
  * Routes verified against ftc-scout/ftc-scout `packages/server/src/rest/v1`.
  */
@@ -110,7 +110,7 @@ export class FtcScoutError extends Error {
  * captive portal does something worse: it accepts the connection and then never
  * answers, so the promise stays pending forever, the cached copy is never
  * served, and the screen sits on a spinner for the rest of the competition.
- * Ten seconds is longer than a slow gym needs and shorter than anybody's
+ * Ten seconds is longer than a slow venue needs and shorter than anybody's
  * patience.
  */
 const REQUEST_TIMEOUT_MS = 10_000

@@ -7,7 +7,7 @@ import { SCOUT_TAGS, type ScoutingNote } from '@/domain/types'
 /**
  * One team's scouting record, edited in a sheet.
  *
- * Written standing in a gym, usually one-handed, often between matches. So the
+ * Written standing up, usually one-handed, often between matches. So the
  * quick judgements — rating, would-pick, what they actually do — are taps, and
  * the only typing is the sentence that a tap cannot express. Everything saves
  * to the outbox, so a note taken on venue wifi that never worked still reaches

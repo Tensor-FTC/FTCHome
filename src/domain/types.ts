@@ -1,6 +1,6 @@
 import type { Capability } from './permissions'
 
-/** Core domain model. One season of one team, plus whatever it takes to survive a gym. */
+/** Core domain model. One season of one team, plus whatever it takes to run with no internet. */
 
 export type Role = 'coach' | 'mentor' | 'captain' | 'student' | 'parent' | 'guest'
 
@@ -119,7 +119,6 @@ export interface Member extends Syncable {
   /** Free-text note from a join request, so a coach knows who is asking. */
   requestNote?: string
   /** Mentor/coach-only. Gated at read time by permissions, not by the UI alone. */
-  medical?: MedicalRecord
   contact?: ContactRecord
   joinedAt: string
 }
@@ -160,16 +159,21 @@ export interface TeamSeasonStats {
   teamCount: number
 }
 
-export interface MedicalRecord {
-  notes: string
-  allergies: string
-  guardian: string
-  guardianPhone: string
-}
-
+/**
+ * How to reach somebody, and nothing more.
+ *
+ * There used to be a medical record here — allergies, notes, guardian details.
+ * It is gone on purpose. A season manager is the wrong place to hold minors'
+ * health data: it raises the stakes of every sync bug and every shared laptop
+ * far beyond what the feature was worth, and teams already keep that
+ * information where it belongs, on the FIRST consent forms.
+ */
 export interface ContactRecord {
   email: string
   phone: string
+  /** Who to call if this person is a minor. Adults on the team have neither. */
+  guardian?: string
+  guardianPhone?: string
 }
 
 export interface PasswordVerifier {
@@ -341,7 +345,7 @@ export interface Shoutout {
 /**
  * A pit or match note on another team.
  *
- * Written standing in a gym with one hand, so everything except the team number
+ * Written standing up with one hand, so everything except the team number
  * is optional and the quick fields are taps rather than typing. `eventCode` ties
  * the note to the competition it was taken at, which is what lets a season's
  * worth of scouting stay separable and archivable per event.
@@ -461,11 +465,6 @@ export interface TeamPolicy {
 
 export interface Settings {
   policy: TeamPolicy
-  /**
-   * Fallback alliance colour for Competition Mode when no match is scheduled.
-   * When a match *is* scheduled the real side is derived from it and wins.
-   */
-  alliance: Alliance
   notificationsEnabled: boolean
   notifyLeadSeconds: number
   /** FTCScout season (the game's start year) and region code. */

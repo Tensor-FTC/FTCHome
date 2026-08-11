@@ -33,7 +33,8 @@ export function LiveEventScreen() {
 
   const comp = season.competition
   const us = season.team.number
-  const alliance = season.settings.alliance
+  // Comes from the schedule; there is no stored red/blue preference any more.
+  const alliance = matchClock(season, Date.now())?.alliance ?? 'red'
 
   /**
    * If no event is loaded, pull the one the team's own schedule points at. The
