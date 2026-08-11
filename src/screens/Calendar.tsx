@@ -306,73 +306,103 @@ function SeasonTimeline() {
   const iso = todayIso()
 
   const comps = season.events.filter((e) => e.type === 'comp').sort((a, b) => a.date.localeCompare(b.date))
-  const start = season.events.map((e) => e.date).sort()[0] ?? iso
-  const end = comps[comps.length - 1]?.date ?? season.events.map((e) => e.date).sort().at(-1) ?? iso
 
+  /*
+   * Nothing invented.
+   *
+   * This used to draw four phases — kickoff, prototype, build, drive practice —
+   * at fixed fractions of the season. They looked like a plan and were not one:
+   * no team had entered them, no team could edit them, and the dates were a
+   * percentage of the gap between two events. A timeline that states things
+   * nobody said is worse than no timeline, because it gets believed.
+   *
+   * So what is drawn now is only what the team actually has: its real
+   * competitions, from FTCScout, against today.
+   */
+  if (comps.length === 0) return null
+
+  const start = season.events.map((e) => e.date).sort()[0] ?? iso
+  const end = comps[comps.length - 1].date
   const span = Math.max(1, fromIso(end).getTime() - fromIso(start).getTime())
   const at = (date: string) => ((fromIso(date).getTime() - fromIso(start).getTime()) / span) * 100
 
-  const phases = [
-    { name: 'Kickoff & strategy', from: start, to: addPct(start, end, 0.18), color: 'var(--line-3)' },
-    { name: 'Prototype', from: addPct(start, end, 0.18), to: addPct(start, end, 0.4), color: 'var(--ink-5)' },
-    { name: 'Build v1', from: addPct(start, end, 0.4), to: addPct(start, end, 0.72), color: 'var(--signal)' },
-    { name: 'Drive practice', from: addPct(start, end, 0.72), to: end, color: 'var(--signal-dim)' },
-  ]
+  /*
+   * Drop a label that would sit on top of the one before it.
+   *
+   * Two qualifiers a fortnight apart put their dates in the same few pixels and
+   * rendered as overlapping mush — "OCT 18" and "NOV 09" printed over each
+   * other. The tick still gets drawn, so the date is not lost; only the text is
+   * thinned.
+   */
+  const MIN_GAP = 13
+  let lastLabel = -Infinity
+  const marks = comps.map((comp) => {
+    const pct = Math.min(96, Math.max(4, at(comp.date)))
+    const labelled = pct - lastLabel >= MIN_GAP
+    if (labelled) lastLabel = pct
+    return { comp, pct, labelled }
+  })
 
-  if (season.events.length === 0) return null
+  const todayPct = Math.min(100, Math.max(0, at(iso)))
+  const inSeason = iso >= start && iso <= end
 
   return (
     <div style={{ marginTop: 20 }}>
       <div className="label" style={{ marginBottom: 10 }}>
-        Season timeline
+        Competitions
       </div>
       <div className="card card-pad" style={{ padding: 14 }}>
-        {phases.map((phase) => {
-          const left = Math.max(0, at(phase.from))
-          const right = Math.min(100, at(phase.to))
-          const progress = Math.min(100, Math.max(0, ((at(iso) - left) / Math.max(1, right - left)) * 100))
-          return (
-            <div key={phase.name} style={{ marginBottom: 9 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ font: '500 10.5px var(--font-sans)', color: '#b7c0c3' }}>{phase.name}</span>
-                <span className="meta-mono" style={{ fontSize: 9.5 }}>
-                  {monShort(phase.from)} {dayNum(phase.from)} – {monShort(phase.to)} {dayNum(phase.to)}
-                </span>
-              </div>
-              <div style={{ height: 7, borderRadius: 4, background: 'var(--srf-3)', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', inset: 0, width: `${progress}%`, background: phase.color, borderRadius: 4 }} />
-              </div>
-            </div>
-          )
-        })}
-
-        <div style={{ position: 'relative', height: 24, marginTop: 6, borderTop: '1px solid #242b2e', paddingTop: 7 }}>
-          {comps.slice(0, 4).map((comp) => (
+        <div style={{ position: 'relative', height: 8, borderRadius: 4, background: 'var(--srf-3)' }}>
+          {inSeason && (
             <div
-              key={comp.id}
               style={{
                 position: 'absolute',
-                left: `${Math.min(96, Math.max(4, at(comp.date)))}%`,
-                top: 0,
-                textAlign: 'center',
+                inset: 0,
+                width: `${todayPct}%`,
+                background: 'var(--signal)',
+                borderRadius: 4,
+              }}
+            />
+          )}
+          {marks.map(({ comp, pct }) => (
+            <span
+              key={comp.id}
+              title={comp.title}
+              style={{
+                position: 'absolute',
+                left: `${pct}%`,
+                top: -3,
+                width: 3,
+                height: 14,
+                borderRadius: 2,
+                background: 'var(--ink-2)',
                 transform: 'translateX(-50%)',
               }}
-            >
-              <span style={{ width: 1, height: 7, background: 'var(--ink-5)', display: 'block', margin: '0 auto' }} />
-              <span style={{ font: '500 8.5px var(--font-mono)', color: 'var(--ink-4)', whiteSpace: 'nowrap' }}>
+            />
+          ))}
+        </div>
+
+        <div style={{ position: 'relative', height: 18, marginTop: 6 }}>
+          {marks
+            .filter((m) => m.labelled)
+            .map(({ comp, pct }) => (
+              <span
+                key={comp.id}
+                style={{
+                  position: 'absolute',
+                  left: `${pct}%`,
+                  transform: 'translateX(-50%)',
+                  font: '500 8.5px var(--font-mono)',
+                  color: 'var(--ink-4)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
                 {monShort(comp.date)} {dayNum(comp.date)}
               </span>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
     </div>
   )
 }
 
-function addPct(from: string, to: string, fraction: number): string {
-  const a = fromIso(from).getTime()
-  const b = fromIso(to).getTime()
-  const d = new Date(a + (b - a) * fraction)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
