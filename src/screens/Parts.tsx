@@ -4,6 +4,7 @@ import { useStore, partsTotals } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { money } from '@/lib/format'
 import { download, parseParts, partsCsv } from '@/lib/exporters'
+import type { PartKind } from '@/domain/types'
 
 /**
  * Parts — the team's own bill of materials.
@@ -32,9 +33,16 @@ export function PartsScreen() {
   const [qty, setQty] = useState('1')
   const [unit, setUnit] = useState('')
   const [filter, setFilter] = useState<'all' | 'needed' | 'owned'>('all')
+  /*
+   * Parts and tools are different questions. "What do we still need to buy for
+   * this robot" and "do we own a torque wrench" were sharing one list, so the
+   * running total was the cost of the robot plus the cost of the workshop, and
+   * neither number was usable.
+   */
+  const [kind, setKind] = useState<PartKind>('part')
 
   const editable = allow('budget.edit') || allow('tasks.create')
-  const { need, all, haveCount, allCount } = partsTotals(season)
+  const { need, all, haveCount, allCount } = partsTotals(season, kind)
 
   /** Categories come from what the team has actually typed, not a fixed taxonomy. */
   const categories = useMemo(
@@ -44,10 +52,10 @@ export function PartsScreen() {
 
   const visible = useMemo(
     () =>
-      season.parts.filter((p) =>
-        filter === 'all' ? true : filter === 'owned' ? p.owned : !p.owned,
-      ),
-    [season.parts, filter],
+      season.parts
+        .filter((p) => (p.kind ?? 'part') === kind)
+        .filter((p) => (filter === 'all' ? true : filter === 'owned' ? p.owned : !p.owned)),
+    [season.parts, filter, kind],
   )
 
   const grouped = useMemo(() => {
@@ -71,6 +79,7 @@ export function PartsScreen() {
       qty: Math.max(1, Math.round(Number(qty) || 1)),
       unit: Number(String(unit).replace(/[^0-9.]/g, '')) || 0,
       owned: false,
+      kind,
     })
     setName('')
     setPartNumber('')
@@ -179,6 +188,13 @@ export function PartsScreen() {
           </div>
 
           <div className="section" style={{ paddingTop: 12 }}>
+            <div className="wrap" style={{ marginBottom: 9 }}>
+              {(['part', 'tool'] as PartKind[]).map((k) => (
+                <Chip key={k} active={kind === k} onClick={() => setKind(k)}>
+                  {k === 'part' ? 'Parts' : 'Tools & equipment'}
+                </Chip>
+              ))}
+            </div>
             <div className="wrap">
               {(['all', 'needed', 'owned'] as const).map((f) => (
                 <Chip key={f} active={filter === f} onClick={() => setFilter(f)}>

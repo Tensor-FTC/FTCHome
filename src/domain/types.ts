@@ -320,7 +320,16 @@ export interface Approval extends Syncable {
  * shipped list would be wrong within a season. Teams add what they are actually
  * buying, or import a CSV from a vendor cart.
  */
+/**
+ * A part is consumed by one robot; a tool outlives every robot the team builds.
+ *
+ * Absent means part, so nothing already entered has to be migrated or
+ * re-categorised — a season that predates this reads exactly as it did.
+ */
+export type PartKind = 'part' | 'tool'
+
 export interface PartItem extends Syncable {
+  kind?: PartKind
   name: string
   partNumber: string
   vendor: string
