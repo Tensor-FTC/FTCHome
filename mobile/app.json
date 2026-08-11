@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "FTC Home",
+    "slug": "ftc-home",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B0C0D",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.tensorftc.ftchome"
+    },
+    "android": {
+      "package": "org.tensorftc.ftchome",
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0C0D",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "extra": {
+      "//": "Where the WebView points. Override with EXPO_PUBLIC_FTC_HOME_URL.",
+      "webUrl": "https://tensor-ftc.github.io/FTCHome/"
+    }
+  }
+}

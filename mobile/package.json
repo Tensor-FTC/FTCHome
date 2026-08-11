@@ -1,0 +1,24 @@
+{
+  "name": "ftc-home-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Expo Go shell for FTC Home. Wraps the web app in a native WebView — see README.md in this directory before changing anything here.",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios"
+  },
+  "dependencies": {
+    "expo": "~57.0.12",
+    "expo-constants": "~57.0.10",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-webview": "13.16.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  }
+}
