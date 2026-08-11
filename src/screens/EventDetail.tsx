@@ -174,7 +174,7 @@ export function EventDetailScreen() {
                 <span className="meta">{counts.silent} no reply</span>
               </div>
 
-              <hr className="divider" style={{ margin: '14px 0 12px', background: '#242b2e' }} />
+              <hr className="divider" style={{ margin: '14px 0 12px', background: 'var(--line)' }} />
 
               <div className="label" style={{ marginBottom: 9 }}>
                 Who can&rsquo;t make it
@@ -184,7 +184,7 @@ export function EventDetailScreen() {
               ) : (
                 cantMake.map((m) => (
                   <div key={m.id} className="row" style={{ padding: '7px 0' }}>
-                    <Avatar name={m.name} size="sm" />
+                    <Avatar name={m.name} size="sm" color={m.avatarColor} src={m.avatarUrl} />
                     <span style={{ flex: 1, font: '500 12.5px var(--font-sans)', color: '#d6dcde' }}>{m.name}</span>
                     <span className="meta">{describeSubteams(season, m) || ROLE_LABEL[m.role].toLowerCase()}</span>
                   </div>

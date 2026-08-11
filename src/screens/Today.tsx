@@ -100,7 +100,7 @@ export function TodayScreen() {
             height: 38,
             borderRadius: 10,
             border: '1px solid var(--line-2)',
-            background: '#161a1d',
+            background: 'var(--srf-2)',
             display: 'grid',
             placeItems: 'center',
             font: '600 11px var(--font-mono)',
@@ -145,7 +145,7 @@ export function TodayScreen() {
                     </div>
                   </div>
                 </div>
-                <hr className="divider" style={{ margin: '14px 0 12px', background: '#242b2e' }} />
+                <hr className="divider" style={{ margin: '14px 0 12px', background: 'var(--line)' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                   {/* Real season performance from FTCScout, not a status somebody typed. */}
                   <Fact
@@ -266,7 +266,7 @@ export function TodayScreen() {
               <>
                 <form
                   onSubmit={submitTask}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px 9px 14px', background: '#161a1d' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px 9px 14px', background: 'var(--srf-2)' }}
                 >
                   <input
                     className="field"
@@ -281,7 +281,7 @@ export function TodayScreen() {
                   </Button>
                 </form>
                 {allow('tasks.assignOthers') && (
-                  <div className="wrap" style={{ padding: '0 14px 12px', background: '#161a1d' }}>
+                  <div className="wrap" style={{ padding: '0 14px 12px', background: 'var(--srf-2)' }}>
                     {season.members
                       .filter((m) => m.role !== 'parent')
                       .slice(0, 6)
@@ -313,7 +313,7 @@ export function TodayScreen() {
               style={{
                 border: `1px solid ${allow('approvals.decide') ? 'var(--signal-line)' : '#2a3134'}`,
                 borderRadius: 14,
-                background: allow('approvals.decide') ? '#141810' : 'var(--srf-1)',
+                background: allow('approvals.decide') ? 'var(--signal-bg)' : 'var(--srf-1)',
                 overflow: 'hidden',
               }}
             >

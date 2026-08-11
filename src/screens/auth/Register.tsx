@@ -110,7 +110,7 @@ export function RegisterScreen() {
       ) : (
         season.members.map((m) => (
           <div key={m.id} className="row">
-            <Avatar name={m.name} staff={m.role === 'coach' || m.role === 'mentor'} size="sm" />
+            <Avatar name={m.name} staff={m.role === 'coach' || m.role === 'mentor'} size="sm" color={m.avatarColor} src={m.avatarUrl} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ font: '500 13px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>{m.name}</div>
               <div

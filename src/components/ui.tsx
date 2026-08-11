@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import { avatarHex } from '@/domain/avatar'
 import {
   forwardRef,
   useEffect,
@@ -242,14 +243,36 @@ export function Avatar({
   name,
   staff,
   size = 'md',
+  color,
+  src,
 }: {
   name: string
   staff?: boolean
   size?: 'sm' | 'md' | 'lg'
+  /** Stored choice. Omitted means derive one from the name. */
+  color?: string
+  /** A picture, if this person has set one. */
+  src?: string
 }) {
   const cls = size === 'sm' ? 'avatar-sm' : size === 'lg' ? 'avatar-lg' : ''
+  if (src) {
+    return (
+      <img
+        className={`avatar ${cls} ${staff ? 'avatar-staff' : ''}`}
+        src={src}
+        alt=""
+        aria-hidden="true"
+        style={{ objectFit: 'cover' }}
+      />
+    )
+  }
   return (
-    <span className={`avatar ${cls} ${staff ? 'avatar-staff' : ''}`} aria-hidden="true">
+    <span
+      className={`avatar ${cls} ${staff ? 'avatar-staff' : ''}`}
+      aria-hidden="true"
+      // White holds on every colour in the palette; they are all mid-dark.
+      style={{ background: avatarHex(name, color), color: '#fff' }}
+    >
       {initialsOf(name)}
     </span>
   )

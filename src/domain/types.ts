@@ -135,6 +135,17 @@ export interface Member extends Syncable {
    * the past rather than a role, so it never needs taking away.
    */
   foundedTeam?: boolean
+  /**
+   * Colour behind the initials. Absent means "derive it from the name", which
+   * is what almost every member has — see domain/avatar.ts.
+   */
+  avatarColor?: string
+  /**
+   * A picture, as a small square data URL. Kept on the record rather than in
+   * the media store because it is drawn in lists everywhere and a lookup per
+   * row would be worse than the few kilobytes.
+   */
+  avatarUrl?: string
   /** Mentor/coach-only. Gated at read time by permissions, not by the UI alone. */
   contact?: ContactRecord
   joinedAt: string
@@ -309,7 +320,16 @@ export interface Approval extends Syncable {
  * shipped list would be wrong within a season. Teams add what they are actually
  * buying, or import a CSV from a vendor cart.
  */
+/**
+ * A part is consumed by one robot; a tool outlives every robot the team builds.
+ *
+ * Absent means part, so nothing already entered has to be migrated or
+ * re-categorised — a season that predates this reads exactly as it did.
+ */
+export type PartKind = 'part' | 'tool'
+
 export interface PartItem extends Syncable {
+  kind?: PartKind
   name: string
   partNumber: string
   vendor: string
@@ -467,8 +487,8 @@ export type Audience = 'everyone' | 'members' | 'staff'
  * money is usually the wrong default. Coaches can tighten any of these.
  *
  * `contactRecords` is the exception and defaults to staff-only: it is minors'
- * medical and guardian data, and that is a safeguarding decision rather than a
- * preference.
+ * phone numbers and guardian contacts, and that is a safeguarding decision
+ * rather than a preference.
  */
 export interface TeamPolicy {
   budgetFigures: Audience
@@ -480,8 +500,36 @@ export interface TeamPolicy {
   archiveAfterDays: number
 }
 
+/**
+ * Light, dark, or whatever the device is set to.
+ *
+ * `system` is the default because a phone that switches at sunset should take
+ * the app with it, and a team using it in a bright room and a dark one on the
+ * same day should not have to think about it.
+ */
+export type ThemeMode = 'system' | 'dark' | 'light'
+
+/** One hue the whole app is drawn in, so a team can use their own colour. */
+export type Accent = 'lime' | 'cyan' | 'blue' | 'violet' | 'amber' | 'rose'
+
+export const ACCENTS: Accent[] = ['lime', 'cyan', 'blue', 'violet', 'amber', 'rose']
+
+export const ACCENT_LABEL: Record<Accent, string> = {
+  lime: 'Lime',
+  cyan: 'Cyan',
+  blue: 'Blue',
+  violet: 'Violet',
+  amber: 'Amber',
+  rose: 'Rose',
+}
+
 export interface Settings {
   policy: TeamPolicy
+  /**
+   * Appearance is per *device*, not per team — the same person wants dark on a
+   * pit laptop and light on a phone in daylight — so these live outside the
+   * synced season. See lib/appearance.ts.
+   */
   notificationsEnabled: boolean
   notifyLeadSeconds: number
   /** FTCScout season (the game's start year) and region code. */
@@ -489,7 +537,7 @@ export interface Settings {
   region: string
   /** Event code currently loaded into Live and Competition Mode. */
   eventCode: string
-  /** Forces the offline treatment on, for testing the gym case on a good connection. */
+  /** Forces the offline treatment on, for checking those screens on a good connection. */
   simulateOffline: boolean
   lastSyncAt: string | null
   /** Last successful pull from FTCScout. */
@@ -565,6 +613,12 @@ export interface Session {
    * Absent when not previewing, so "am I previewing" is one check.
    */
   previewOf?: Role
+  /**
+   * Getting-started steps put aside with "Do later". Per device and per person,
+   * like the card itself — one student deciding they will not be logging
+   * sponsors should not clear the checklist for the coach.
+   */
+  snoozedOnboardingSteps?: string[]
   /** Set when signed in through Supabase rather than a device credential. */
   authUserId?: string
   email?: string

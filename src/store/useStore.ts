@@ -38,6 +38,7 @@ import type {
   Session,
   Settings,
   PartItem,
+  PartKind,
   Sponsor,
   Task,
   WeeklyReport,
@@ -92,6 +93,8 @@ interface StoreState {
   /** Drops a role preview and returns to the signed-in person's own role. */
   endRolePreview: () => void
   dismissOnboarding: () => void
+  /** Put one getting-started step aside without doing it. */
+  snoozeOnboardingStep: (id: string) => void
   setMemberPassword: (memberId: string, password: string) => Promise<void>
   /** Creates the first account on an empty team and signs in as its coach. */
   createFirstAccount: (input: {
@@ -381,6 +384,14 @@ export const useStore = create<StoreState>((set, get) => {
 
     dismissOnboarding() {
       const session = { ...get().session, onboardingDismissed: true }
+      set({ session })
+      void saveSession(session)
+    },
+
+    snoozeOnboardingStep(id) {
+      const current = get().session.snoozedOnboardingSteps ?? []
+      if (current.includes(id)) return
+      const session = { ...get().session, snoozedOnboardingSteps: [...current, id] }
       set({ session })
       void saveSession(session)
     },
@@ -1385,17 +1396,24 @@ export function currentMember(state: { season: SeasonData; session: Session }): 
 }
 
 /** Still-needed subtotal for the team's bill of materials. */
-export function partsTotals(season: SeasonData) {
+/**
+ * Totals for one kind of thing at a time.
+ *
+ * Summing parts and tools together gave the cost of the robot plus the cost of
+ * the workshop, which answers no question anybody asks.
+ */
+export function partsTotals(season: SeasonData, kind: PartKind = 'part') {
   let need = 0
   let all = 0
   let haveCount = 0
-  for (const item of season.parts) {
+  const items = season.parts.filter((p) => (p.kind ?? 'part') === kind)
+  for (const item of items) {
     const line = item.qty * item.unit
     all += line
     if (item.owned) haveCount++
     else need += line
   }
-  return { need, all, haveCount, allCount: season.parts.length }
+  return { need, all, haveCount, allCount: items.length }
 }
 
 export function budgetTotals(season: SeasonData) {

@@ -12,15 +12,26 @@ import { useCan } from '@/domain/useCan'
  * the whole card disappears once the team is running. Nothing to dismiss and
  * re-find, and no fake progress.
  *
- * Steps are filtered by what the signed-in role may actually do — telling a
- * student to log a sponsor they cannot log is worse than saying nothing.
+ * A step the signed-in person cannot do is shown *with the reason*, not hidden.
+ * Silently dropping it meant a student and a coach saw different lists with no
+ * explanation, and "why does my screen say 3 of 5 and yours says 5 of 5" is a
+ * worse question than one line of text answers.
+ *
+ * Each step can also be put aside. Some of them are genuinely not going to
+ * happen — a team with no sponsors is not going to set a fundraising goal — and
+ * without a way to say so the card stayed on Today forever.
  */
+/** Stable identity so the memo does not re-run every render. */
+const EMPTY: string[] = []
+
 export function GettingStarted() {
   const season = useStore((s) => s.season)
   const allow = useCan()
   const role = useStore((s) => s.session.role)
   const dismissed = useStore((s) => s.session.onboardingDismissed)
   const dismissOnboarding = useStore((s) => s.dismissOnboarding)
+  const snoozeStep = useStore((s) => s.snoozeOnboardingStep)
+  const snoozed = useStore((s) => s.session.snoozedOnboardingSteps) ?? EMPTY
   const navigate = useNavigate()
 
   const steps = useMemo(() => {
@@ -32,6 +43,7 @@ export function GettingStarted() {
         done: season.members.length > 1,
         to: '/roster',
         allowed: allow('roster.manage'),
+        blocked: 'Only a coach or mentor can add people.',
       },
       {
         id: 'meeting',
@@ -40,6 +52,7 @@ export function GettingStarted() {
         done: season.events.some((e) => e.source !== 'ftc-scout'),
         to: '/calendar/edit',
         allowed: allow('calendar.edit'),
+        blocked: 'Ask a captain or coach to add meetings.',
       },
       {
         id: 'task',
@@ -48,6 +61,7 @@ export function GettingStarted() {
         done: season.tasks.length > 0,
         to: '/today',
         allowed: allow('tasks.create'),
+        blocked: 'Parents can see tasks but not create them.',
       },
       {
         id: 'budget',
@@ -56,6 +70,7 @@ export function GettingStarted() {
         done: season.team.goal > 0 || season.sponsors.length > 0,
         to: '/budget',
         allowed: allow('budget.edit'),
+        blocked: 'Only a coach or mentor can edit the budget.',
       },
       {
         id: 'media',
@@ -64,13 +79,17 @@ export function GettingStarted() {
         done: season.media.length > 0,
         to: '/build',
         allowed: allow('media.upload'),
+        blocked: 'Sign in as a team member to add photos.',
       },
     ]
-    return all.filter((s) => s.allowed)
-  }, [season, role])
+    return all.filter((s) => !snoozed.includes(s.id))
+  }, [season, role, snoozed])
 
   const doneCount = steps.filter((s) => s.done).length
-  const complete = steps.length === 0 || doneCount === steps.length
+  // A blocked step counts as settled: this person is never going to tick it,
+  // and leaving it outstanding would keep the card up for them forever.
+  const settled = steps.filter((s) => s.done || !s.allowed).length
+  const complete = steps.length === 0 || settled === steps.length
 
   // Once the team is genuinely up and running, this stops appearing on its own.
   if (complete || dismissed) return null
@@ -103,11 +122,14 @@ export function GettingStarted() {
 
         <ol style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 2 }}>
           {steps.map((step) => (
-            <li key={step.id}>
+            <li key={step.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
               <button
                 type="button"
+                disabled={!step.allowed}
                 onClick={() => navigate(step.to)}
                 style={{
+                  flex: 1,
+                  minWidth: 0,
                   display: 'flex',
                   gap: 10,
                   alignItems: 'flex-start',
@@ -115,7 +137,8 @@ export function GettingStarted() {
                   textAlign: 'left',
                   padding: '8px 6px',
                   borderRadius: 8,
-                  opacity: step.done ? 0.55 : 1,
+                  opacity: step.done || !step.allowed ? 0.55 : 1,
+                  cursor: step.allowed ? 'pointer' : 'default',
                 }}
               >
                 <span
@@ -128,6 +151,7 @@ export function GettingStarted() {
                     borderRadius: 5,
                     border: `1px solid ${step.done ? 'var(--signal)' : 'var(--line-3)'}`,
                     background: step.done ? 'var(--signal)' : 'transparent',
+                    borderStyle: !step.done && !step.allowed ? 'dashed' : 'solid',
                     color: 'var(--signal-ink)',
                     display: 'grid',
                     placeItems: 'center',
@@ -149,11 +173,23 @@ export function GettingStarted() {
                   </span>
                   {!step.done && (
                     <span className="meta" style={{ display: 'block', marginTop: 2 }}>
-                      {step.hint}
+                      {/* Say why rather than leaving a step that does nothing
+                          when tapped and never explains itself. */}
+                      {step.allowed ? step.hint : step.blocked}
                     </span>
                   )}
                 </span>
               </button>
+              {!step.done && step.allowed && (
+                <button
+                  type="button"
+                  onClick={() => snoozeStep(step.id)}
+                  className="meta"
+                  style={{ flex: 'none', padding: '8px 4px', color: 'var(--ink-4)' }}
+                >
+                  Do later
+                </button>
+              )}
             </li>
           ))}
         </ol>

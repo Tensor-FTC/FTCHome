@@ -123,7 +123,7 @@ export function Countdown({ clock: mc }: { clock: MatchClock }) {
               marginTop: 9,
               borderRadius: 10,
               border: '1px solid var(--line-3)',
-              background: '#1b2023',
+              background: 'var(--srf-3)',
               color: 'var(--ink)',
               font: '600 12.5px var(--font-sans)',
             }}

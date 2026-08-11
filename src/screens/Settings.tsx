@@ -22,7 +22,33 @@ import { installState, onInstallStateChange, platform, promptInstall } from '@/l
 import { backupJson, download, parseBackup } from '@/lib/exporters'
 import { blobBytes, clearApiCache } from '@/lib/idb'
 import { ago, bytes } from '@/lib/format'
-import { ROLE_LABEL, type Audience, type Role, type TeamPolicy } from '@/domain/types'
+import {
+  ACCENTS,
+  ACCENT_LABEL,
+  ROLE_LABEL,
+  type Accent,
+  type Audience,
+  type Role,
+  type TeamPolicy,
+  type ThemeMode,
+} from '@/domain/types'
+import { readAccent, readTheme, writeAccent, writeTheme } from '@/lib/appearance'
+
+/**
+ * The literal hue for each swatch.
+ *
+ * Not `var(--signal)`: that resolves to the accent currently applied, so every
+ * dot would be the colour you already have and the picker would show six
+ * identical circles.
+ */
+const ACCENT_SWATCH: Record<Accent, string> = {
+  lime: '#c6e84e',
+  cyan: '#45e0d8',
+  blue: '#5aa9ff',
+  violet: '#a98cff',
+  amber: '#ffb020',
+  rose: '#ff6f91',
+}
 
 /**
  * Settings — the parts of the app that are configuration rather than season.
@@ -699,6 +725,10 @@ function SyncTab() {
 function AppTab() {
   const navigate = useNavigate()
   const season = useStore((s) => s.season)
+  // Appearance is device-local, so it is component state re-read from storage
+  // rather than anything the season knows about.
+  const [theme, setTheme] = useState(readTheme)
+  const [accent, setAccent] = useState(readAccent)
   const allow = useCan()
   const updateSettings = useStore((s) => s.updateSettings)
   const refreshTeam = useStore((s) => s.refreshTeam)
@@ -710,6 +740,76 @@ function AppTab() {
   return (
     <div className="cols cols-2">
       <div>
+        <div className="section">
+          <SectionLabel>Appearance</SectionLabel>
+          <div className="card card-pad">
+            <div className="label" style={{ marginBottom: 8 }}>
+              Theme
+            </div>
+            <div className="wrap">
+              {(['system', 'dark', 'light'] as ThemeMode[]).map((m) => (
+                <Chip
+                  key={m}
+                  active={theme === m}
+                  onClick={() => {
+                    setTheme(m)
+                    writeTheme(m)
+                  }}
+                >
+                  {m === 'system' ? 'Match device' : m === 'dark' ? 'Dark' : 'Light'}
+                </Chip>
+              ))}
+            </div>
+
+            <div className="label" style={{ margin: '16px 0 8px' }}>
+              Accent
+            </div>
+            <div className="wrap">
+              {ACCENTS.map((a) => (
+                <button
+                  key={a}
+                  type="button"
+                  aria-label={ACCENT_LABEL[a]}
+                  aria-pressed={accent === a}
+                  onClick={() => {
+                    setAccent(a)
+                    writeAccent(a)
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '5px 11px 5px 7px',
+                    borderRadius: 999,
+                    border: `1px solid ${accent === a ? 'var(--signal-line)' : 'var(--line-2)'}`,
+                    background: accent === a ? 'var(--signal-bg)' : 'transparent',
+                    font: '500 12px var(--font-sans)',
+                    color: accent === a ? 'var(--ink)' : 'var(--ink-3)',
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 13,
+                      height: 13,
+                      borderRadius: 999,
+                      flex: 'none',
+                      // The swatch shows the accent itself, not the active one,
+                      // or every dot would be the colour you already have.
+                      background: ACCENT_SWATCH[a],
+                    }}
+                  />
+                  {ACCENT_LABEL[a]}
+                </button>
+              ))}
+            </div>
+            <p className="field-note">
+              Saved on this device only. Your phone and the pit laptop can differ, and picking light
+              here does not change what anyone else sees.
+            </p>
+          </div>
+        </div>
+
         <div className="section">
           <SectionLabel>Install</SectionLabel>
           <InstallCard />

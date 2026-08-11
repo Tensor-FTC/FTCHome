@@ -1,4 +1,6 @@
 @import './tokens.css';
+/* After tokens: themes override the defaults tokens.css establishes. */
+@import './themes.css';
 
 *,
 *::before,
