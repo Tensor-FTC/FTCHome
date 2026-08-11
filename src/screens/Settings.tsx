@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button, Chip, Field, SectionLabel, Select, Toggle } from '@/components/ui'
 import { useStore, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
-import { AUDIENCE_LABEL } from '@/domain/permissions'
+import { AUDIENCE_LABEL, canPreviewAs } from '@/domain/permissions'
 import { staffingIssues } from '@/domain/staffing'
 import { readConfig, testConnection, writeConfig } from '@/lib/supabase'
 import {
@@ -83,6 +83,7 @@ export function SettingsScreen() {
 function YouTab() {
   const navigate = useNavigate()
   const session = useStore((s) => s.session)
+  const policy = useStore((s) => s.season.settings.policy)
   const me = useStore(currentMember)
   const setRole = useStore((s) => s.setRole)
   const endRolePreview = useStore((s) => s.endRolePreview)
@@ -127,11 +128,16 @@ function YouTab() {
              * night rather than trusting the settings copy.
              */}
             <div className="wrap">
-              {(['coach', 'mentor', 'captain', 'student', 'parent'] as Role[]).map((r) => (
-                <Chip key={r} active={session.role === r} onClick={() => setRole(r)}>
-                  {ROLE_LABEL[r]}
-                </Chip>
-              ))}
+              {(['coach', 'mentor', 'captain', 'student', 'parent'] as Role[])
+                // Only roles this person could not gain anything by previewing.
+                // The store refuses the rest anyway; showing a chip that does
+                // nothing when tapped is worse than not showing it.
+                .filter((r) => canPreviewAs(session.previewOf ?? session.role, r, policy))
+                .map((r) => (
+                  <Chip key={r} active={session.role === r} onClick={() => setRole(r)}>
+                    {ROLE_LABEL[r]}
+                  </Chip>
+                ))}
             </div>
             {previewing && (
               <Button

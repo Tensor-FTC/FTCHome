@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { can, isStaff } from './permissions'
+import { can, canPreviewAs, isStaff } from './permissions'
 import type { Role } from './types'
 
 /**
@@ -58,5 +58,35 @@ describe('capabilities', () => {
     expect(isStaff('mentor')).toBe(true)
     expect(isStaff('captain')).toBe(false)
     expect(isStaff('parent')).toBe(false)
+  })
+})
+
+describe('canPreviewAs', () => {
+  const ROLES: Role[] = ['coach', 'mentor', 'captain', 'student', 'parent', 'guest']
+
+  it('lets a coach look at the app as anybody', () => {
+    for (const r of ROLES) expect(canPreviewAs('coach', r)).toBe(true)
+  })
+
+  it('refuses to let a student preview upward', () => {
+    // The failure this guards: "check what others see" is a role switcher
+    // unless it can only ever narrow.
+    expect(canPreviewAs('student', 'coach')).toBe(false)
+    expect(canPreviewAs('student', 'mentor')).toBe(false)
+    expect(canPreviewAs('student', 'captain')).toBe(false)
+  })
+
+  it('refuses sideways moves that would gain a capability', () => {
+    // A parent may edit the calendar and a student may not, so neither can
+    // stand in for the other — roles are not a ladder.
+    expect(canPreviewAs('student', 'parent')).toBe(false)
+    expect(canPreviewAs('parent', 'student')).toBe(false)
+  })
+
+  it('always allows previewing your own role and guest', () => {
+    for (const r of ROLES) {
+      expect(canPreviewAs(r, r)).toBe(true)
+      expect(canPreviewAs(r, 'guest')).toBe(true)
+    }
   })
 })

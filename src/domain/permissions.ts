@@ -198,6 +198,31 @@ export function can(role: Role, capability: Capability, policy?: TeamPolicy): bo
  * Sam" is a policy decision dressed up as a personal one, and the roster is
  * where that argument belongs.
  */
+/** Every capability the matrix knows about. */
+export const ALL_CAPABILITIES = Object.keys(MATRIX) as Capability[]
+
+/**
+ * Whether somebody with `real` authority may look at the app as `target`.
+ *
+ * "Check what others see" exists so a coach can confirm what a student sees
+ * before a parent night. It changes `session.role`, which is what every
+ * `allow()` in the UI reads — so without a guard it is not a preview at all,
+ * it is a role switcher, and a student who reached it could simply choose
+ * coach and read the budget.
+ *
+ * The check is exact rather than a ranking. Roles are not a ladder: a parent
+ * and a captain can each do things the other cannot, so "is target lower than
+ * real" has no honest answer. Asking instead whether `target` can do anything
+ * `real` cannot is precise, and it stays correct when the matrix changes or a
+ * team's policy widens a capability.
+ *
+ * This is defence in depth, not the boundary. What a person may actually read
+ * from the server is decided by row-level security, which never sees this.
+ */
+export function canPreviewAs(real: Role, target: Role, policy?: TeamPolicy): boolean {
+  return ALL_CAPABILITIES.every((c) => !can(target, c, policy) || can(real, c, policy))
+}
+
 export function canMember(
   member: Pick<Member, 'role' | 'grants' | 'status'> | null | undefined,
   capability: Capability,

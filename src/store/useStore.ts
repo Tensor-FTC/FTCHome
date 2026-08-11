@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { toggledStatus } from '@/domain/tasks'
-import { GRANTABLE, type Capability } from '@/domain/permissions'
+import { GRANTABLE, canPreviewAs, type Capability } from '@/domain/permissions'
 import { missingDefaults } from '@/domain/chat'
 import { subteamId } from '@/domain/subteams'
 import type { AuthUser } from '@/lib/auth'
@@ -309,6 +309,17 @@ export const useStore = create<StoreState>((set, get) => {
       const me = currentMember(get())
       // Remember the real one the first time, so "back to me" is always exact.
       const previewOf = get().session.previewOf ?? me?.role
+      const real = previewOf ?? me?.role ?? 'guest'
+
+      /*
+       * A preview may only ever narrow. This changes `session.role`, which is
+       * what every `allow()` in the UI reads, so without the guard it is a role
+       * switcher rather than a preview — a student who reached it could pick
+       * coach and read the budget. Enforced here rather than by hiding the
+       * chips, because the chips are a UI detail and this is the rule.
+       */
+      if (!canPreviewAs(real, role, get().season.settings.policy)) return
+
       const session: Session =
         me && role === previewOf
           ? { ...get().session, role, previewOf: undefined }
