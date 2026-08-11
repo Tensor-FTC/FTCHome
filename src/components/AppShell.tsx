@@ -4,6 +4,7 @@ import { Rail, TabBar } from './Nav'
 import { Countdown } from './Countdown'
 import { SearchPalette, useSearchHotkey } from './SearchPalette'
 import { useStore, currentMember } from '@/store/useStore'
+import { isHoldingAdmin } from '@/domain/founder'
 import { ago } from '@/lib/format'
 import { matchAlerts } from '@/lib/notifications'
 import { canSync } from '@/lib/sync'
@@ -23,6 +24,7 @@ export function AppShell() {
   const season = useStore((s) => s.season)
   const session = useStore((s) => s.session)
   const member = useStore(currentMember)
+  const holdingAdmin = isHoldingAdmin(member, season.members)
   const online = useStore((s) => s.online)
   const syncing = useStore((s) => s.syncing)
   const sync = useStore((s) => s.sync)
@@ -80,6 +82,24 @@ export function AppShell() {
             </span>
             <button type="button" onClick={endRolePreview}>
               Back to my view
+            </button>
+          </div>
+        )}
+
+        {/*
+         * Said once, here, and only while it is true. It used to be repeated on
+         * several screens, which turned a useful fact into nagging — and it
+         * disappears on its own the moment a coach or mentor is active, because
+         * the condition is derived rather than dismissed.
+         */}
+        {holdingAdmin && (
+          <div className="preview-bar" role="status">
+            <span>
+              You are running {season.team.number} on your own. Add a coach or mentor and this hands
+              over automatically — you stay a {ROLE_LABEL[member!.role].toLowerCase()}.
+            </span>
+            <button type="button" onClick={() => navigate('/roster')}>
+              Add a coach
             </button>
           </div>
         )}

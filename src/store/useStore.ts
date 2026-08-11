@@ -94,7 +94,13 @@ interface StoreState {
   dismissOnboarding: () => void
   setMemberPassword: (memberId: string, password: string) => Promise<void>
   /** Creates the first account on an empty team and signs in as its coach. */
-  createFirstAccount: (input: { name: string; email?: string; password: string }) => Promise<Member>
+  createFirstAccount: (input: {
+    name: string
+    email?: string
+    password: string
+    role?: Role
+    subteams?: string[]
+  }) => Promise<Member>
 
   // roster
   addMember: (name: string, role: Role, subteams?: string[]) => Member
@@ -360,7 +366,7 @@ export const useStore = create<StoreState>((set, get) => {
      * Guarded on the team being genuinely empty so it cannot be used to mint a
      * second coach on a team that already has people.
      */
-    async createFirstAccount({ name, email, password }) {
+    async createFirstAccount({ name, email, password, role = 'student', subteams = [] }) {
       const existing = get().season.members.filter((m) => m.status === 'active')
       if (existing.length) throw new Error('This team already has members. Ask one of them to add you.')
 
@@ -370,13 +376,18 @@ export const useStore = create<StoreState>((set, get) => {
         id: uid('mem-'),
         updatedAt: now(),
         name: name.trim(),
-        role: 'coach',
-        subteams: [],
+        // Their real role, not coach. Students start teams; calling one a
+        // coach to work around having nobody to approve them put a lie on the
+        // roster that stayed there all season. They hold admin instead —
+        // see domain/founder.ts — until an actual coach or mentor is active.
+        role,
+        subteams,
         username: email?.trim() || `${name.toLowerCase().replace(/[^a-z]/g, '')}@${team.number}`,
         password: verifier,
         status: 'active',
         email: email?.trim() || undefined,
         authProvider: 'device',
+        foundedTeam: true,
         joinedAt: now(),
       }
       commit((d) => void d.members.push(member), {
@@ -459,11 +470,19 @@ export const useStore = create<StoreState>((set, get) => {
           name: user.name || user.email.split('@')[0] || 'New member',
           email: user.email,
           authUserId: user.id,
-          role: firstOnTeam ? 'coach' : 'student',
+          role: 'student',
           provider: user.provider,
         })
         if (firstOnTeam) {
-          get().approveMember(member.id, 'coach')
+          /*
+           * Accepted without approval, because there is nobody who could give
+           * it — but as a student, not a coach. Founding a team is recorded as
+           * a fact rather than promoted into a role: they hold admin while the
+           * team has no staff and stop the moment it does, so nothing has to be
+           * taken back later. See domain/founder.ts.
+           */
+          get().approveMember(member.id)
+          get().updateMember(member.id, { foundedTeam: true })
           member = get().season.members.find((m) => m.id === member!.id) ?? member
         }
       } else if (member.authUserId !== user.id || member.authProvider !== user.provider) {

@@ -2,7 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Brand } from '@/components/Brand'
-import { Button, Field } from '@/components/ui'
+import { Button, Chip, Field } from '@/components/ui'
+import { SubteamPicker } from '@/components/SubteamPicker'
+import { ROLE_LABEL, type Role } from '@/domain/types'
 import { useStore } from '@/store/useStore'
 import { isConfigured } from '@/domain/season'
 import { isAuthConfigured } from '@/lib/auth'
@@ -23,8 +25,9 @@ import { isAuthConfigured } from '@/lib/auth'
  *
  *  - Real accounts configured → sign in with one.
  *  - No accounts, and nobody on the team yet → whoever is here is setting the
- *    app up, so they make the first account and are its coach. There is nobody
- *    to approve them; requiring approval would be a deadlock.
+ *    app up, so they make the first account and pick their own role. There is
+ *    nobody to approve them; requiring approval would be a deadlock. They are
+ *    not made a coach for it — see domain/founder.ts.
  *  - No accounts, but the team exists → pick yourself and use your own password.
  */
 export function SignInScreen() {
@@ -35,6 +38,10 @@ export function SignInScreen() {
   const notify = useStore((s) => s.notify)
 
   const [name, setName] = useState('')
+  // Students start teams. Defaulting to coach made the common case wrong, and
+  // the founder holds admin either way until real staff arrive.
+  const [role, setRole] = useState<Role>('student')
+  const [subteams, setSubteams] = useState<string[]>([])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -55,7 +62,7 @@ export function SignInScreen() {
 
     setBusy(true)
     try {
-      const member = await createFirstAccount({ name, email, password })
+      const member = await createFirstAccount({ name, email, password, role, subteams })
       notify(`Signed in as ${member.name}`)
       navigate('/today')
     } catch (err) {
@@ -110,6 +117,27 @@ export function SignInScreen() {
           error={error}
           hint={error ? undefined : 'At least eight characters. Yours alone — not shared with the team.'}
         />
+        <div>
+          <div className="label" style={{ marginBottom: 8 }}>
+            You are the team&rsquo;s
+          </div>
+          <div className="wrap">
+            {(['student', 'captain', 'mentor', 'coach', 'parent'] as Role[]).map((r) => (
+              <Chip key={r} active={role === r} onClick={() => setRole(r)}>
+                {ROLE_LABEL[r]}
+              </Chip>
+            ))}
+          </div>
+          {role !== 'coach' && role !== 'mentor' && (
+            <p className="field-note" style={{ marginTop: 8 }}>
+              You can run the team until a coach or mentor joins — then you go back to being a{' '}
+              {ROLE_LABEL[role].toLowerCase()}.
+            </p>
+          )}
+        </div>
+
+        <SubteamPicker value={subteams} onChange={setSubteams} />
+
         <Button type="submit" variant="primary" size="lg" disabled={busy} style={{ marginTop: 6 }}>
           {busy ? 'Creating…' : 'Create account and start'}
         </Button>

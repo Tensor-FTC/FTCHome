@@ -118,6 +118,12 @@ export interface Member extends Syncable {
   approvedAt?: string
   /** Free-text note from a join request, so a coach knows who is asking. */
   requestNote?: string
+  /**
+   * Set on whoever created the team. They hold admin until a coach or mentor
+   * is active, then quietly stop — see domain/founder.ts. Kept as a fact about
+   * the past rather than a role, so it never needs taking away.
+   */
+  foundedTeam?: boolean
   /** Mentor/coach-only. Gated at read time by permissions, not by the UI alone. */
   contact?: ContactRecord
   joinedAt: string

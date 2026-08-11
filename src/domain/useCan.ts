@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useStore, currentMember } from '@/store/useStore'
 import { can, canMember, type Capability } from './permissions'
+import { effectiveRole } from './founder'
 
 /**
  * What the signed-in person may do.
@@ -19,6 +20,7 @@ export function useCan(): (capability: Capability) => boolean {
   const awaiting = useStore((s) => s.session.awaitingApproval)
   const previewing = useStore((s) => Boolean(s.session.previewOf))
   const me = useStore(currentMember)
+  const members = useStore((s) => s.season.members)
   const policy = useStore((s) => s.season.settings.policy)
 
   return useMemo(() => {
@@ -27,7 +29,13 @@ export function useCan(): (capability: Capability) => boolean {
     // Role preview: a coach is looking at somebody else's view, so the preview
     // role wins over their own record — including its grants.
     if (previewing) return (c: Capability) => can(role, c, policy)
-    if (me) return (c: Capability) => canMember(me, c, policy)
+    if (me) {
+      // A student who started the team stands in for the coach it does not
+      // have yet. Resolved here so it applies everywhere at once and expires
+      // on its own when real staff arrive.
+      const acting = { ...me, role: effectiveRole(me, members) }
+      return (c: Capability) => canMember(acting, c, policy)
+    }
     return (c: Capability) => can(role, c, policy)
-  }, [role, awaiting, previewing, me, policy])
+  }, [role, awaiting, previewing, me, members, policy])
 }
