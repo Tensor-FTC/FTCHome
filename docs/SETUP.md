@@ -338,18 +338,25 @@ one or the other.
 Optional, and only worth doing once part 3 is done — accounts sign in against
 the same Supabase project.
 
-Without this, people sign in with the shared team code plus a personal password
-stored on their own device. That works completely offline, which is why it is
-still the default at competitions. With it, everyone has an account that follows
-them between devices, and a coach controls who is on the roster.
+Without this, the first person to open the app creates an account stored on
+that device alone. That works completely offline, which is why it is still the
+fallback at competitions. With it, everyone has an account that follows them
+between devices, and a coach controls who is on the roster.
 
-### 4.1 Run the second migration
+### 4.1 Run the remaining migrations
 
-**SQL Editor → New query**, paste
-[`supabase/migrations/0002_accounts.sql`](../supabase/migrations/0002_accounts.sql),
-Run. That adds membership, the rules for who may accept whom, and a
-`claim_team` function so a brand-new team's first coach is not waiting on an
-approval only they could give.
+**In order**, each as its own **SQL Editor → New query → Run**:
+
+| File | What it adds |
+|---|---|
+| [`0002_accounts.sql`](../supabase/migrations/0002_accounts.sql) | Membership, the rules for who may accept whom, and `claim_team` so a brand-new team's first coach is not waiting on an approval only they could give. |
+| [`0003_invites.sql`](../supabase/migrations/0003_invites.sql) | Invites — `accept_invite` is the only path that makes somebody active without a coach pressing approve, and an email-bound invite is claimable only by the matching account. |
+
+Run all three (`0001`, `0002`, `0003`) even if you are not using invites yet.
+Skipping one leaves functions the app calls missing, and the failure shows up
+later as a sign-in that half works rather than as an obvious error.
+
+(With the Supabase CLI, `supabase db push` applies all of them at once.)
 
 ### 4.2 Turn on the sign-in methods
 
