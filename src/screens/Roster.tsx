@@ -5,6 +5,13 @@ import { useCan } from '@/domain/useCan'
 import { isLastStaff, staffingIssues } from '@/domain/staffing'
 import { subteamLabel } from '@/domain/subteams'
 import { SubteamPicker } from '@/components/SubteamPicker'
+import {
+  AVATAR_COLORS,
+  AVATAR_COLOR_LABEL,
+  AVATAR_HEX,
+  defaultAvatarColor,
+  toAvatarDataUrl,
+} from '@/domain/avatar'
 import { can, CAPABILITY_LABEL, GRANTABLE, type Capability } from '@/domain/permissions'
 import {
   AUTH_PROVIDER_LABEL,
@@ -203,7 +210,12 @@ export function RosterScreen() {
             .filter((m) => m.status !== 'requested' && m.status !== 'declined')
             .map((member) => (
             <div key={member.id} className="row">
-              <Avatar name={member.name} staff={member.role === 'coach' || member.role === 'mentor'} />
+              <Avatar
+                name={member.name}
+                staff={member.role === 'coach' || member.role === 'mentor'}
+                color={member.avatarColor}
+                src={member.avatarUrl}
+              />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ font: '500 13px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>{member.name}</div>
                 <div
@@ -293,6 +305,9 @@ function MemberSheet({
   const [picked, setPicked] = useState<string[]>(member.subteams ?? [])
   const [email, setEmail] = useState(member.contact?.email ?? '')
   const [phone, setPhone] = useState(member.contact?.phone ?? '')
+  const [avatarColor, setAvatarColor] = useState(member.avatarColor ?? defaultAvatarColor(member.name))
+  const [avatarUrl, setAvatarUrl] = useState(member.avatarUrl)
+  const [avatarError, setAvatarError] = useState<string>()
   const [guardian, setGuardian] = useState(member.contact?.guardian ?? '')
   const [guardianPhone, setGuardianPhone] = useState(member.contact?.guardianPhone ?? '')
 
@@ -310,6 +325,8 @@ function MemberSheet({
               {
                 role,
                 subteams: picked,
+                avatarColor,
+                avatarUrl,
                 contact: { email, phone, guardian, guardianPhone },
               },
               canGrant ? grants : undefined,
@@ -375,6 +392,69 @@ function MemberSheet({
           </div>
         )}
 
+        <div>
+          <div className="label" style={{ marginBottom: 8 }}>
+            Picture
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <Avatar name={member.name} size="lg" color={avatarColor} src={avatarUrl} />
+            <div className="wrap" style={{ gap: 8 }}>
+              <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
+                {avatarUrl ? 'Replace' : 'Upload'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    setAvatarError(undefined)
+                    try {
+                      setAvatarUrl(await toAvatarDataUrl(file))
+                    } catch {
+                      setAvatarError('Could not read that image')
+                    }
+                  }}
+                />
+              </label>
+              {avatarUrl && (
+                <Button size="sm" variant="quiet" onClick={() => setAvatarUrl(undefined)}>
+                  Remove
+                </Button>
+              )}
+            </div>
+          </div>
+          {avatarError && (
+            <p className="field-error" role="alert" style={{ marginBottom: 8 }}>
+              {avatarError}
+            </p>
+          )}
+          {/* Only offered when there is no picture — a colour behind a photo is
+              invisible, and showing a dead control is worse than hiding it. */}
+          {!avatarUrl && (
+            <div className="wrap">
+              {AVATAR_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={AVATAR_COLOR_LABEL[c]}
+                  aria-pressed={avatarColor === c}
+                  onClick={() => setAvatarColor(c)}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 999,
+                    background: AVATAR_HEX[c],
+                    border:
+                      avatarColor === c ? '2px solid var(--ink)' : '2px solid transparent',
+                    outline: avatarColor === c ? '1px solid var(--line-3)' : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         <SubteamPicker value={picked} onChange={setPicked} />
 
         <Field label="Email" value={email} onChange={(e) => setEmail(e.target.value)} type="email" />
@@ -408,7 +488,7 @@ function JoinRequest({
   return (
     <div style={{ padding: '14px 15px', borderBottom: '1px solid var(--line-soft)' }}>
       <div style={{ display: 'flex', gap: 11, alignItems: 'flex-start' }}>
-        <Avatar name={member.name} />
+        <Avatar name={member.name} color={member.avatarColor} src={member.avatarUrl} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ font: '500 13px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>{member.name}</div>
           <div className="meta-mono">

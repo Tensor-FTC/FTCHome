@@ -184,7 +184,7 @@ export function EventDetailScreen() {
               ) : (
                 cantMake.map((m) => (
                   <div key={m.id} className="row" style={{ padding: '7px 0' }}>
-                    <Avatar name={m.name} size="sm" />
+                    <Avatar name={m.name} size="sm" color={m.avatarColor} src={m.avatarUrl} />
                     <span style={{ flex: 1, font: '500 12.5px var(--font-sans)', color: '#d6dcde' }}>{m.name}</span>
                     <span className="meta">{describeSubteams(season, m) || ROLE_LABEL[m.role].toLowerCase()}</span>
                   </div>

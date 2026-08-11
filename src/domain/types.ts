@@ -135,6 +135,17 @@ export interface Member extends Syncable {
    * the past rather than a role, so it never needs taking away.
    */
   foundedTeam?: boolean
+  /**
+   * Colour behind the initials. Absent means "derive it from the name", which
+   * is what almost every member has — see domain/avatar.ts.
+   */
+  avatarColor?: string
+  /**
+   * A picture, as a small square data URL. Kept on the record rather than in
+   * the media store because it is drawn in lists everywhere and a lookup per
+   * row would be worse than the few kilobytes.
+   */
+  avatarUrl?: string
   /** Mentor/coach-only. Gated at read time by permissions, not by the UI alone. */
   contact?: ContactRecord
   joinedAt: string

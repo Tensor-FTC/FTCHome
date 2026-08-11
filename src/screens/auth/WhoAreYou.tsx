@@ -41,7 +41,7 @@ export function WhoAreYouScreen() {
               navigate(isStaff(member.role) ? '/signin/mentor' : `/signin/member/${member.id}`)
             }
           >
-            <Avatar name={member.name} staff={isStaff(member.role)} size="sm" />
+            <Avatar name={member.name} staff={isStaff(member.role)} size="sm" color={member.avatarColor} src={member.avatarUrl} />
             <span style={{ minWidth: 0 }}>
               <span style={{ display: 'block', font: '500 12.5px/1.3 var(--font-sans)', color: 'var(--ink-body)' }}>
                 {member.name}
