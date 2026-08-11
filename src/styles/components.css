@@ -1123,9 +1123,19 @@ input.field::-webkit-calendar-picker-indicator:hover {
   color: var(--ink-2);
 }
 
+/*
+ * Block-level, but only as wide as its text.
+ *
+ * This was `inline-flex`, which made consecutive messages flow like words —
+ * three short replies sat side by side on one line and wrapped, so a
+ * conversation read left-to-right instead of down. `flex` puts each bubble on
+ * its own line and `width: fit-content` keeps it hugging the text rather than
+ * stretching to the full column.
+ */
 .chat-bubble {
   position: relative;
-  display: inline-flex;
+  display: flex;
+  width: fit-content;
   align-items: flex-start;
   gap: 6px;
   max-width: min(100%, 44ch);
