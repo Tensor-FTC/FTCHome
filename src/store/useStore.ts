@@ -92,6 +92,8 @@ interface StoreState {
   /** Drops a role preview and returns to the signed-in person's own role. */
   endRolePreview: () => void
   dismissOnboarding: () => void
+  /** Put one getting-started step aside without doing it. */
+  snoozeOnboardingStep: (id: string) => void
   setMemberPassword: (memberId: string, password: string) => Promise<void>
   /** Creates the first account on an empty team and signs in as its coach. */
   createFirstAccount: (input: {
@@ -381,6 +383,14 @@ export const useStore = create<StoreState>((set, get) => {
 
     dismissOnboarding() {
       const session = { ...get().session, onboardingDismissed: true }
+      set({ session })
+      void saveSession(session)
+    },
+
+    snoozeOnboardingStep(id) {
+      const current = get().session.snoozedOnboardingSteps ?? []
+      if (current.includes(id)) return
+      const session = { ...get().session, snoozedOnboardingSteps: [...current, id] }
       set({ session })
       void saveSession(session)
     },

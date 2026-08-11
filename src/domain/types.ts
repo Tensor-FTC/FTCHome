@@ -604,6 +604,12 @@ export interface Session {
    * Absent when not previewing, so "am I previewing" is one check.
    */
   previewOf?: Role
+  /**
+   * Getting-started steps put aside with "Do later". Per device and per person,
+   * like the card itself — one student deciding they will not be logging
+   * sponsors should not clear the checklist for the coach.
+   */
+  snoozedOnboardingSteps?: string[]
   /** Set when signed in through Supabase rather than a device credential. */
   authUserId?: string
   email?: string
