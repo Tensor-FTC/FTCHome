@@ -10,7 +10,7 @@ import type { Season } from '@/lib/ftcScout'
  *
  * Type a number, get the real registration back from FTCScout. The confirmation
  * is a card, not a toast: it holds name, school, city, state and rookie year so
- * you can tell 11138 from 11183 before committing a season to it.
+ * you can tell 26022 from 26202 before committing a season to it.
  *
  * Nothing about the team is authored locally. If FTCScout does not have the
  * number, the app says so rather than inventing a plausible team.
@@ -101,7 +101,7 @@ export function TeamIdentityScreen() {
         <Field
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="11138, or search by name"
+          placeholder="26022, or search by name"
           autoFocus
           big
           mono

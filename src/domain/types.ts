@@ -52,7 +52,7 @@ export interface Syncable {
 /**
  * Team identity. Everything above `code` is *sourced from FTCScout*, never
  * authored here — name, city, state, rookie year and sponsors are facts about a
- * real team and guessing them is how you end up telling 11138 it is in Ontario.
+ * real team and guessing them is how you end up telling 26022 it is in Ontario.
  */
 export interface Team extends Syncable {
   number: string
