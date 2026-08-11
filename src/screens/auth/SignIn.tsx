@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Brand } from '@/components/Brand'
 import { Button, Field } from '@/components/ui'
@@ -29,6 +29,7 @@ import { isAuthConfigured } from '@/lib/auth'
  */
 export function SignInScreen() {
   const navigate = useNavigate()
+  const { search } = useLocation()
   const season = useStore((s) => s.season)
   const createFirstAccount = useStore((s) => s.createFirstAccount)
   const notify = useStore((s) => s.notify)
@@ -41,7 +42,9 @@ export function SignInScreen() {
 
   // A team has to exist before anybody can be on it.
   if (!isConfigured(season)) return <Navigate to="/identity" replace />
-  if (isAuthConfigured()) return <Navigate to="/signin/cloud" replace />
+  // Carry `?mode=signup` through, or the screen that knew this person is new
+  // loses that the moment it hands off to the cloud form.
+  if (isAuthConfigured()) return <Navigate to={`/signin/cloud${search}`} replace />
   if (season.members.some((m) => m.status === 'active')) return <Navigate to="/signin/who" replace />
 
   async function submit(e: FormEvent) {

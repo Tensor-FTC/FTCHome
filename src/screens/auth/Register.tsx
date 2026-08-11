@@ -132,7 +132,8 @@ export function RegisterScreen() {
         size="lg"
         block
         style={{ marginTop: 18 }}
-        onClick={() => navigate('/signin')}
+        // Setup just finished, so this person demonstrably has no account yet.
+        onClick={() => navigate('/signin?mode=signup')}
       >
         {season.members.length ? 'Done — create my account' : 'Skip — create my account'}
       </Button>

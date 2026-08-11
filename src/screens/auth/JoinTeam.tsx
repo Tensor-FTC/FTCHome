@@ -114,7 +114,7 @@ export function JoinTeamScreen() {
                   autoCapitalize="characters"
                   hint="Somebody on the team can generate one for you."
                 />
-                <Button variant="primary" block disabled={!code.trim()} onClick={() => navigate('/signin/cloud')}>
+                <Button variant="primary" block disabled={!code.trim()} onClick={() => navigate('/signin/cloud?mode=signup')}>
                   Use this invite
                 </Button>
               </div>
@@ -123,7 +123,7 @@ export function JoinTeamScreen() {
                 or
               </div>
 
-              <Button block onClick={() => navigate('/signin/cloud')}>
+              <Button block onClick={() => navigate('/signin/cloud?mode=signup')}>
                 Ask to join {team.number}
               </Button>
               <p className="meta pretty" style={{ marginTop: 10 }}>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { AuthLayout } from './AuthLayout'
 import { Brand } from '@/components/Brand'
 import { Button, Field } from '@/components/ui'
@@ -19,6 +19,21 @@ import {
 } from '@/lib/auth'
 
 type Mode = 'signin' | 'signup' | 'link' | 'reset'
+
+const MODES: Mode[] = ['signin', 'signup', 'link', 'reset']
+
+/**
+ * Which form to open on.
+ *
+ * Somebody who has just finished naming their team does not have an account
+ * yet, so showing them a *sign in* form asks for a password they have never
+ * set. The screens that know the person is new say so with `?mode=signup`;
+ * anything else opens on sign-in, which is the right guess for a returning
+ * person and the only one worth defaulting to.
+ */
+function initialMode(raw: string | null): Mode {
+  return MODES.includes(raw as Mode) ? (raw as Mode) : 'signin'
+}
 
 const TITLE: Record<Mode, string> = {
   signin: 'Sign in',
@@ -48,7 +63,8 @@ export function CloudSignInScreen() {
   const authUserId = useStore((s) => s.session.authUserId)
   const notify = useStore((s) => s.notify)
 
-  const [mode, setMode] = useState<Mode>('signin')
+  const [params] = useSearchParams()
+  const [mode, setMode] = useState<Mode>(() => initialMode(params.get('mode')))
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
