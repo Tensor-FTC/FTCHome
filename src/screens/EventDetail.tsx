@@ -174,7 +174,7 @@ export function EventDetailScreen() {
                 <span className="meta">{counts.silent} no reply</span>
               </div>
 
-              <hr className="divider" style={{ margin: '14px 0 12px', background: '#242b2e' }} />
+              <hr className="divider" style={{ margin: '14px 0 12px', background: 'var(--line)' }} />
 
               <div className="label" style={{ marginBottom: 9 }}>
                 Who can&rsquo;t make it

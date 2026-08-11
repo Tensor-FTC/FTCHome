@@ -339,7 +339,7 @@ function SeasonTimeline() {
                   {monShort(phase.from)} {dayNum(phase.from)} – {monShort(phase.to)} {dayNum(phase.to)}
                 </span>
               </div>
-              <div style={{ height: 7, borderRadius: 4, background: '#1c2225', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ height: 7, borderRadius: 4, background: 'var(--srf-3)', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', inset: 0, width: `${progress}%`, background: phase.color, borderRadius: 4 }} />
               </div>
             </div>

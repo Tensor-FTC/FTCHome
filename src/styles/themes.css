@@ -1,0 +1,150 @@
+/*
+ * Themes — light/dark, and an accent a team can pick.
+ *
+ * Two things are deliberately kept apart.
+ *
+ * **Theme** decides the planes and the ink: which end of the scale is the
+ * background. Every surface and ink token flips together, because a half-light
+ * screen is worse than either.
+ *
+ * **Accent** decides one hue. The app was built around a single signal colour
+ * doing a lot of work — the active chip, the primary button, the meter, the
+ * live dot — so the accent is that one variable and its shades, and nothing
+ * else moves. A team picking their own colour gets the whole app in it without
+ * a second design.
+ *
+ * Each accent contributes exactly one value, `--accent-base`. Every shade is
+ * derived per theme from that. This is the part that cannot be skipped: an
+ * accent is not the same colour in both themes. Lime that reads as a bright
+ * fill on graphite is nearly white on paper, and pale accent text that is
+ * legible on a dark tint disappears on a light one — measured at 1.28:1 before
+ * this was split, which is invisible. So dark keeps the raw hue and light uses
+ * a darkened, saturated version with white ink on it.
+ *
+ * Alliance red and blue are not accents and never appear here. They mean which
+ * side of the field you are on, and a team whose colour happened to be red
+ * would otherwise make that unreadable.
+ */
+
+/* ── accents: one hue each ───────────────────────────────── */
+
+:root,
+[data-accent='lime'] {
+  --accent-base: #c6e84e;
+}
+[data-accent='cyan'] {
+  --accent-base: #45e0d8;
+}
+[data-accent='blue'] {
+  --accent-base: #5aa9ff;
+}
+[data-accent='violet'] {
+  --accent-base: #a98cff;
+}
+[data-accent='amber'] {
+  --accent-base: #ffb020;
+}
+[data-accent='rose'] {
+  --accent-base: #ff6f91;
+}
+
+/* ── dark: the hue as-is ─────────────────────────────────── */
+
+:root {
+  --signal: var(--accent-base);
+  /* Near-black on a bright fill. */
+  --signal-ink: #0b0e10;
+  --signal-tint: color-mix(in srgb, var(--accent-base) 62%, #ffffff);
+  --signal-dim: color-mix(in srgb, var(--accent-base) 52%, #0b0e10);
+  --signal-bg: color-mix(in srgb, var(--accent-base) 12%, var(--srf-app));
+  --signal-line: color-mix(in srgb, var(--accent-base) 32%, var(--srf-app));
+  --signal-deep: color-mix(in srgb, var(--accent-base) 16%, var(--srf-app));
+}
+
+/* ── light ───────────────────────────────────────────────── */
+
+/*
+ * Not an inversion. Pure white under a dense grid glares, and hairlines that
+ * read as "edge" on graphite read as "dirt" on white, so the planes stay a
+ * degree off-white and the lines are a touch heavier than a straight flip.
+ */
+[data-theme='light'] {
+  --srf-void: #e8ebed;
+  --srf-app: #f5f7f8;
+  --srf-0: #ffffff;
+  --srf-1: #ffffff;
+  --srf-2: #f1f4f5;
+  --srf-3: #e6eaec;
+
+  --srf-field: #ffffff;
+  --srf-card: #ffffff;
+  --srf-inset: #eff2f4;
+  --srf-raise: #e2e7e9;
+
+  --line: #dde3e5;
+  --line-2: #ccd4d7;
+  --line-3: #b3bdc1;
+  --line-soft: #e9edef;
+  /* The white top-edge highlight is invisible on white and reads as a seam. */
+  --hi-edge: inset 0 1px 0 rgba(9, 14, 16, 0.03);
+
+  --ink: #0d1214;
+  --ink-body: #1a2123;
+  --ink-2: #313b3e;
+  /*
+   * Darker than a straight inversion. Secondary text sits on tinted cards as
+   * often as on white, and the tint eats contrast.
+   */
+  --ink-3: #485357;
+  --ink-4: #545f63;
+  --ink-5: #5f6a6e;
+  --ink-rail: #4e595d;
+
+  /*
+   * The accent, darkened until white sits on it legibly. Lime is the binding
+   * case: the raw hue is barely darker than paper, so a "primary" button in it
+   * would be a white rectangle with white text.
+   */
+  --signal: color-mix(in srgb, var(--accent-base) 38%, #0d2016);
+  --signal-ink: #ffffff;
+  /* Accent-coloured *text*, so it has to be dark rather than pale. */
+  --signal-tint: color-mix(in srgb, var(--accent-base) 18%, #0d1214);
+  --signal-dim: color-mix(in srgb, var(--accent-base) 34%, #4a5559);
+  --signal-bg: color-mix(in srgb, var(--accent-base) 16%, #ffffff);
+  --signal-line: color-mix(in srgb, var(--accent-base) 42%, #ffffff);
+  --signal-deep: color-mix(in srgb, var(--accent-base) 22%, #ffffff);
+
+  /* Amber on white needs to be darker to hold its meaning. */
+  --pressure: #a86a00;
+  --pressure-bg: #fdf3e0;
+  --pressure-line: #ecd6a8;
+  --pressure-ink: #4a3200;
+  --pressure-ink-2: #8a6a2a;
+
+  --alliance-red-bg: #fdeceb;
+  --alliance-blue-bg: #eaf0ff;
+}
+
+/*
+ * Shadows are the one thing that cannot be a colour swap: the dark theme draws
+ * depth with a near-black shadow that is invisible on white.
+ */
+[data-theme='light'] {
+  --e1: 0 1px 2px rgba(13, 18, 20, 0.06);
+  --e2: 0 2px 8px rgba(13, 18, 20, 0.08);
+  --e3: 0 8px 28px rgba(13, 18, 20, 0.12);
+}
+
+[data-theme='light'] .scrim,
+[data-theme='light'] .sheet-scrim {
+  background: rgba(20, 26, 28, 0.36);
+}
+
+/*
+ * Competition Mode stays black in every theme. It is read from three metres in
+ * a bright room, where white would be a floodlight — and its own rules already
+ * hardcode black surfaces for exactly that reason.
+ */
+[data-theme='light'] .comp {
+  color-scheme: dark;
+}

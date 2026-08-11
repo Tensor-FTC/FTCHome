@@ -80,7 +80,7 @@ export function GuestOnboardingScreen() {
               padding: '5px 8px',
               border: '1px solid var(--signal-line)',
               borderRadius: 5,
-              background: '#171e10',
+              background: 'var(--signal-bg)',
             }}
           >
             GUEST · NO ACCOUNT

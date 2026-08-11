@@ -149,7 +149,7 @@ export function PartsScreen() {
               position: 'sticky',
               top: 0,
               zIndex: 20,
-              background: '#0f1315',
+              background: 'var(--srf-app)',
               borderTop: '1px solid var(--line)',
               borderBottom: '1px solid var(--line)',
               padding: '12px var(--gutter)',

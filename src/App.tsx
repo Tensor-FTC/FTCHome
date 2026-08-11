@@ -5,6 +5,7 @@ import { useStore, flushPendingSave } from '@/store/useStore'
 import { requestPersistence } from '@/lib/media'
 import { BrandLaunch, Wordmark } from '@/components/Brand'
 import { currentAuthUser, isAuthConfigured, looksLikeAuthCallback } from '@/lib/auth'
+import { watchSystemTheme } from '@/lib/appearance'
 
 import { LaunchScreen } from '@/screens/Launch'
 import { SignInScreen } from '@/screens/auth/SignIn'
@@ -137,6 +138,9 @@ export function App() {
       globalThis.removeEventListener('offline', off)
     }
   }, [setOnline])
+
+  // Phones switch at sunset with the app open; "system" has to mean it.
+  useEffect(() => watchSystemTheme(), [])
 
   // Never lose the last edit to a backgrounded tab.
   useEffect(() => {

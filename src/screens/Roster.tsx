@@ -93,7 +93,7 @@ export function RosterScreen() {
           <div
             style={{
               borderRadius: 18,
-              background: '#1a1e14',
+              background: 'var(--signal-bg)',
               padding: '13px 15px',
               display: 'flex',
               gap: 11,

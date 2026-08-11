@@ -205,7 +205,7 @@ export function BuildLogScreen() {
                   style={{
                     height: 3,
                     borderRadius: 2,
-                    background: '#242b2e',
+                    background: 'var(--srf-3)',
                     marginTop: 9,
                     overflow: 'hidden',
                     position: 'relative',

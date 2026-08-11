@@ -467,8 +467,8 @@ export type Audience = 'everyone' | 'members' | 'staff'
  * money is usually the wrong default. Coaches can tighten any of these.
  *
  * `contactRecords` is the exception and defaults to staff-only: it is minors'
- * medical and guardian data, and that is a safeguarding decision rather than a
- * preference.
+ * phone numbers and guardian contacts, and that is a safeguarding decision
+ * rather than a preference.
  */
 export interface TeamPolicy {
   budgetFigures: Audience
@@ -480,8 +480,36 @@ export interface TeamPolicy {
   archiveAfterDays: number
 }
 
+/**
+ * Light, dark, or whatever the device is set to.
+ *
+ * `system` is the default because a phone that switches at sunset should take
+ * the app with it, and a team using it in a bright room and a dark one on the
+ * same day should not have to think about it.
+ */
+export type ThemeMode = 'system' | 'dark' | 'light'
+
+/** One hue the whole app is drawn in, so a team can use their own colour. */
+export type Accent = 'lime' | 'cyan' | 'blue' | 'violet' | 'amber' | 'rose'
+
+export const ACCENTS: Accent[] = ['lime', 'cyan', 'blue', 'violet', 'amber', 'rose']
+
+export const ACCENT_LABEL: Record<Accent, string> = {
+  lime: 'Lime',
+  cyan: 'Cyan',
+  blue: 'Blue',
+  violet: 'Violet',
+  amber: 'Amber',
+  rose: 'Rose',
+}
+
 export interface Settings {
   policy: TeamPolicy
+  /**
+   * Appearance is per *device*, not per team — the same person wants dark on a
+   * pit laptop and light on a phone in daylight — so these live outside the
+   * synced season. See lib/appearance.ts.
+   */
   notificationsEnabled: boolean
   notifyLeadSeconds: number
   /** FTCScout season (the game's start year) and region code. */
@@ -489,7 +517,7 @@ export interface Settings {
   region: string
   /** Event code currently loaded into Live and Competition Mode. */
   eventCode: string
-  /** Forces the offline treatment on, for testing the gym case on a good connection. */
+  /** Forces the offline treatment on, for checking those screens on a good connection. */
   simulateOffline: boolean
   lastSyncAt: string | null
   /** Last successful pull from FTCScout. */

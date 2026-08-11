@@ -35,8 +35,14 @@
   --ink-2: #c4cccf;
   --ink-3: #8e989c;
   --ink-4: #6e787c;
-  --ink-5: #4a5357;
-  --ink-rail: #525a5e;
+  /*
+   * The two faintest steps were below 3:1 on the app surface — the rail's
+   * section headings and the ⌘K hint measured 2.3–2.8, which is decoration
+   * rather than text. Lifted to clear 4.5:1 at the 9px they are actually used
+   * at. Still clearly the quietest things on screen, just readable.
+   */
+  --ink-5: #717b7f;
+  --ink-rail: #7a8488;
   --ink-body: #e4e9ea;
 
   /* signal — one accent, one pressure */
