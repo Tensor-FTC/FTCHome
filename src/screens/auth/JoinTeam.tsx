@@ -5,6 +5,7 @@ import { Brand } from '@/components/Brand'
 import { Button, Field, Spinner } from '@/components/ui'
 import { getTeam, type ScoutTeam } from '@/lib/ftcScout'
 import { isAuthConfigured } from '@/lib/auth'
+import { rememberInvite } from '@/lib/invites'
 
 /**
  * Join a team you are already on.
@@ -114,7 +115,16 @@ export function JoinTeamScreen() {
                   autoCapitalize="characters"
                   hint="Somebody on the team can generate one for you."
                 />
-                <Button variant="primary" block disabled={!code.trim()} onClick={() => navigate('/signin/cloud?mode=signup')}>
+                <Button
+                  variant="primary"
+                  block
+                  disabled={!code.trim()}
+                  onClick={() => {
+                    // Parked so it survives the trip out to Google and back.
+                    rememberInvite(code)
+                    navigate('/signin/cloud?mode=signup')
+                  }}
+                >
                   Use this invite
                 </Button>
               </div>

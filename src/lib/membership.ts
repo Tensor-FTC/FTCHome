@@ -1,5 +1,6 @@
 import { getSupabase } from './supabase'
 import { hasCloudSession } from './session'
+import { acceptInvite, clearPendingInvite, pendingInvite } from './invites'
 
 /**
  * Server-side team membership.
@@ -90,6 +91,20 @@ async function enrol(
   displayName: string,
   role: string,
 ): Promise<MembershipState> {
+  /*
+   * An invite first, if one is waiting. Somebody a coach has already named
+   * should not land in the approval queue to be named again — that is the
+   * entire difference between being invited and asking.
+   */
+  const code = pendingInvite()
+  if (code) {
+    const redeemed = await acceptInvite(code)
+    // Cleared either way: a code that has expired or been used up will not
+    // start working later, and retrying it every sync would be noise.
+    clearPendingInvite()
+    if (redeemed.ok) return { ok: true, status: 'active' }
+  }
+
   const { error: claimError } = await sb.rpc('claim_team', {
     p_team_number: teamNumber,
     p_display_name: displayName,

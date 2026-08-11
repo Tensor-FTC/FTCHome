@@ -5,6 +5,8 @@ import { useCan } from '@/domain/useCan'
 import { isLastStaff, staffingIssues } from '@/domain/staffing'
 import { subteamLabel } from '@/domain/subteams'
 import { SubteamPicker } from '@/components/SubteamPicker'
+import { createInvite, type Invite } from '@/lib/invites'
+import { isAuthConfigured } from '@/lib/auth'
 import {
   AVATAR_COLORS,
   AVATAR_COLOR_LABEL,
@@ -119,6 +121,8 @@ export function RosterScreen() {
           </div>
         )}
       </div>
+
+      {canApprove && isAuthConfigured() && <InvitePanel teamNumber={season.team.number} />}
 
       <div className="cols cols-2">
         {manage && (
@@ -518,6 +522,97 @@ function JoinRequest({
         <Button size="sm" onClick={onDecline}>
           Decline
         </Button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Mint an invite code.
+ *
+ * The alternative already existed — let somebody ask, then accept them — and
+ * this is for when the coach already knows. Approving a person you personally
+ * invited is a step that exists only because the software could not tell the
+ * two cases apart.
+ *
+ * Only shown when cloud accounts are configured: a code is redeemed against the
+ * database, so on a single-device team it would be a control that cannot work.
+ */
+function InvitePanel({ teamNumber }: { teamNumber: string }) {
+  const notify = useStore((s) => s.notify)
+  const [role, setRole] = useState<Role>('student')
+  const [busy, setBusy] = useState(false)
+  const [invite, setInvite] = useState<Invite>()
+  const [error, setError] = useState<string>()
+
+  async function mint() {
+    setBusy(true)
+    setError(undefined)
+    const result = await createInvite(teamNumber, role)
+    setBusy(false)
+    if (!result.ok || !result.invite) return setError(result.message)
+    setInvite(result.invite)
+  }
+
+  return (
+    <div className="section">
+      <div className="card-quiet card-pad">
+        <div className="label" style={{ marginBottom: 11 }}>
+          Invite somebody
+        </div>
+        <div className="wrap" style={{ marginBottom: 11 }}>
+          {ADDABLE_ROLES.map((r) => (
+            <Chip key={r} active={role === r} onClick={() => setRole(r)}>
+              {ROLE_LABEL[r]}
+            </Chip>
+          ))}
+        </div>
+
+        {invite ? (
+          <>
+            <div
+              className="num"
+              style={{
+                font: '600 22px var(--font-mono)',
+                letterSpacing: '0.18em',
+                color: 'var(--ink)',
+                padding: '10px 0',
+              }}
+            >
+              {invite.code}
+            </div>
+            <p className="meta pretty" style={{ marginBottom: 11 }}>
+              They enter this under <strong>Join a team</strong> and land straight on the roster as a{' '}
+              {ROLE_LABEL[invite.role as Role]?.toLowerCase() ?? invite.role} — no approval needed.
+              One use, expires in 30 days.
+            </p>
+            <div className="wrap">
+              <Button
+                size="sm"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(invite.code)
+                  notify('Code copied')
+                }}
+              >
+                Copy code
+              </Button>
+              <Button size="sm" variant="quiet" onClick={() => setInvite(undefined)}>
+                New code
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {error && (
+              <p className="field-error" role="alert" style={{ marginBottom: 9 }}>
+                {error}
+              </p>
+            )}
+            <Button variant="primary" block disabled={busy} onClick={() => void mint()}>
+              {busy ? 'Creating…' : 'Create an invite code'}
+            </Button>
+          </>
+        )}
       </div>
     </div>
   )
