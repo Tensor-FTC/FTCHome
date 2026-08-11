@@ -4,6 +4,7 @@ import { BrandLaunch, Wordmark } from '@/components/Brand'
 import { Button } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { isConfigured } from '@/domain/season'
+import { installState, platform } from '@/lib/install'
 
 /**
  * 00 · Launch
@@ -15,6 +16,8 @@ import { isConfigured } from '@/domain/season'
  */
 export function LaunchScreen() {
   const navigate = useNavigate()
+  // iPhone, in a browser tab rather than the installed app.
+  const installHint = platform() === 'ios' && installState() === 'manual-ios'
   const session = useStore((s) => s.session)
   const season = useStore((s) => s.season)
   const browseAsGuest = useStore((s) => s.browseAsGuest)
@@ -94,6 +97,23 @@ export function LaunchScreen() {
               Sign in to my account
             </Button>
           </>
+        )}
+
+        {/*
+          * Said here, not in Settings.
+          *
+          * The install instructions lived behind a sign-in, which is the one
+          * place somebody setting up their phone for the first time cannot
+          * reach. Shown only on an iPhone that has not installed it yet, so it
+          * is never in the way of anybody it does not apply to.
+          */}
+        {installHint && (
+          <p className="meta pretty" style={{ marginTop: 4, marginBottom: 4 }}>
+            <strong style={{ color: 'var(--ink-2)' }}>On your iPhone:</strong> tap{' '}
+            <strong>Share</strong>, then <strong>Add to Home Screen</strong>, and open it from the
+            icon. It works offline that way. Then pick <strong>Join a team I&rsquo;m on</strong> —
+            not guest — and sign in with the same account you use elsewhere.
+          </p>
         )}
 
         <div style={{ display: 'flex', gap: 10 }}>
