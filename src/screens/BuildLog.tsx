@@ -12,6 +12,7 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { bytes } from '@/lib/format'
 import { longStamp, today as todayIso } from '@/lib/date'
 import type { MediaItem, MediaKind } from '@/domain/types'
+import { CameraCapture, prefersNativeCapture } from '@/components/CameraCapture'
 
 const FILTERS: { id: MediaKind | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -45,6 +46,7 @@ export function BuildLogScreen() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [filter, setFilter] = useState<MediaKind | 'all'>('all')
   const [busy, setBusy] = useState(false)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const [selected, setSelected] = useState<MediaItem | null>(null)
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null)
 
@@ -158,6 +160,17 @@ export function BuildLogScreen() {
                 </div>
               )}
 
+              {cameraOpen && (
+                <CameraCapture
+                  onClose={() => setCameraOpen(false)}
+                  onCapture={(file) => {
+                    const dt = new DataTransfer()
+                    dt.items.add(file)
+                    void onFiles(dt.files)
+                  }}
+                />
+              )}
+
               {allow('media.upload') && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 13 }}>
                   <input
@@ -175,11 +188,16 @@ export function BuildLogScreen() {
                     block
                     disabled={busy}
                     onClick={() => {
-                      if (fileRef.current) {
+                      // Phones: hand off to the real camera app. Laptops: the
+                      // attribute is ignored there, so open a preview instead
+                      // of silently showing a file picker.
+                      if (prefersNativeCapture() && fileRef.current) {
                         fileRef.current.setAttribute('capture', 'environment')
                         fileRef.current.click()
                         fileRef.current.removeAttribute('capture')
+                        return
                       }
+                      setCameraOpen(true)
                     }}
                   >
                     Camera
