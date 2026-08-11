@@ -46,6 +46,7 @@ import type {
 } from '@/domain/types'
 import { loadSeason, loadSession, saveSeason, saveSession, clearAll } from '@/lib/idb'
 import { enqueue, sync as runSync, canSync, type SyncResult } from '@/lib/sync'
+import { pushMemberDecision } from '@/lib/membership'
 import { now, uid } from '@/lib/id'
 import { hashPassword, verifyPassword } from '@/lib/crypto'
 import { dropMedia } from '@/lib/media'
@@ -513,12 +514,24 @@ export const useStore = create<StoreState>((set, get) => {
     approveMember(id, role) {
       const approver = get().session.memberId
       const existing = get().season.members.find((m) => m.id === id)
+      const decided = role ?? existing?.role ?? 'student'
       get().updateMember(id, {
         status: 'active',
-        role: role ?? existing?.role ?? 'student',
+        role: decided,
         approvedById: approver ?? undefined,
         approvedAt: now(),
       })
+      /*
+       * The roster is local; what the database will accept is not. Without
+       * this, an approved student keeps being refused every write, while their
+       * own device shows them fully on the team — the most confusing shape a
+       * permission bug can take. Fire-and-forget: it is a mirror of a decision
+       * already made, and a coach approving somebody offline should not be
+       * blocked on the network.
+       */
+      if (existing?.authUserId) {
+        void pushMemberDecision(get().season.team.number, existing.authUserId, 'active', decided)
+      }
       // If it is *this* device waiting, take the session off hold immediately.
       const session = get().session
       if (session.memberId === id && session.awaitingApproval) {
@@ -533,11 +546,16 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     declineMember(id) {
+      const existing = get().season.members.find((m) => m.id === id)
       get().updateMember(id, {
         status: 'declined',
         approvedById: get().session.memberId ?? undefined,
         approvedAt: now(),
       })
+      // Revoke server-side too, or a declined account keeps its sync access.
+      if (existing?.authUserId) {
+        void pushMemberDecision(get().season.team.number, existing.authUserId, 'declined')
+      }
     },
 
     setGrants(id, grants) {
@@ -1234,7 +1252,8 @@ export const useStore = create<StoreState>((set, get) => {
       if (get().syncing) return
       set({ syncing: true })
       const season = structuredClone(get().season)
-      const result = await runSync(season)
+      const me = currentMember(get())
+      const result = await runSync(season, me?.name ?? '')
       // Anything that made it to the server is no longer waiting on Wi-Fi.
       if (result.pushed > 0 && result.failed === 0) {
         season.media = season.media.map((m) => (m.queued ? { ...m, queued: false } : m))

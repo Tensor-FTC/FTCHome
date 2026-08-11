@@ -1,5 +1,6 @@
 import { dequeue, listOutbox, queueWrite } from './idb'
 import { getSupabase, isSupabaseConfigured, readConfig } from './supabase'
+import { ensureMembership } from './membership'
 import { now, uid } from './id'
 import type { OutboxEntry, SeasonData, Syncable, SyncTable } from '@/domain/types'
 
@@ -60,16 +61,21 @@ export async function pendingWrites(): Promise<OutboxEntry[]> {
  */
 let inFlight: Promise<SyncResult> | null = null
 
-export function sync(season: SeasonData): Promise<SyncResult> {
+/**
+ * `displayName` is only ever used to label a join request, so a coach sees a
+ * name rather than a uuid in the approval queue. It is not identity — the
+ * database takes that from `auth.uid()`.
+ */
+export function sync(season: SeasonData, displayName = ''): Promise<SyncResult> {
   if (!inFlight) {
-    inFlight = runSync(season).finally(() => {
+    inFlight = runSync(season, displayName).finally(() => {
       inFlight = null
     })
   }
   return inFlight
 }
 
-async function runSync(season: SeasonData): Promise<SyncResult> {
+async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult> {
   const result: SyncResult = { pushed: 0, pulled: 0, failed: 0, skipped: false }
 
   if (!isSupabaseConfigured()) {
@@ -91,6 +97,22 @@ async function runSync(season: SeasonData): Promise<SyncResult> {
   }
 
   const teamNumber = season.team.number
+
+  /*
+   * Enrol before pushing. `my_teams()` is what the record policies consult, and
+   * it reads `team_members` — a signed-in person with no row there is refused
+   * every write with "new row violates row-level security policy", which is
+   * true but unhelpful. Doing it here rather than at sign-in means it also
+   * covers the case that actually happens: signing in with no signal, and the
+   * team only becoming real on the first sync hours later.
+   */
+  const membership = await ensureMembership(teamNumber, displayName)
+  if (!membership.ok) {
+    result.skipped = true
+    result.error = membership.message ?? 'This account is not on the team yet.'
+    return result
+  }
+
   const queue = await listOutbox()
 
   for (const entry of queue) {
