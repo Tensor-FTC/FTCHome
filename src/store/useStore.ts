@@ -184,12 +184,46 @@ interface StoreState {
   loadEvent: (code: string) => Promise<{ ok: boolean; message: string }>
   scoutBusy: boolean
 
+  /**
+   * File a record into the archive by hand, or hold it out of one, whatever
+   * its age. Passing `null` drops the manual decision and returns the record
+   * to the date rule.
+   */
+  setArchived: (kind: ArchivableKind, id: string, archived: boolean | null) => void
+
   // settings + lifecycle
   updateSettings: (patch: Partial<Settings>) => void
   sync: () => Promise<void>
   replaceSeason: (season: SeasonData) => Promise<void>
   resetSeason: () => Promise<void>
   eraseEverything: () => Promise<void>
+}
+
+/**
+ * What can be filed by hand, and where each kind lives.
+ *
+ * Keyed rather than passed as a list name so a screen cannot ask to archive
+ * `members` — the roster is not history, and a person who has left is a status
+ * change rather than an old record.
+ */
+const ARCHIVABLE = {
+  event: 'events',
+  task: 'tasks',
+  media: 'media',
+  weekly: 'weekly',
+  approval: 'approvals',
+  scouting: 'scouting',
+} as const
+
+export type ArchivableKind = keyof typeof ARCHIVABLE
+
+const ARCHIVABLE_TABLE: Record<ArchivableKind, SyncTable> = {
+  event: 'events',
+  task: 'tasks',
+  media: 'media',
+  weekly: 'weekly_reports',
+  approval: 'approvals',
+  scouting: 'scouting_notes',
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -1272,6 +1306,25 @@ export const useStore = create<StoreState>((set, get) => {
     },
 
     // ── settings + lifecycle ────────────────────────────────
+    setArchived(kind, id, archived) {
+      const list = ARCHIVABLE[kind]
+      const record = (get().season[list] as Syncable[]).find((r) => r.id === id)
+      if (!record) return
+      const next = stamped({
+        ...record,
+        archivedAt: archived === true ? now() : undefined,
+        keepCurrent: archived === false ? true : undefined,
+      })
+      commit(
+        (d) => {
+          const arr = d[list] as Syncable[]
+          const i = arr.findIndex((r) => r.id === id)
+          if (i >= 0) arr[i] = next
+        },
+        { table: ARCHIVABLE_TABLE[kind], op: 'upsert', record: next, label: `Archive · ${kind}` },
+      )
+    },
+
     updateSettings(patch) {
       commit((d) => {
         d.settings = { ...d.settings, ...patch }

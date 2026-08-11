@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { partitionSeason } from './archive'
+import { approvalArchived, mediaArchived, partitionSeason, scoutingArchived, taskArchived } from './archive'
 import { emptySeason } from './season'
 import type { SeasonData } from './types'
 
@@ -143,5 +143,41 @@ describe('archive', () => {
     const { current, archived } = partitionSeason(s, TODAY)
     expect(current.events.length + archived.events.length).toBe(2)
     expect(current.tasks.length + archived.tasks.length).toBe(2)
+  })
+})
+
+describe('filing by hand', () => {
+  const CUTOFF = '2026-03-01'
+
+  it('archives a recent record that was filed by hand', () => {
+    // The case the date rule cannot express: a competition you are not going
+    // back to is history the same evening.
+    const note = { id: 'n1', updatedAt: '2026-03-20T00:00:00.000Z', takenAt: '2026-03-20' } as never
+    expect(scoutingArchived(note, CUTOFF, '')).toBe(false)
+    expect(scoutingArchived({ ...(note as object), archivedAt: '2026-03-20' } as never, CUTOFF, '')).toBe(true)
+  })
+
+  it('keeps an old record that was held by hand', () => {
+    const item = { id: 'm1', updatedAt: '2026-01-01T00:00:00.000Z', day: '2026-01-01' } as never
+    expect(mediaArchived(item, CUTOFF)).toBe(true)
+    expect(mediaArchived({ ...(item as object), keepCurrent: true } as never, CUTOFF)).toBe(false)
+  })
+
+  it('lets a hand decision beat a rule that would say otherwise', () => {
+    // A pending approval never archives by age; filing it still works, because
+    // the person filing it knows something the rule does not.
+    const pending = {
+      id: 'a1',
+      updatedAt: '2026-03-20T00:00:00.000Z',
+      state: 'pending',
+      requestedAt: '2026-03-20T00:00:00.000Z',
+    } as never
+    expect(approvalArchived(pending, CUTOFF)).toBe(false)
+    expect(approvalArchived({ ...(pending as object), archivedAt: '2026-03-20' } as never, CUTOFF)).toBe(true)
+  })
+
+  it('still archives a done task by age when nobody has said anything', () => {
+    const task = { id: 't1', updatedAt: '2026-01-01T00:00:00.000Z', status: 'done', doneAt: '2026-01-01' } as never
+    expect(taskArchived(task, CUTOFF)).toBe(true)
   })
 })

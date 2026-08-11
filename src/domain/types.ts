@@ -47,6 +47,17 @@ export interface Syncable {
   updatedAt: string
   /** Soft delete — a tombstone still has to reach the server. */
   deleted?: boolean
+  /**
+   * Filed by hand, whatever its age. The date rule is a good default and a bad
+   * rule: a competition you are not going back to is history the same evening,
+   * and last year's sponsor letter is not.
+   */
+  archivedAt?: string
+  /**
+   * Held out of the archive by hand, whatever its age. The other half of the
+   * same decision — an ongoing thing does not stop mattering because it is old.
+   */
+  keepCurrent?: boolean
 }
 
 /**

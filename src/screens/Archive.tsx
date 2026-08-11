@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button, Chip, EmptyState, Field, Select } from '@/components/ui'
 import { StatusPicker } from '@/components/StatusPicker'
-import { useStore } from '@/store/useStore'
+import { useStore, type ArchivableKind } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { useArchive } from '@/domain/useArchive'
 import { APPROVAL_STATUS, TASK_STATUS } from '@/domain/status'
@@ -150,6 +150,7 @@ export function ArchiveScreen() {
                             {longStamp(e.date)} · {EVENT_TYPE_LABEL[e.type].toLowerCase()}
                           </div>
                         </div>
+                        <Restore kind="event" id={e.id} />
                       </Link>
                     ))}
                 </Group>
@@ -179,6 +180,7 @@ export function ArchiveScreen() {
                           label={`Status of ${t.name}`}
                           onChange={(status) => updateTask(t.id, { status })}
                         />
+                        <Restore kind="task" id={t.id} />
                       </div>
                     ))}
                 </Group>
@@ -210,6 +212,7 @@ export function ArchiveScreen() {
                           label={`Status of ${a.title}`}
                           onChange={(state) => me && decideApproval(a.id, state, me)}
                         />
+                        <Restore kind="approval" id={a.id} />
                       </div>
                     ))}
                 </Group>
@@ -235,6 +238,7 @@ export function ArchiveScreen() {
                             {longStamp(m.day)} · {bytes(m.size)}
                           </div>
                         </div>
+                        <Restore kind="media" id={m.id} />
                       </div>
                     ))}
                 </Group>
@@ -306,5 +310,32 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
         {children}
       </div>
     </div>
+  )
+}
+
+/**
+ * Bring one record back out.
+ *
+ * Sets `keepCurrent` rather than clearing a flag, because most things in here
+ * were never filed by hand — they fell past the date cutoff, and "un-archive"
+ * has to mean "hold this out from now on" or the next render puts it straight
+ * back.
+ */
+function Restore({ kind, id }: { kind: ArchivableKind; id: string }) {
+  const setArchived = useStore((s) => s.setArchived)
+  const notify = useStore((s) => s.notify)
+  return (
+    <Button
+      size="sm"
+      variant="quiet"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setArchived(kind, id, false)
+        notify('Brought back')
+      }}
+    >
+      Bring back
+    </Button>
   )
 }

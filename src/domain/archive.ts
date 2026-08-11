@@ -5,6 +5,7 @@ import type {
   MediaItem,
   ScoutingNote,
   SeasonData,
+  Syncable,
   Task,
   TeamPolicy,
   WeeklyReport,
@@ -21,7 +22,26 @@ import type {
  * Archiving is a *filter, not a mutation*. Nothing is edited, moved or deleted,
  * the cutoff is a team setting, and widening it brings everything straight back.
  * A season you cannot get back out is a season you have lost.
+ *
+ * On top of the date rule, any record can be filed or held by hand. Age is a
+ * good default and a bad rule: a competition you are not going back to is
+ * history the same evening, and an ongoing build thread does not stop
+ * mattering because it is a month old. A manual decision always wins, and is
+ * always reversible.
  */
+
+/**
+ * A hand-made decision about one record, if there is one.
+ *
+ * Returns `null` when nobody has said anything, which is what lets each rule
+ * below fall through to its own notion of "finished and old" rather than every
+ * caller repeating the check.
+ */
+function manualState(record: Syncable): boolean | null {
+  if (record.archivedAt) return true
+  if (record.keepCurrent) return false
+  return null
+}
 
 /** Records older than this drop out of the working screens. */
 export function archiveCutoff(policy: TeamPolicy, from: string = todayIso()): string {
@@ -35,6 +55,8 @@ export function archiveCutoff(policy: TeamPolicy, from: string = todayIso()): st
 
 /** A repeating series stays live until the rule itself has run out. */
 export function eventArchived(event: CalendarEvent, cutoff: string): boolean {
+  const manual = manualState(event)
+  if (manual !== null) return manual
   if (event.recurrence) {
     // No end date means it is still running, however old the first date is.
     return Boolean(event.recurrence.until && event.recurrence.until < cutoff)
@@ -44,26 +66,32 @@ export function eventArchived(event: CalendarEvent, cutoff: string): boolean {
 
 /** Only finished work archives. An overdue task from October is still overdue. */
 export function taskArchived(task: Task, cutoff: string): boolean {
+  const manual = manualState(task)
+  if (manual !== null) return manual
   if (task.status !== 'done') return false
   return (task.doneAt?.slice(0, 10) ?? task.due ?? '') < cutoff
 }
 
 export function mediaArchived(item: MediaItem, cutoff: string): boolean {
-  return item.day < cutoff
+  return manualState(item) ?? item.day < cutoff
 }
 
 export function weeklyArchived(report: WeeklyReport, cutoff: string): boolean {
-  return report.to < cutoff
+  return manualState(report) ?? report.to < cutoff
 }
 
 /** A pending request never archives, however long it has been sitting there. */
 export function approvalArchived(approval: Approval, cutoff: string): boolean {
+  const manual = manualState(approval)
+  if (manual !== null) return manual
   if (approval.state === 'pending') return false
   return (approval.decidedAt ?? approval.requestedAt).slice(0, 10) < cutoff
 }
 
 /** Notes archive with the competition they were taken at. */
 export function scoutingArchived(note: ScoutingNote, cutoff: string, ongoingEventCode: string): boolean {
+  const manual = manualState(note)
+  if (manual !== null) return manual
   if (note.eventCode && note.eventCode === ongoingEventCode) return false
   return (note.takenAt ?? note.updatedAt).slice(0, 10) < cutoff
 }
