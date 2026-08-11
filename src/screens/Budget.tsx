@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Avatar, Button, Chip, Field, IconButton, LockedValue, Meter, SectionLabel } from '@/components/ui'
 import { useStore, budgetTotals, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
+import { parseAmount } from '@/domain/amount'
 import { useArchive } from '@/domain/useArchive'
 import { money, pct } from '@/lib/format'
 import { budgetCsv, download } from '@/lib/exporters'
@@ -40,10 +41,12 @@ export function BudgetScreen() {
   const [goalDraft, setGoalDraft] = useState(String(season.team.goal))
   const [spName, setSpName] = useState('')
   const [spAmount, setSpAmount] = useState('')
+  const [spError, setSpError] = useState<string | undefined>()
   const [spTier, setSpTier] = useState('BRONZE')
   const [spState, setSpState] = useState<SponsorState>('Pledged')
   const [reqTitle, setReqTitle] = useState('')
   const [reqAmount, setReqAmount] = useState('')
+  const [reqError, setReqError] = useState<string | undefined>()
   const [reqAllocation, setReqAllocation] = useState(season.allocations[0]?.id ?? '')
 
   if (!seeAmounts) {
@@ -91,9 +94,17 @@ export function BudgetScreen() {
   function onAddSponsor(e: FormEvent) {
     e.preventDefault()
     const name = spName.trim()
-    const amount = Number(String(spAmount).replace(/[^0-9.]/g, ''))
-    if (!name || !amount) return
-    addSponsor({ name, tier: spTier, amount, state: spState, loggedAt: new Date().toISOString() })
+    if (!name) return setSpError('Give the sponsor a name')
+    const parsed = parseAmount(spAmount, { label: 'amount' })
+    if (!parsed.ok) return setSpError(parsed.error)
+    setSpError(undefined)
+    addSponsor({
+      name,
+      tier: spTier,
+      amount: parsed.value,
+      state: spState,
+      loggedAt: new Date().toISOString(),
+    })
     setSpName('')
     setSpAmount('')
     notify(`${name} logged`)
@@ -102,11 +113,14 @@ export function BudgetScreen() {
   function onRequest(e: FormEvent) {
     e.preventDefault()
     const title = reqTitle.trim()
-    const amount = Number(String(reqAmount).replace(/[^0-9.]/g, ''))
-    if (!title || !amount || !me) return
+    if (!title) return setReqError('Say what the money is for')
+    const parsed = parseAmount(reqAmount, { label: 'amount' })
+    if (!parsed.ok) return setReqError(parsed.error)
+    if (!me) return
+    setReqError(undefined)
     addApproval({
       title,
-      amount,
+      amount: parsed.value,
       requestedById: me.id,
       requestedAt: new Date().toISOString(),
       state: 'pending',
@@ -297,7 +311,10 @@ export function BudgetScreen() {
                 <div style={{ display: 'flex', gap: 9, marginBottom: 11 }}>
                   <Field
                     value={reqAmount}
-                    onChange={(e) => setReqAmount(e.target.value)}
+                    onChange={(e) => {
+                      setReqAmount(e.target.value)
+                      setReqError(undefined)
+                    }}
                     placeholder="412.80"
                     inputMode="decimal"
                     mono
@@ -319,7 +336,12 @@ export function BudgetScreen() {
                     ))}
                   </select>
                 </div>
-                <Button type="submit" variant="primary" block disabled={!reqTitle.trim() || !reqAmount.trim()}>
+                {reqError && (
+                  <p className="field-error" role="alert" style={{ marginBottom: 9 }}>
+                    {reqError}
+                  </p>
+                )}
+                <Button type="submit" variant="primary" block>
                   Send to a mentor
                 </Button>
               </form>
@@ -386,7 +408,10 @@ export function BudgetScreen() {
                 <div style={{ display: 'flex', gap: 9, marginBottom: 9 }}>
                   <Field
                     value={spAmount}
-                    onChange={(e) => setSpAmount(e.target.value)}
+                    onChange={(e) => {
+                      setSpAmount(e.target.value)
+                      setSpError(undefined)
+                    }}
                     placeholder="1500"
                     inputMode="numeric"
                     mono
@@ -406,7 +431,12 @@ export function BudgetScreen() {
                     </Chip>
                   ))}
                 </div>
-                <Button type="submit" variant="primary" block disabled={!spName.trim() || !spAmount.trim()}>
+                {spError && (
+                  <p className="field-error" role="alert" style={{ marginBottom: 9 }}>
+                    {spError}
+                  </p>
+                )}
+                <Button type="submit" variant="primary" block>
                   Add sponsor
                 </Button>
                 <p className="field-note">
