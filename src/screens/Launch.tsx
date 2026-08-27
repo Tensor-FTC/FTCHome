@@ -5,7 +5,6 @@ import { Button } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { isConfigured } from '@/domain/season'
 import { installState, platform } from '@/lib/install'
-import { demoSeason, DEMO_EMAIL, DEMO_NAME, DEMO_PASSWORD } from '@/lib/demo'
 
 /**
  * 00 · Launch
@@ -22,10 +21,6 @@ export function LaunchScreen() {
   const session = useStore((s) => s.session)
   const season = useStore((s) => s.season)
   const browseAsGuest = useStore((s) => s.browseAsGuest)
-  const replaceSeason = useStore((s) => s.replaceSeason)
-  const createFirstAccount = useStore((s) => s.createFirstAccount)
-  const notify = useStore((s) => s.notify)
-  const [loadingDemo, setLoadingDemo] = useState(false)
   const [replayKey, setReplayKey] = useState(0)
   const [motion, setMotion] = useState(true)
 
@@ -35,31 +30,6 @@ export function LaunchScreen() {
   useEffect(() => {
     setMotion(!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   }, [])
-
-  /**
-   * Load a demo season and sign in to it.
-   *
-   * The account is created here, on the device, exactly like a real first
-   * account — so there is no password shipped in the bundle waiting to be
-   * found. Everything it creates lives in this browser and is removed by
-   * Settings → Data → erase.
-   */
-  async function tryDemo() {
-    setLoadingDemo(true)
-    try {
-      await replaceSeason(demoSeason())
-      await createFirstAccount({
-        name: DEMO_NAME,
-        email: DEMO_EMAIL,
-        password: DEMO_PASSWORD,
-        role: 'coach',
-      })
-      navigate('/today')
-    } catch (err) {
-      notify(err instanceof Error ? err.message : 'Could not start the demo', 'warn')
-      setLoadingDemo(false)
-    }
-  }
 
   // Already signed in? Go where the work is.
   if (session.memberId) return <Navigate to="/today" replace />
@@ -142,13 +112,6 @@ export function LaunchScreen() {
               }}
             >
               Learn how to get started
-            </Button>
-
-            {/* Every screen starts genuinely empty on purpose, which is right
-                for a real team and wrong for somebody evaluating the app in
-                ninety seconds. Opt-in, obvious, and one tap to erase. */}
-            <Button variant="quiet" block disabled={loadingDemo} onClick={() => void tryDemo()}>
-              {loadingDemo ? 'Loading demo…' : 'Explore a demo season'}
             </Button>
           </>
         )}
