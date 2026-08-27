@@ -5,6 +5,7 @@ import { Button } from '@/components/ui'
 import { useStore } from '@/store/useStore'
 import { isConfigured } from '@/domain/season'
 import { installState, platform } from '@/lib/install'
+import { demoSeason, DEMO_EMAIL, DEMO_NAME, DEMO_PASSWORD } from '@/lib/demo'
 
 /**
  * 00 · Launch
@@ -21,6 +22,10 @@ export function LaunchScreen() {
   const session = useStore((s) => s.session)
   const season = useStore((s) => s.season)
   const browseAsGuest = useStore((s) => s.browseAsGuest)
+  const replaceSeason = useStore((s) => s.replaceSeason)
+  const createFirstAccount = useStore((s) => s.createFirstAccount)
+  const notify = useStore((s) => s.notify)
+  const [loadingDemo, setLoadingDemo] = useState(false)
   const [replayKey, setReplayKey] = useState(0)
   const [motion, setMotion] = useState(true)
 
@@ -30,6 +35,31 @@ export function LaunchScreen() {
   useEffect(() => {
     setMotion(!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
   }, [])
+
+  /**
+   * Load a demo season and sign in to it.
+   *
+   * The account is created here, on the device, exactly like a real first
+   * account — so there is no password shipped in the bundle waiting to be
+   * found. Everything it creates lives in this browser and is removed by
+   * Settings → Data → erase.
+   */
+  async function tryDemo() {
+    setLoadingDemo(true)
+    try {
+      await replaceSeason(demoSeason())
+      await createFirstAccount({
+        name: DEMO_NAME,
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+        role: 'coach',
+      })
+      navigate('/today')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Could not start the demo', 'warn')
+      setLoadingDemo(false)
+    }
+  }
 
   // Already signed in? Go where the work is.
   if (session.memberId) return <Navigate to="/today" replace />
@@ -43,8 +73,10 @@ export function LaunchScreen() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '48px 24px calc(48px + env(safe-area-inset-bottom))',
-        gap: 0,
+        padding: '40px 24px calc(40px + env(safe-area-inset-bottom))',
+        // Five controls now sit under the mark; without a floor here the
+        // tagline collides with the first button on a short phone.
+        gap: 28,
       }}
     >
       <div style={{ flex: 1, display: 'grid', placeItems: 'center', minHeight: 0 }}>
@@ -83,18 +115,40 @@ export function LaunchScreen() {
           </Button>
         ) : (
           <>
-            {/* Three separate doors rather than one "Set up my team" that had
+            {/* Four separate doors rather than one "Set up my team" that had
                 to mean all of them. Which one you are is the first thing you
                 know about yourself, and the old single button made joining an
-                existing team look like it was not supported. */}
+                existing team look like it was not supported.
+
+                The fourth is for somebody who is not on a team yet at all —
+                previously buried behind a "Browse as guest" link that sounded
+                like a lesser version of the app rather than the answer to
+                "how do I even start a team?". */}
             <Button variant="primary" size="lg" block onClick={() => navigate('/identity')}>
-              Start a new team
+              Start a new team with FTC Home
             </Button>
             <Button size="lg" block onClick={() => navigate('/join')}>
               Join a team I&rsquo;m on
             </Button>
             <Button size="lg" block onClick={() => navigate('/signin/cloud')}>
               Sign in to my account
+            </Button>
+            <Button
+              size="lg"
+              block
+              onClick={() => {
+                browseAsGuest()
+                navigate('/start')
+              }}
+            >
+              Learn how to get started
+            </Button>
+
+            {/* Every screen starts genuinely empty on purpose, which is right
+                for a real team and wrong for somebody evaluating the app in
+                ninety seconds. Opt-in, obvious, and one tap to erase. */}
+            <Button variant="quiet" block disabled={loadingDemo} onClick={() => void tryDemo()}>
+              {loadingDemo ? 'Loading demo…' : 'Explore a demo season'}
             </Button>
           </>
         )}
@@ -111,22 +165,12 @@ export function LaunchScreen() {
           <p className="meta pretty" style={{ marginTop: 4, marginBottom: 4 }}>
             <strong style={{ color: 'var(--ink-2)' }}>On your iPhone:</strong> tap{' '}
             <strong>Share</strong>, then <strong>Add to Home Screen</strong>, and open it from the
-            icon. It works offline that way. Then pick <strong>Join a team I&rsquo;m on</strong> —
-            not guest — and sign in with the same account you use elsewhere.
+            icon. It works offline that way. Then pick <strong>Join a team I&rsquo;m on</strong> and
+            sign in with the same account you use elsewhere.
           </p>
         )}
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Button
-            variant="quiet"
-            block
-            onClick={() => {
-              browseAsGuest()
-              navigate('/guest')
-            }}
-          >
-            Browse as guest
-          </Button>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
           <Button
             variant="quiet"
             aria-label="Replay the launch animation"

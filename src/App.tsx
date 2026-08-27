@@ -13,7 +13,6 @@ import { WhoAreYouScreen } from '@/screens/auth/WhoAreYou'
 import { PersonalSignInScreen } from '@/screens/auth/PersonalSignIn'
 import { MentorSignInScreen } from '@/screens/auth/MentorSignIn'
 import { RegisterScreen } from '@/screens/auth/Register'
-import { GuestOnboardingScreen } from '@/screens/GuestOnboarding'
 import { PartsScreen } from '@/screens/Parts'
 import { TeamIdentityScreen } from '@/screens/TeamIdentity'
 import { TodayScreen } from '@/screens/Today'
@@ -29,6 +28,7 @@ import { BudgetScreen } from '@/screens/Budget'
 import { ArchiveScreen } from '@/screens/Archive'
 import { CloudSignInScreen } from '@/screens/auth/CloudSignIn'
 import { JoinTeamScreen } from '@/screens/auth/JoinTeam'
+import { GettingStartedScreen } from '@/screens/GettingStarted'
 import { AwaitingApprovalScreen } from '@/screens/auth/AwaitingApproval'
 import { ScoutScreen } from '@/screens/Scout'
 import { ChatScreen } from '@/screens/Chat'
@@ -183,7 +183,9 @@ export function App() {
         <Route path="/signin/member/:memberId" element={<PersonalSignInScreen />} />
         <Route path="/signin/mentor" element={<MentorSignInScreen />} />
         <Route path="/register" element={<RegisterScreen />} />
-        <Route path="/guest" element={<GuestOnboardingScreen />} />
+        <Route path="/start" element={<GettingStartedScreen />} />
+        {/* The old guest hub was a pile of links with no order. */}
+        <Route path="/guest" element={<Navigate to="/start" replace />} />
         <Route path="/identity" element={<TeamIdentityScreen />} />
         <Route path="/comp" element={<CompetitionModeScreen />} />
 
