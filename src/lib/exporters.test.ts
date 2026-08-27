@@ -42,6 +42,49 @@ describe('CSV', () => {
     expect(reimported[1]).toMatchObject({ name: 'Control Hub', owned: true })
   })
 
+  it('exports the treasurer column order', () => {
+    const csv = partsCsv({
+      ...season,
+      parts: [
+        { id: 'p1', updatedAt: '', name: 'Odometry pod', partNumber: 'REV-11-1271', vendor: 'REV', category: 'Sensors', qty: 3, unit: 34, owned: false },
+      ],
+    })
+    const [head, row] = csv.split('\r\n')
+    expect(head.split(',').slice(0, 7)).toEqual([
+      'Name of product', 'Vendor', 'SKU/Link', 'Cost', 'Discount', 'Amount', 'Total',
+    ])
+    expect(row.split(',').slice(0, 7)).toEqual(['Odometry pod', 'REV', 'REV-11-1271', '34', '', '3', '102'])
+  })
+
+  it('applies the team discount to the line total', () => {
+    const csv = partsCsv({
+      ...season,
+      parts: [
+        { id: 'p1', updatedAt: '', name: 'REX shaft', partNumber: 'X', vendor: 'goBILDA', category: 'Structure', qty: 6, unit: 6.99, discount: 15, owned: false },
+      ],
+    })
+    // 6 x 6.99 = 41.94, less 15% = 35.649 -> rounded to cents, not float noise.
+    expect(csv).toContain('35.65')
+    expect(csv).toContain('15%')
+  })
+
+  it('round-trips a discount, and keeps a link a link', () => {
+    const parts = [
+      { id: 'p1', updatedAt: '', name: 'Mecanum set', partNumber: '', url: 'https://gobilda.com/mecanum', vendor: 'goBILDA', category: 'Drivetrain', qty: 1, unit: 129.99, discount: 10, owned: false },
+    ]
+    const [back] = parseParts(partsCsv({ ...season, parts }))
+    expect(back).toMatchObject({ url: 'https://gobilda.com/mecanum', partNumber: '', discount: 10 })
+  })
+
+  it('reads a discount written as 15, 15% or 0.15', () => {
+    const head = 'Name of product,Vendor,SKU/Link,Cost,Discount,Amount,Total\r\n'
+    const read = (d: string) => parseParts(`${head}Thing,V,SKU,10,${d},1,10`)[0].discount
+    expect(read('15')).toBe(15)
+    expect(read('15%')).toBe(15)
+    expect(read('0.15')).toBe(15)
+    expect(read('')).toBeUndefined()
+  })
+
   it('imports a vendor CSV whose columns are in a different order', () => {
     const csv = ['Part,Qty,Unit,Vendor', 'Servo,6,24,goBILDA'].join('\r\n')
     expect(parseParts(csv)).toEqual([

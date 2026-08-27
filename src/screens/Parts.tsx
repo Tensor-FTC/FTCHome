@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { Button, Check, Chip, EmptyState, Field, IconButton } from '@/components/ui'
+import { partLineTotal } from '@/domain/types'
 import { useStore, partsTotals } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { money } from '@/lib/format'
@@ -32,6 +33,7 @@ export function PartsScreen() {
   const [category, setCategory] = useState('')
   const [qty, setQty] = useState('1')
   const [unit, setUnit] = useState('')
+  const [discount, setDiscount] = useState('')
   const [filter, setFilter] = useState<'all' | 'needed' | 'owned'>('all')
   /*
    * Parts and tools are different questions. "What do we still need to buy for
@@ -78,12 +80,14 @@ export function PartsScreen() {
       category: category.trim() || 'Uncategorised',
       qty: Math.max(1, Math.round(Number(qty) || 1)),
       unit: Number(String(unit).replace(/[^0-9.]/g, '')) || 0,
+      discount: Math.min(Math.max(Number(String(discount).replace(/[^0-9.]/g, '')) || 0, 0), 100) || undefined,
       owned: false,
       kind,
     })
     setName('')
     setPartNumber('')
     setUnit('')
+    setDiscount('')
   }
 
   async function onImport(file: File | undefined) {
@@ -205,7 +209,7 @@ export function PartsScreen() {
           </div>
 
           {grouped.map(([group, items]) => {
-            const subtotal = items.filter((i) => !i.owned).reduce((sum, i) => sum + i.qty * i.unit, 0)
+            const subtotal = items.filter((i) => !i.owned).reduce((sum, i) => sum + partLineTotal(i), 0)
             return (
               <div key={group}>
                 <div
@@ -259,10 +263,11 @@ export function PartsScreen() {
                     </div>
                     <div style={{ textAlign: 'right', flex: 'none', whiteSpace: 'nowrap' }}>
                       <div className="num" style={{ font: '500 13px/1.2 var(--font-mono)', color: '#d6dcde' }}>
-                        {money(item.qty * item.unit)}
+                        {money(partLineTotal(item))}
                       </div>
                       <div className="meta-mono">
                         {item.qty} × {money(item.unit)}
+                        {item.discount ? ` · −${item.discount}%` : ''}
                       </div>
                     </div>
                     {editable && (
@@ -326,6 +331,15 @@ export function PartsScreen() {
                 placeholder="Unit price"
                 mono
                 style={{ flex: 1, minWidth: 0 }}
+              />
+              <Field
+                value={discount}
+                onChange={(e) => setDiscount(e.target.value)}
+                inputMode="decimal"
+                aria-label="Team discount, percent"
+                placeholder="Disc %"
+                mono
+                style={{ width: 92, flex: 'none' }}
               />
               <Field
                 value={category}

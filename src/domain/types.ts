@@ -337,8 +337,22 @@ export interface PartItem extends Syncable {
   category: string
   qty: number
   unit: number
+  /**
+   * Team discount, as a percentage off the unit price (15 means 15% off).
+   *
+   * A percentage rather than an amount because that is how FTC vendor team
+   * discounts are actually published — goBILDA, REV and AndyMark all quote a
+   * percentage — and because it survives changing the quantity.
+   */
+  discount?: number
   owned: boolean
   url?: string
+}
+
+/** What a line actually costs, after the team discount. */
+export function partLineTotal(item: Pick<PartItem, 'qty' | 'unit' | 'discount'>): number {
+  const off = Math.min(Math.max(item.discount ?? 0, 0), 100)
+  return item.qty * item.unit * (1 - off / 100)
 }
 
 export interface MediaItem extends Syncable {

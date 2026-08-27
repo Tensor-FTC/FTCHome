@@ -21,6 +21,7 @@ import {
   getTeamSeason,
   type Season as ScoutSeason,
 } from '@/lib/ftcScout'
+import { partLineTotal } from '@/domain/types'
 import type {
   Allocation,
   AuthProvider,
@@ -1534,7 +1535,7 @@ export function partsTotals(season: SeasonData, kind: PartKind = 'part') {
   let haveCount = 0
   const items = season.parts.filter((p) => (p.kind ?? 'part') === kind)
   for (const item of items) {
-    const line = item.qty * item.unit
+    const line = partLineTotal(item)
     all += line
     if (item.owned) haveCount++
     else need += line

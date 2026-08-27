@@ -1,4 +1,11 @@
-import { EVENT_TYPE_LABEL, MEMBER_STATUS_LABEL, ROLE_LABEL, type PartItem, type SeasonData } from '@/domain/types'
+import {
+  EVENT_TYPE_LABEL,
+  MEMBER_STATUS_LABEL,
+  partLineTotal,
+  ROLE_LABEL,
+  type PartItem,
+  type SeasonData,
+} from '@/domain/types'
 import { isDone } from '@/domain/tasks'
 import { toRRule } from '@/domain/recurrence'
 import { fromIso } from './date'
@@ -29,26 +36,55 @@ export function toCsv(rows: (string | number)[][]): string {
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n')
 }
 
-export const PARTS_HEADER = ['Category', 'Part', 'Part number', 'Vendor', 'Qty', 'Unit', 'Line total', 'Owned'] as const
+/**
+ * Column order is the one a treasurer asked for, so the sheet can be handed
+ * straight to whoever signs the cheque: what it is, who sells it, how to find
+ * it, what it costs, what we save, how many, what the line comes to.
+ *
+ * Category and Owned still ride along at the end — they are ours, not the
+ * treasurer's, and dropping them would lose data on an export/import round
+ * trip.
+ */
+export const PARTS_HEADER = [
+  'Name of product',
+  'Vendor',
+  'SKU/Link',
+  'Cost',
+  'Discount',
+  'Amount',
+  'Total',
+  'Category',
+  'Owned',
+] as const
 
 export function partsCsv(season: SeasonData): string {
   const rows: (string | number)[][] = [[...PARTS_HEADER]]
   for (const item of season.parts) {
     rows.push([
-      item.category,
       item.name,
-      item.partNumber,
       item.vendor,
-      item.qty,
+      // The link is the more useful of the two when it exists — it is what
+      // somebody actually clicks to reorder — and the part number otherwise.
+      item.url || item.partNumber,
       item.unit,
-      item.qty * item.unit,
+      item.discount ? `${item.discount}%` : '',
+      item.qty,
+      round2(partLineTotal(item)),
+      item.category,
       item.owned ? 'yes' : 'no',
     ])
   }
-  const stillNeeded = season.parts.filter((i) => !i.owned).reduce((sum, i) => sum + i.qty * i.unit, 0)
+  const stillNeeded = season.parts
+    .filter((i) => !i.owned)
+    .reduce((sum, i) => sum + partLineTotal(i), 0)
   rows.push([])
-  rows.push(['', '', '', '', '', '', stillNeeded, 'STILL NEEDED'])
+  rows.push(['', '', '', '', '', '', round2(stillNeeded), '', 'STILL NEEDED'])
   return toCsv(rows)
+}
+
+/** Money, not floating point noise: 3 × 6.99 × 0.85 should not export as 17.8245. */
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
 }
 
 /** RFC 4180 reader: handles quoted cells containing commas, quotes and newlines. */
@@ -108,13 +144,15 @@ export function parseParts(text: string): Omit<PartItem, 'id' | 'updatedAt'>[] {
     if (!looksLikeHeader) return fallback
     return header.findIndex((h) => names.some((n) => h === n || h.includes(n)))
   }
-  const iCategory = at(['category', 'group'], 0)
-  const iName = at(['part', 'name', 'item'], 1)
-  const iPn = at(['part number', 'sku', 'partnumber'], 2)
-  const iVendor = at(['vendor', 'supplier'], 3)
-  const iQty = at(['qty', 'quantity'], 4)
-  const iUnit = at(['unit', 'price', 'cost'], 5)
-  const iOwned = at(['owned', 'have'], 7)
+  // Positional fallbacks follow the export order above, for a headerless file.
+  const iName = at(['name of product', 'product', 'part', 'name', 'item'], 0)
+  const iVendor = at(['vendor', 'supplier'], 1)
+  const iPn = at(['sku', 'link', 'part number', 'partnumber'], 2)
+  const iUnit = at(['cost', 'unit', 'price'], 3)
+  const iDiscount = at(['discount'], 4)
+  const iQty = at(['amount', 'qty', 'quantity'], 5)
+  const iCategory = at(['category', 'group'], 7)
+  const iOwned = at(['owned', 'have'], 8)
 
   const cell = (row: string[], idx: number) => (idx < 0 ? '' : (row[idx] ?? '').trim())
   const num = (v: string) => {
@@ -123,15 +161,32 @@ export function parseParts(text: string): Omit<PartItem, 'id' | 'updatedAt'>[] {
   }
 
   return body
-    .map((r) => ({
-      category: cell(r, iCategory) || 'Uncategorised',
-      name: cell(r, iName),
-      partNumber: cell(r, iPn),
-      vendor: cell(r, iVendor),
-      qty: Math.max(1, Math.round(num(cell(r, iQty)) || 1)),
-      unit: num(cell(r, iUnit)),
-      owned: /^(y|yes|true|1)$/i.test(cell(r, iOwned)),
-    }))
+    .map((r) => {
+      // SKU/Link holds whichever the team had. A URL goes back to `url`, a
+      // bare code to `partNumber`, so a round trip does not turn a link into
+      // a part number.
+      const sku = cell(r, iPn)
+      const isUrl = /^https?:\/\//i.test(sku)
+      return {
+        category: cell(r, iCategory) || 'Uncategorised',
+        name: cell(r, iName),
+        partNumber: isUrl ? '' : sku,
+        url: isUrl ? sku : undefined,
+        vendor: cell(r, iVendor),
+        qty: Math.max(1, Math.round(num(cell(r, iQty)) || 1)),
+        unit: num(cell(r, iUnit)),
+        // Accepts "15", "15%" or "0.15".
+        discount: (() => {
+          const raw = cell(r, iDiscount)
+          if (!raw) return undefined
+          const n = num(raw)
+          if (!n) return undefined
+          const pct = n > 0 && n < 1 && !raw.includes('%') ? n * 100 : n
+          return Math.min(Math.max(Math.round(pct * 100) / 100, 0), 100)
+        })(),
+        owned: /^(y|yes|true|1)$/i.test(cell(r, iOwned)),
+      }
+    })
     // A row with no name is a spacer or the STILL NEEDED footer, not a part.
     .filter((p) => p.name.length > 0)
 }

@@ -1209,3 +1209,32 @@ input.field::-webkit-calendar-picker-indicator:hover {
     max-height: 58vh;
   }
 }
+
+/* A tappable row inside a sheet — used by the phone's "More" menu, where the
+   destinations that do not fit in the tab bar live. Full width and 48px tall
+   so it is a comfortable target on a phone. */
+.sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  text-align: left;
+  font: 500 14px/1.3 var(--font-sans);
+  color: var(--ink-body);
+  cursor: pointer;
+}
+
+.sheet-row:active {
+  background: var(--srf-2);
+}
+
+@media (hover: hover) {
+  .sheet-row:hover {
+    background: var(--srf-2);
+  }
+}

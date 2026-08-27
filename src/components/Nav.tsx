@@ -1,17 +1,22 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { Brand } from './Brand'
+import { Sheet } from './ui'
 import { useStore, currentMember } from '@/store/useStore'
 import { useCan } from '@/domain/useCan'
 import { ROLE_LABEL } from '@/domain/types'
 
 /**
- * Five destinations on the phone; the same five plus team management in the
- * 240px desktop rail. Anything a student uses daily is in the five.
+ * Four daily destinations on the phone, plus More; the same four plus the rest
+ * of the app in the 240px desktop rail.
+ *
+ * Everything used to be five tabs with no fifth door, which meant Budget,
+ * Roster, Parts, Weekly, Plan, Scout and Archive existed on desktop and were
+ * simply unreachable on a phone — the device most of the team actually uses.
  */
 export const TABS = [
   { to: '/today', label: 'Today', shape: 'square' },
   { to: '/calendar', label: 'Calendar', shape: 'square' },
-  { to: '/chat', label: 'Chat', shape: 'square' },
   { to: '/build', label: 'Build', shape: 'square' },
   { to: '/live', label: 'Live', shape: 'circle' },
 ] as const
@@ -33,24 +38,82 @@ function Glyph({ shape, active }: { shape: 'square' | 'circle'; active: boolean 
 
 export function TabBar() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const allow = useCan()
+  const [more, setMore] = useState(false)
+
+  // Anything not in the four daily tabs is reachable here, so the phone has
+  // the whole app rather than a subset of it.
+  const rest = [...MANAGE.filter((m) => !m.capability || allow(m.capability)), ...APP_LINKS]
+  const onRest = rest.some((r) => pathname === r.to || pathname.startsWith(`${r.to}/`))
+
   return (
-    <nav className="tabbar" aria-label="Main">
-      {TABS.map((tab) => {
-        const active = pathname === tab.to || pathname.startsWith(`${tab.to}/`)
-        return (
-          <NavLink key={tab.to} to={tab.to} className="tab" aria-current={active ? 'page' : undefined}>
-            <span className="tab-icon">
-              <Glyph shape={tab.shape} active={active} />
-            </span>
-            <span>{tab.label}</span>
-          </NavLink>
-        )
-      })}
-    </nav>
+    <>
+      <nav className="tabbar" aria-label="Main">
+        {TABS.map((tab) => {
+          const active = pathname === tab.to || pathname.startsWith(`${tab.to}/`)
+          return (
+            <NavLink key={tab.to} to={tab.to} className="tab" aria-current={active ? 'page' : undefined}>
+              <span className="tab-icon">
+                <Glyph shape={tab.shape} active={active} />
+              </span>
+              <span>{tab.label}</span>
+            </NavLink>
+          )
+        })}
+
+        <button
+          type="button"
+          className="tab"
+          aria-expanded={more}
+          aria-current={onRest ? 'page' : undefined}
+          onClick={() => setMore(true)}
+        >
+          <span className="tab-icon">
+            <MoreGlyph active={more || onRest} />
+          </span>
+          <span>More</span>
+        </button>
+      </nav>
+
+      {more && (
+        <Sheet title="Everything else" onClose={() => setMore(false)}>
+          <div className="stack" style={{ gap: 2 }}>
+            {rest.map((r) => (
+              <button
+                key={r.to}
+                type="button"
+                className="sheet-row"
+                onClick={() => {
+                  setMore(false)
+                  navigate(r.to)
+                }}
+              >
+                <span>{r.label}</span>
+                <span aria-hidden="true" style={{ color: 'var(--ink-4)' }}>›</span>
+              </button>
+            ))}
+          </div>
+        </Sheet>
+      )}
+    </>
+  )
+}
+
+/** Three dots, drawn rather than shipped as an icon font. */
+function MoreGlyph({ active }: { active: boolean }) {
+  const c = active ? 'var(--signal)' : 'var(--ink-4)'
+  return (
+    <span aria-hidden="true" style={{ display: 'flex', gap: 2.5, alignItems: 'center', height: 15 }}>
+      {[0, 1, 2].map((i) => (
+        <span key={i} style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: c, display: 'block' }} />
+      ))}
+    </span>
   )
 }
 
 const MANAGE = [
+  { to: '/chat', label: 'Chat' },
   { to: '/weekly', label: 'Weekly' },
   { to: '/roster', label: 'Roster' },
   { to: '/budget', label: 'Budget & sponsors' },
@@ -59,6 +122,12 @@ const MANAGE = [
   { to: '/scout', label: 'Scout' },
   { to: '/archive', label: 'Archive' },
 ]
+
+const APP_LINKS = [
+  { to: '/help', label: 'How this works' },
+  { to: '/states', label: 'States & sync' },
+  { to: '/settings', label: 'Settings' },
+] as const
 
 export function Rail() {
   const { pathname } = useLocation()
@@ -97,9 +166,7 @@ export function Rail() {
       {MANAGE.filter((m) => !m.capability || allow(m.capability)).map((m) => item(m.to, m.label))}
 
       <div className="rail-group">App</div>
-      {item('/help', 'How this works')}
-      {item('/states', 'States & sync')}
-      {item('/settings', 'Settings')}
+      {APP_LINKS.map((a) => item(a.to, a.label))}
 
       <div style={{ flex: 1 }} />
       <div className="divider" style={{ margin: '12px 0' }} />
