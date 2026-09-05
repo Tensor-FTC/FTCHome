@@ -17,10 +17,16 @@ import { cacheGet, cachePut } from './idb'
 const REST = 'https://api.ftcscout.org/rest/v1'
 const GRAPHQL = 'https://api.ftcscout.org/graphql'
 
-/** Seasons the upstream API accepts. `Season` is the game's start year. */
+/**
+ * Seasons the upstream API accepts. `Season` is the game's start year.
+ *
+ * Pinned rather than open-ended: the API rejects a season it does not know
+ * with "Invalid season", and a picker that offers one is a picker that offers
+ * a guaranteed error. Adding next year's game is one line here — and once it
+ * is added, `CURRENT_SEASON` starts pointing at it by itself on kickoff.
+ */
 export const SEASONS = [2019, 2020, 2021, 2022, 2023, 2024, 2025] as const
 export type Season = (typeof SEASONS)[number]
-export const CURRENT_SEASON: Season = 2025
 
 export const SEASON_NAMES: Record<Season, string> = {
   2019: 'Skystone',
@@ -31,6 +37,38 @@ export const SEASON_NAMES: Record<Season, string> = {
   2024: 'Into The Deep',
   2025: 'Decode',
 }
+
+/**
+ * The month a season turns over, zero-based. FTC kicks off in September, so
+ * from September onward "this season" is the one named for the current year.
+ */
+const KICKOFF_MONTH = 8
+
+/**
+ * The season a new team should start on.
+ *
+ * Derived from the date rather than written down twice. A hard-coded default
+ * has to be changed on kickoff day by whoever remembers — and the year it is
+ * not, every team setting the app up is filed against last season and sees an
+ * empty schedule. Capped at the newest season the API is known to accept, so
+ * the derivation can never ask upstream for a game it would reject.
+ */
+export function currentSeason(nowMs = Date.now()): Season {
+  const at = new Date(nowMs)
+  const started = at.getMonth() >= KICKOFF_MONTH ? at.getFullYear() : at.getFullYear() - 1
+  const newest = SEASONS[SEASONS.length - 1]
+  const oldest = SEASONS[0]
+  if (started >= newest) return newest
+  if (started <= oldest) return oldest
+  return started as Season
+}
+
+/**
+ * Kept as a constant for the many call sites that just want a default. It is
+ * evaluated at module load, which is the right lifetime — nobody leaves the
+ * app open across a kickoff.
+ */
+export const CURRENT_SEASON: Season = currentSeason()
 
 /**
  * Region options accepted by the API. US regions first and `UnitedStates` as the

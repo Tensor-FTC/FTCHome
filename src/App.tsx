@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
+import { Alerts } from '@/components/Alerts'
 import { useStore, flushPendingSave } from '@/store/useStore'
 import { requestPersistence } from '@/lib/media'
 import { BrandLaunch, Wordmark } from '@/components/Brand'
@@ -173,6 +174,9 @@ export function App() {
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <ScrollToTop />
       <CloudSessionBridge />
+      {/* Above the router on purpose: a match alert is not a property of the
+          screen somebody is on, and Competition Mode is outside the shell. */}
+      <Alerts />
       <Routes>
         <Route path="/" element={<LaunchScreen />} />
         <Route path="/signin" element={<SignInScreen />} />
