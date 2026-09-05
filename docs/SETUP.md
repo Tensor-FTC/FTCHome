@@ -10,7 +10,7 @@ The parts are independent, and each one works without the next:
 | **1 · Website** | A URL anyone on the team can open | ~10 min | Free, or ~$12/yr with your own domain |
 | **2 · App** | Home-screen and desktop install, works with no signal | ~1 min per device | Free |
 | **3 · Database** | Everyone sees the same season, on every device | ~15 min | Free tier |
-| **4 · Accounts** | Email, Google and GitHub sign-in; coaches accept people | ~10 min | Free |
+| **4 · Accounts** | Email, Google, GitHub and Microsoft sign-in; coaches accept people | ~10 min | Free |
 
 You can stop after part 1 and have a working app — it just lives on one device per person.
 
@@ -211,6 +211,11 @@ notes, or you want the season to survive a lost phone.
 That creates one `records` table, the row-level security policies that keep one team's rows away
 from another's, and a `provision_team` helper.
 
+This is the first of five migration files. The other four are in
+[step 4.1](#41-run-the-remaining-migrations) — accounts, invites and live
+updates each live in one of them, so a project with only this file applied has
+sync and nothing else.
+
 (If you use the Supabase CLI, `supabase db push` does the same thing.)
 
 ### 3.3 Mint your team secret
@@ -351,10 +356,18 @@ between devices, and a coach controls who is on the roster.
 |---|---|
 | [`0002_accounts.sql`](../supabase/migrations/0002_accounts.sql) | Membership, the rules for who may accept whom, and `claim_team` so a brand-new team's first coach is not waiting on an approval only they could give. |
 | [`0003_invites.sql`](../supabase/migrations/0003_invites.sql) | Invites — `accept_invite` is the only path that makes somebody active without a coach pressing approve, and an email-bound invite is claimable only by the matching account. |
+| [`0004_realtime.sql`](../supabase/migrations/0004_realtime.sql) | Live updates. Puts `records` on the realtime publication so a change on one device reaches the others in about a second, rather than on the next timer. |
+| [`0005_fix_invite_digest.sql`](../supabase/migrations/0005_fix_invite_digest.sql) | Points the invite functions at the schema Supabase installs pgcrypto into. Without it, **creating an invite fails** with `function digest(text, unknown) does not exist`. |
 
-Run all three (`0001`, `0002`, `0003`) even if you are not using invites yet.
+Run all five (`0001` through `0005`) even if you are not using invites yet.
 Skipping one leaves functions the app calls missing, and the failure shows up
-later as a sign-in that half works rather than as an obvious error.
+later as a sign-in that half works rather than as an obvious error. Every file
+is safe to run twice, so if you are unsure whether one went through, run it
+again.
+
+> **`0005` is not optional if anyone will ever be invited.** It is a two-line
+> fix to `0003`, and without it the **Create an invite code** button fails
+> every time.
 
 (With the Supabase CLI, `supabase db push` applies all of them at once.)
 

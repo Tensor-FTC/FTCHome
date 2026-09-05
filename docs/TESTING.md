@@ -4,7 +4,7 @@ Written to be run in order, on real devices, by one person in about half an
 hour. It checks the things that actually break: sync, approval, permissions,
 and offline.
 
-Automated tests cover the logic (`npm test`, 195 of them). They cannot tell you
+Automated tests cover the logic (`npm test`, 244 of them). They cannot tell you
 whether two phones agree with each other, which is the only thing a team will
 notice.
 
@@ -39,7 +39,12 @@ where table_schema = 'public' order by table_name;
 Expect `records`, `team_invites`, `team_members`, `teams`.
 
 If any are missing, the migrations did not all run. Run them in order —
-`0001`, `0002`, `0003` — and re-check.
+`0001` through `0005` — and re-check. All five are safe to run twice, so run
+any you are unsure about again.
+
+`0005` is the one that is easy to miss and does not show up here: it is a
+two-line fix to the invite functions, and without it **§4b below fails** with
+`function digest(text, unknown) does not exist`.
 
 ---
 
@@ -149,6 +154,36 @@ Try the same code again with a fourth account.
 
 **Expect:** it shows as done.
 
+### 5b · Chat crosses devices
+
+Its own step because this failed silently for a long time: messages were sent,
+stored in the database, and dropped on the way back to every other device. The
+person typing saw a perfectly normal chat, so nothing looked wrong on the
+screen anybody was watching.
+
+1. **Phone:** Chat → **Everyone** → send `hello from the phone`.
+2. **Laptop:** open Chat.
+
+**Expect:** the message is there, within a second or two — the realtime
+subscription from `0004` — or after **Sync now** if you skipped that migration.
+
+3. **Laptop:** reply.
+
+**Expect:** it reaches the phone, and the unread badge clears on the device
+that read it and *not* on the other one. Unread is per device on purpose.
+
+❌ If a message never crosses, check `select count(*) from public.records where
+table_name = 'messages'`. Rows present and nothing on the other device is the
+pull side; no rows at all is the push side.
+
+### 5c · A subteam a coach invented
+
+1. **Laptop:** Roster → edit somebody → add a subteam that is not one of the
+   seven built in, e.g. `Pit crew`.
+2. **Phone:** sync, then open the Roster.
+
+**Expect:** `Pit crew` is offered there too.
+
 ---
 
 ## 6 · Offline, which is the whole point
@@ -189,6 +224,25 @@ budget figures or another member's phone number.
 
 ---
 
+## 7b · Money is counted once
+
+On the **laptop**, as coach: Budget → an open purchase request.
+
+1. **Approve** it. The allocation's spent figure goes up by the amount.
+2. Put the same request on **Hold**.
+
+**Expect:** the allocation goes back down by the same amount.
+
+3. **Approve** it again, then sync, then check the **phone**.
+
+**Expect:** the allocation shows the amount spent **once**, on both devices.
+
+❌ Two lots of the same purchase, or a phone still showing the old balance, is
+the failure this step exists to catch — a team believing it has hundreds of
+dollars it has already committed.
+
+---
+
 ## 8 · Appearance
 
 Settings → App → **Appearance**.
@@ -214,6 +268,23 @@ and changing it does not affect anybody else.
 - **Android:** Chrome → Install app.
 
 Then turn on Airplane mode and launch from the icon. It must open.
+
+---
+
+## 10 · Alerts, if you turned them on
+
+Settings → App → **Match alerts** → allow notifications.
+
+1. Add a calendar entry typed **Deadline**, dated tomorrow.
+2. Reopen the app.
+
+**Expect:** one notification about it. Reopen again — **no second one**. A
+deadline sits in its window for two days and the app gets opened a dozen times
+in that period; an alert on every open is one people learn to swipe away.
+
+At a competition with a loaded event, the match alert fires at your lead time,
+at one minute and at zero — **from any screen**, including Competition Mode on
+the pit display, which is the one most likely to be up.
 
 ---
 
