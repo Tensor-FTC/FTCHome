@@ -6,11 +6,20 @@ import {
   DEFAULT_REGION,
   regionForState,
   type QuickStats,
+  type ScoutAward,
   type ScoutEvent,
   type ScoutTeam,
   type TeamParticipation,
 } from '@/lib/ftcScout'
-import type { CalendarEvent, CompetitionEvent, SeasonData, Settings, Team, TeamSeasonStats } from './types'
+import type {
+  CalendarEvent,
+  CompetitionEvent,
+  SeasonData,
+  Settings,
+  Team,
+  TeamAward,
+  TeamSeasonStats,
+} from './types'
 
 /**
  * Season construction.
@@ -53,6 +62,7 @@ export function emptyTeam(): Team {
     registeredSponsors: [],
     region: DEFAULT_REGION,
     seasonStats: null,
+    awards: [],
     syncedAt: null,
     goal: 0,
   }
@@ -151,6 +161,20 @@ export function isConfigured(season: SeasonData): boolean {
 }
 
 /** Maps an FTCScout team record onto our Team, preserving local-only fields. */
+/**
+ * Awards as FTCScout reports them, narrowed to what the app shows.
+ *
+ * Individual awards — Dean's List, a volunteer of the year — carry a person's
+ * name and are about that person rather than the team, so they are left out
+ * rather than printed next to the team's own trophies.
+ */
+export function awardsFromScout(awards: ScoutAward[]): TeamAward[] {
+  return awards
+    .filter((a) => !a.personName)
+    .map((a) => ({ type: a.type, placement: a.placement ?? 0, eventCode: a.eventCode }))
+    .sort((a, b) => a.placement - b.placement || a.type.localeCompare(b.type))
+}
+
 export function teamFromScout(scout: ScoutTeam, previous: Team): Team {
   return {
     ...previous,

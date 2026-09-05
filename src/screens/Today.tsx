@@ -11,6 +11,7 @@ import { useArchive } from '@/domain/useArchive'
 import { daysBetween, dueLabel, longStamp, seasonWeek, today as todayIso } from '@/lib/date'
 import { money, plural } from '@/lib/format'
 import { nextCompetition } from '@/domain/season'
+import { describeAward, topAwards } from '@/domain/awards'
 import { SEASON_NAMES, type Season as ScoutSeason } from '@/lib/ftcScout'
 import { ROLE_LABEL, type Task } from '@/domain/types'
 
@@ -56,6 +57,9 @@ export function TodayScreen() {
   )
   const seasonOver = Boolean(lastDate && lastDate < iso)
   const stats = season.team.seasonStats
+  // Straight from FTCScout with the rest of the team's identity, so this is
+  // right in a gym with no signal rather than a card that needs a network.
+  const awards = useMemo(() => topAwards(season.team.awards ?? []), [season.team.awards])
 
   const todaysMeetings = season.events.filter((e) => e.date === iso)
 
@@ -146,6 +150,24 @@ export function TodayScreen() {
                   </div>
                 </div>
                 <hr className="divider" style={{ margin: '14px 0 12px', background: 'var(--line)' }} />
+                {/*
+                 * Awards, when there are any. Deliberately above the stat
+                 * strip and never as an empty slot: a team with no awards yet
+                 * is most teams for most of a season, and a permanent "—"
+                 * where a trophy goes is a worse thing to look at every day
+                 * than nothing at all.
+                 */}
+                {awards.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                    {awards.map((a) => (
+                      // Neutral, not signal: lime marks the one next action on
+                      // a screen, and a trophy is not something to go and do.
+                      <span key={`${a.eventCode}-${a.type}`} className="chip-static">
+                        {describeAward(a)}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                   {/* Real season performance from FTCScout, not a status somebody typed. */}
                   <Fact

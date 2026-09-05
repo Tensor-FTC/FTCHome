@@ -5,6 +5,7 @@ import { missingDefaults } from '@/domain/chat'
 import { subteamId } from '@/domain/subteams'
 import { signOutOfCloud, type AuthUser } from '@/lib/auth'
 import {
+  awardsFromScout,
   calendarFromScout,
   emptySeason,
   isConfigured,
@@ -18,6 +19,7 @@ import {
   getEventSnapshot,
   getQuickStats,
   getTeam,
+  getTeamAwards,
   getTeamSeason,
   type Season as ScoutSeason,
 } from '@/lib/ftcScout'
@@ -1313,6 +1315,7 @@ export const useStore = create<StoreState>((set, get) => {
 
         const scoutSeason = season.settings.season as ScoutSeason
         season.team.seasonStats = statsFromQuickStats(await getQuickStats(scout.number, scoutSeason))
+        season.team.awards = awardsFromScout(await getTeamAwards(scout.number, scoutSeason))
 
         const participations = await getTeamSeason(scout.number, season.settings.season as ScoutSeason)
         const details = await Promise.all(
@@ -1354,10 +1357,12 @@ export const useStore = create<StoreState>((set, get) => {
         const events = details.filter((e): e is NonNullable<typeof e> => Boolean(e))
 
         const stats = statsFromQuickStats(await getQuickStats(scout.number, current.settings.season as ScoutSeason))
+        const awards = awardsFromScout(await getTeamAwards(scout.number, current.settings.season as ScoutSeason))
 
         const season = structuredClone(get().season)
         season.team = teamFromScout(scout, season.team)
         season.team.seasonStats = stats
+        season.team.awards = awards
         season.events = mergeScoutEvents(season.events, calendarFromScout(events, participations))
         season.settings = { ...season.settings, lastScoutSyncAt: now() }
         set({ season })
