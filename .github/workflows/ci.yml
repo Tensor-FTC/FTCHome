@@ -1,0 +1,39 @@
+name: CI
+
+# Checks run *before* a merge, not after it.
+#
+# `deploy.yml` typechecks, tests and builds — but only on a push to `main`,
+# which means a pull request had nothing validating it and a broken change was
+# found by the deploy that followed it rather than by the review that should
+# have. Same three commands, one branch earlier.
+on:
+  pull_request:
+  workflow_dispatch:
+
+# A force-push should not leave two runs racing on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+      - run: npm test
+
+      # Built without a BASE_PATH on purpose: this is asking whether the code
+      # compiles, and the Pages prefix is the deploy's business.
+      - run: npm run build
