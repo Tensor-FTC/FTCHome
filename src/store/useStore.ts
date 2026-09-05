@@ -55,6 +55,7 @@ import { pushMemberDecision } from '@/lib/membership'
 import { now, uid } from '@/lib/id'
 import { hashPassword, verifyPassword } from '@/lib/crypto'
 import { dropMedia } from '@/lib/media'
+import { resetDeadlineAlerts } from '@/lib/notifications'
 
 /**
  * One store for the season.
@@ -1555,12 +1556,20 @@ export const useStore = create<StoreState>((set, get) => {
       season.settings = { ...season.settings, season: current.settings.season, region: current.settings.region }
       set({ season })
       await saveSeason(season)
+      /*
+       * Which deadlines have been announced is remembered outside the season,
+       * so it survives a wipe unless it is cleared here — and a restored or
+       * re-entered deadline would then be silently suppressed by a record of
+       * an alert for something that no longer exists.
+       */
+      resetDeadlineAlerts()
       if (current.team.number) void get().refreshTeam()
       get().notify('Season data cleared. Team identity kept.')
     },
 
     async eraseEverything() {
       await clearAll()
+      resetDeadlineAlerts()
       const season = emptySeason()
       set({ season, session: GUEST_SESSION })
       await saveSeason(season)

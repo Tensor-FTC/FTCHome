@@ -129,6 +129,16 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
         ref={ref}
         id={fieldId}
         className={classes}
+        /*
+         * A compact form — "Add a sponsor", "Request a purchase" — carries its
+         * meaning in the placeholder and a heading above the group, because a
+         * visible label per field would double the height of a card meant to
+         * be four short rows. That reads fine and announces as "edit text,
+         * blank", so the placeholder stands in as the accessible name when
+         * there is nothing better. Anything passed by the caller still wins:
+         * `rest` is spread after this.
+         */
+        aria-label={label ? undefined : rest['aria-label'] ?? rest.placeholder}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${fieldId}-err` : hint ? `${fieldId}-hint` : undefined}
         {...rest}
@@ -162,7 +172,14 @@ export function TextArea({
           {label}
         </label>
       )}
-      <textarea id={fieldId} className={`field ${className}`} {...rest} />
+      {/* Same fallback as Field: a placeholder is a better accessible name
+          than nothing at all. */}
+      <textarea
+        id={fieldId}
+        className={`field ${className}`}
+        aria-label={label ? undefined : rest['aria-label'] ?? rest.placeholder}
+        {...rest}
+      />
       {hint && <div className="field-note">{hint}</div>}
     </div>
   )

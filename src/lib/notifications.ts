@@ -161,7 +161,8 @@ export function announceDeadlines(due: DeadlineAlert[], nowMs = Date.now()): str
   return fired
 }
 
-/** Test seam, and what "Clear season data" should leave behind: nothing. */
+/** Called when the season is cleared or erased, so no alert is suppressed by
+ * a record of one fired for something that no longer exists. */
 export function resetDeadlineAlerts(): void {
   try {
     globalThis.localStorage?.removeItem(FIRED_KEY)

@@ -199,6 +199,10 @@ export function BudgetScreen() {
                   inputMode="numeric"
                   mono
                   big
+                  // The heading above is a plain div, and this is the one
+                  // field in the app with neither a label nor a placeholder to
+                  // fall back on, so it would announce as "edit text, blank".
+                  aria-label="Season goal"
                   hint="Mentors set the goal. Students see progress against it."
                 />
               </div>

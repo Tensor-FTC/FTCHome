@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { budgetTotals, partsTotals, useStore } from './useStore'
 import { fixtureSeason } from '@/test/fixtures'
+import { announceDeadlines, resetDeadlineAlerts } from '@/lib/notifications'
 
 /**
  * Store behaviour that screens depend on. These run against the real IndexedDB
@@ -8,6 +9,7 @@ import { fixtureSeason } from '@/test/fixtures'
  */
 describe('season store', () => {
   beforeEach(async () => {
+    resetDeadlineAlerts()
     await useStore.getState().replaceSeason(fixtureSeason('2026-01-10'))
   })
 
@@ -223,6 +225,14 @@ describe('season store', () => {
     const count = useStore.getState().season.subteams.length
     expect(addSubteam('Pit Crew')).toBe('pit-crew')
     expect(useStore.getState().season.subteams).toHaveLength(count)
+  })
+
+  it('forgets which deadlines were announced when the season is cleared', async () => {
+    // Otherwise a re-entered deadline is silently suppressed by a record of an
+    // alert fired for something that no longer exists.
+    announceDeadlines([{ key: 'task:1:2026-03-02', title: 'Order motors', whenLabel: 'tomorrow' }])
+    await useStore.getState().resetSeason()
+    expect(announceDeadlines([{ key: 'task:1:2026-03-02', title: 'Order motors', whenLabel: 'tomorrow' }])).toHaveLength(1)
   })
 
   it('drops the RSVPs for a deleted event, which cannot be answered', () => {
