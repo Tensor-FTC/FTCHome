@@ -4,7 +4,8 @@ Written to be run in order, on real devices, by one person in about half an
 hour. It checks the things that actually break: sync, approval, permissions,
 and offline.
 
-Automated tests cover the logic (`npm test`, 244 of them). They cannot tell you
+Automated tests cover the logic (`npm test` — the count is in its output, and
+that is the only place worth keeping it). They cannot tell you
 whether two phones agree with each other, which is the only thing a team will
 notice.
 
