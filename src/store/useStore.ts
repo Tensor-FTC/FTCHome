@@ -47,7 +47,7 @@ import type {
   SyncTable,
 } from '@/domain/types'
 import { loadSeason, loadSession, saveSeason, saveSession, clearAll } from '@/lib/idb'
-import { enqueue, sync as runSync, canSync, type SyncResult } from '@/lib/sync'
+import { applyRemote, enqueue, sync as runSync, canSync, type SyncResult } from '@/lib/sync'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { pushMemberDecision } from '@/lib/membership'
 import { now, uid } from '@/lib/id'
@@ -510,11 +510,19 @@ export const useStore = create<StoreState>((set, get) => {
         (d) => {
           d.subteams = next
         },
-        // Rides the team record: it is one small list, not a table of its own.
+        /*
+         * One record holding the whole list, not a table of its own.
+         *
+         * This used to push the *team* record instead, which does not carry
+         * subteams — so a subteam a coach invented stayed on the laptop that
+         * invented it, and the phones went on showing seven built-ins. The
+         * pull side merges these by union rather than last-write-wins, since
+         * nothing in the app deletes a subteam.
+         */
         {
-          table: 'teams',
+          table: 'subteams',
           op: 'upsert',
-          record: stamped({ ...get().season.team }),
+          record: { id: 'subteams', updatedAt: now(), items: next } as Syncable,
           label: `Subteam · ${label}`,
         },
       )
@@ -746,6 +754,7 @@ export const useStore = create<StoreState>((set, get) => {
     removeMember(id) {
       const member = get().season.members.find((m) => m.id === id)
       if (!member) return
+      const orphanedRsvps = get().season.rsvps.filter((r) => r.memberId === id)
       commit(
         (d) => {
           d.members = d.members.filter((m) => m.id !== id)
@@ -755,6 +764,9 @@ export const useStore = create<StoreState>((set, get) => {
         },
         { table: 'members', op: 'delete', record: member, label: `Removed ${member.name}` },
       )
+      // A cascade only this device knows about is not a delete. Without these
+      // tombstones the next pull hands the RSVPs straight back.
+      for (const rsvp of orphanedRsvps) void enqueue('rsvps', 'delete', rsvp, 'RSVP removed')
     },
 
     // ── calendar ────────────────────────────────────────────
@@ -783,6 +795,7 @@ export const useStore = create<StoreState>((set, get) => {
     removeEvent(id) {
       const event = get().season.events.find((e) => e.id === id)
       if (!event) return
+      const orphanedRsvps = get().season.rsvps.filter((r) => r.eventId === id)
       commit(
         (d) => {
           d.events = d.events.filter((e) => e.id !== id)
@@ -790,6 +803,8 @@ export const useStore = create<StoreState>((set, get) => {
         },
         { table: 'events', op: 'delete', record: event, label: `Removed ${event.title}` },
       )
+      // Same cascade, same reason: the server still holds these until it is told.
+      for (const rsvp of orphanedRsvps) void enqueue('rsvps', 'delete', rsvp, 'RSVP removed')
     },
 
     setRsvp(eventId, memberId, status) {
@@ -946,18 +961,42 @@ export const useStore = create<StoreState>((set, get) => {
       const approval = get().season.approvals.find((a) => a.id === id)
       if (!approval) return
       const next = stamped({ ...approval, state, decidedById: deciderId, decidedAt: now() })
+
+      /*
+       * Money moves on the *transition*, not on the decision.
+       *
+       * Approving added the amount to the allocation every time it was called,
+       * so a coach who approved, put it on hold, then approved again had spent
+       * it twice — and putting an approved purchase on hold never gave it
+       * back. The allocation also has to be queued: without an outbox entry
+       * the new balance stayed on the device that made the decision, so every
+       * other phone showed money the team had already committed as still
+       * available.
+       */
+      const wasApproved = approval.state === 'approved'
+      const isApproved = state === 'approved'
+      const delta = wasApproved === isApproved ? 0 : isApproved ? next.amount : -next.amount
+      const target = delta && next.allocationId
+        ? get().season.allocations.find((a) => a.id === next.allocationId)
+        : undefined
+      const allocation = target
+        ? stamped({ ...target, spent: Math.max(0, target.spent + delta) })
+        : undefined
+
       commit(
         (d) => {
           const i = d.approvals.findIndex((a) => a.id === id)
           if (i >= 0) d.approvals[i] = next
-          // An approved purchase moves real money out of its allocation.
-          if (state === 'approved' && next.allocationId) {
-            const ai = d.allocations.findIndex((a) => a.id === next.allocationId)
-            if (ai >= 0) d.allocations[ai] = stamped({ ...d.allocations[ai], spent: d.allocations[ai].spent + next.amount })
+          if (allocation) {
+            const ai = d.allocations.findIndex((a) => a.id === allocation.id)
+            if (ai >= 0) d.allocations[ai] = allocation
           }
         },
         { table: 'approvals', op: 'upsert', record: next, label: `${state} · ${next.title}` },
       )
+      if (allocation) {
+        void enqueue('allocations', 'upsert', allocation, `Allocation · ${allocation.name}`)
+      }
     },
 
     // ── parts ───────────────────────────────────────────────
@@ -1384,15 +1423,10 @@ export const useStore = create<StoreState>((set, get) => {
 
         const season = structuredClone(get().season)
         season.competition = competition
-        season.settings = {
-          ...season.settings,
-          eventCode: snap.code,
-          lastScoutSyncAt: now(),
-          // Alliance is the only thing worth remembering here, as a fallback for
-          // Competition Mode when nothing is scheduled. Everything else about a
-          // match is derived from the schedule at render time.
-          ...(next ? { alliance: next.red.includes(us) ? ('red' as const) : ('blue' as const) } : {}),
-        }
+        // Nothing about the match is remembered here. Alliance, partner and
+        // opponents are all derived from the schedule at render time — see
+        // domain/matchClock.ts — and a stored copy only ever went stale.
+        season.settings = { ...season.settings, eventCode: snap.code, lastScoutSyncAt: now() }
         set({ season })
         await saveSeason(season)
 
@@ -1438,13 +1472,28 @@ export const useStore = create<StoreState>((set, get) => {
     async sync(options) {
       if (get().syncing) return
       set({ syncing: true })
-      const season = structuredClone(get().season)
       const me = currentMember(get())
-      const result = await runSync(season, me?.name ?? '')
+      const result = await runSync(get().season, me?.name ?? '')
+
+      /*
+       * Merge into the season as it is *now*, not as it was when the round trip
+       * started.
+       *
+       * A sync takes seconds and runs by itself a second after every edit, so
+       * somebody typing during one is the normal case rather than the unlucky
+       * one. This used to hand a pre-sync copy to the sync module and set the
+       * result back afterwards, which silently threw away everything committed
+       * meanwhile — the task you just added, gone on the next tick.
+       */
+      const season = structuredClone(get().season)
+      if (result.rows.length) applyRemote(season, result.rows)
       // Anything that made it to the server is no longer waiting on Wi-Fi.
       if (result.pushed > 0 && result.failed === 0) {
         season.media = season.media.map((m) => (m.queued ? { ...m, queued: false } : m))
       }
+      // Stamped whenever the round trip completed, so "cached 2 min ago" is
+      // about this device's last contact rather than the last thing it heard.
+      if (!result.skipped && !result.error) season.settings.lastSyncAt = now()
       set({ syncing: false, lastSyncResult: result, season })
       await saveSeason(season)
 

@@ -32,6 +32,7 @@ export function emptySettings(): Settings {
     eventCode: '',
     simulateOffline: false,
     lastSyncAt: null,
+    pullWatermark: null,
     lastScoutSyncAt: null,
   }
 }

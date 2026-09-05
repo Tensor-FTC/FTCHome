@@ -553,7 +553,18 @@ export interface Settings {
   eventCode: string
   /** Forces the offline treatment on, for checking those screens on a good connection. */
   simulateOffline: boolean
+  /** When this device last completed a sync. Shown to the user; not a watermark. */
   lastSyncAt: string | null
+  /**
+   * The server's own `updated_at` for the newest row this device has pulled.
+   *
+   * Separate from `lastSyncAt` because they answer different questions and
+   * conflating them lost data: the watermark used to be stamped with this
+   * device's clock, so a phone running two minutes fast skipped every row
+   * written in that window, permanently. Absent means "pull everything",
+   * which is how a device upgraded from that version repairs itself.
+   */
+  pullWatermark?: string | null
   /** Last successful pull from FTCScout. */
   lastScoutSyncAt: string | null
 }
@@ -674,6 +685,14 @@ export type SyncTable =
   | 'scouting_notes'
   | 'competition_events'
   | 'parts_state'
+  /**
+   * The team's own subteam names, as one record.
+   *
+   * A list rather than a table: a team invents four or five of these all
+   * season, and a row each would be a table that is empty for most teams.
+   * Merged by union on pull — see applyRemote.
+   */
+  | 'subteams'
 
 export interface SeasonData {
   team: Team
