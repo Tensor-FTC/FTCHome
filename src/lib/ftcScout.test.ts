@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   CURRENT_SEASON,
+  currentSeason,
   DEFAULT_REGION,
   getTeam,
   regionForState,
@@ -21,7 +22,33 @@ describe('FTCScout constants', () => {
     expect(SEASONS).toContain(2025)
     expect(SEASONS).not.toContain(2026)
     expect(SEASONS).not.toContain(2018)
-    expect(CURRENT_SEASON).toBe(2025)
+  })
+
+  /*
+   * The default season is derived from the date, so kickoff does not need
+   * somebody to remember to edit a constant — the year nobody does, every team
+   * setting the app up is filed against last season and finds no schedule.
+   */
+  describe('currentSeason', () => {
+    it('rolls over at kickoff, not at new year', () => {
+      expect(currentSeason(Date.parse('2024-08-31T12:00:00Z'))).toBe(2023)
+      expect(currentSeason(Date.parse('2024-09-01T12:00:00Z'))).toBe(2024)
+      expect(currentSeason(Date.parse('2025-01-15T12:00:00Z'))).toBe(2024)
+    })
+
+    it('never asks upstream for a season it is known to reject', () => {
+      // Past the end of the pinned list: hold at the newest one the API takes
+      // rather than derive a year that returns "Invalid season".
+      expect(currentSeason(Date.parse('2031-10-01T12:00:00Z'))).toBe(2025)
+    })
+
+    it('never goes back before the first season the API has', () => {
+      expect(currentSeason(Date.parse('2005-10-01T12:00:00Z'))).toBe(2019)
+    })
+
+    it('is what the exported default resolves to', () => {
+      expect(CURRENT_SEASON).toBe(currentSeason())
+    })
   })
 
   it('names every season it offers', () => {

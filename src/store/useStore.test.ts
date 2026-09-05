@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { budgetTotals, partsTotals, useStore } from './useStore'
 import { fixtureSeason } from '@/test/fixtures'
+import { announceDeadlines, resetDeadlineAlerts } from '@/lib/notifications'
 
 /**
  * Store behaviour that screens depend on. These run against the real IndexedDB
@@ -8,6 +9,7 @@ import { fixtureSeason } from '@/test/fixtures'
  */
 describe('season store', () => {
   beforeEach(async () => {
+    resetDeadlineAlerts()
     await useStore.getState().replaceSeason(fixtureSeason('2026-01-10'))
   })
 
@@ -169,4 +171,75 @@ describe('season store', () => {
     expect(useStore.getState().session).toMatchObject({ memberId: null, role: 'guest', guest: true })
   })
 
+  /*
+   * An approved purchase moves real money. These pin the arithmetic, because
+   * the failure mode is a team believing it has hundreds of dollars it has
+   * already committed.
+   */
+  describe('approving a purchase', () => {
+    function pending() {
+      const { season } = useStore.getState()
+      return season.approvals.find((a) => a.state === 'pending')!
+    }
+    function spentOnKit() {
+      return useStore.getState().season.allocations.find((a) => a.id === 'al-kit')!.spent
+    }
+
+    it('takes the amount out of its allocation', () => {
+      const before = spentOnKit()
+      const request = pending()
+      useStore.getState().decideApproval(request.id, 'approved', 'mem-coach')
+      expect(spentOnKit()).toBeCloseTo(before + request.amount, 5)
+    })
+
+    it('does not spend it twice when the decision is revisited', () => {
+      const before = spentOnKit()
+      const request = pending()
+      const { decideApproval } = useStore.getState()
+      decideApproval(request.id, 'approved', 'mem-coach')
+      decideApproval(request.id, 'approved', 'mem-coach')
+      expect(spentOnKit()).toBeCloseTo(before + request.amount, 5)
+    })
+
+    it('gives the money back when an approval is put on hold', () => {
+      const before = spentOnKit()
+      const request = pending()
+      const { decideApproval } = useStore.getState()
+      decideApproval(request.id, 'approved', 'mem-coach')
+      decideApproval(request.id, 'held', 'mem-coach')
+      expect(spentOnKit()).toBeCloseTo(before, 5)
+    })
+
+    it('leaves the allocation alone for a decision that was never an approval', () => {
+      const before = spentOnKit()
+      const request = pending()
+      useStore.getState().decideApproval(request.id, 'denied', 'mem-coach')
+      expect(spentOnKit()).toBe(before)
+    })
+  })
+
+  it('keeps a team’s own subteam and does not re-add one it has', () => {
+    const { addSubteam } = useStore.getState()
+    const id = addSubteam('Pit crew')
+    expect(id).toBe('pit-crew')
+    const count = useStore.getState().season.subteams.length
+    expect(addSubteam('Pit Crew')).toBe('pit-crew')
+    expect(useStore.getState().season.subteams).toHaveLength(count)
+  })
+
+  it('forgets which deadlines were announced when the season is cleared', async () => {
+    // Otherwise a re-entered deadline is silently suppressed by a record of an
+    // alert fired for something that no longer exists.
+    announceDeadlines([{ key: 'task:1:2026-03-02', title: 'Order motors', whenLabel: 'tomorrow' }])
+    await useStore.getState().resetSeason()
+    expect(announceDeadlines([{ key: 'task:1:2026-03-02', title: 'Order motors', whenLabel: 'tomorrow' }])).toHaveLength(1)
+  })
+
+  it('drops the RSVPs for a deleted event, which cannot be answered', () => {
+    const { season, removeEvent } = useStore.getState()
+    const event = season.events[0]
+    expect(season.rsvps.some((r) => r.eventId === event.id)).toBe(true)
+    removeEvent(event.id)
+    expect(useStore.getState().season.rsvps.some((r) => r.eventId === event.id)).toBe(false)
+  })
 })

@@ -18,7 +18,7 @@ describe('capabilities', () => {
     }
   })
 
-  it('keeps medical records to mentors and coaches', () => {
+  it('keeps contact records to mentors and coaches', () => {
     for (const role of [...students, 'parent', 'guest'] as Role[]) {
       expect(can(role, 'roster.readContact')).toBe(false)
       expect(can(role, 'roster.readContact')).toBe(false)

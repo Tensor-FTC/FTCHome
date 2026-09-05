@@ -21,8 +21,8 @@ Cloud sync is additive; see [Cloud sync](#cloud-sync--supabase).
 ## Where the data comes from
 
 **Nothing factual is authored by this app.** Team name, city, state, rookie year, registered
-sponsors, competition schedule, venues, match results, rankings and OPR all come from the FTCScout
-API and are cached locally so they survive a gym with no signal.
+sponsors, competition schedule, venues, match results, rankings, OPR and awards all come from the
+FTCScout API and are cached locally so they survive a gym with no signal.
 
 What the app stores locally is only what no API knows — your roster, tasks, budget, sponsorship
 money, media and weekly write-ups. Those start **genuinely empty**. There is no demo season and no
@@ -36,7 +36,7 @@ once somebody has scrolled past them twice.
 | Competitions, dates, venues | Build sessions, deadlines, outreach |
 | Match schedule, scores, W-L-T | Tasks, purchase approvals |
 | Rankings and OPR (event and season, with world rank) | Photos, video, CAD, weekly write-ups |
-| | Parts and prices (no catalogue is bundled — vendor prices go stale) |
+| Awards won this season | Parts and prices (no catalogue is bundled — vendor prices go stale) |
 
 **First run** walks you through it: look up your team number, add your coach, then a getting-started
 checklist on Today tracks the five things only your team can supply. Each step ticks itself off when
@@ -53,7 +53,7 @@ Nineteen screens, all backed by real state rather than fixtures.
 |---|---|---|
 | 00 | Launch | One-shot mark animation, honours `prefers-reduced-motion` |
 | A1–A5 | Sign in · Who are you · Personal sign-in · Mentor sign-in · Register | Account-first, no shared secret: the first account on an empty team is its coach, everyone after goes through the roster |
-| R1 | Roster | Add/edit/remove members, subteams, mentor-only medical and contact records |
+| R1 | Roster | Add/edit/remove members, subteams, staff-only contact records |
 | 04 | Today | Next competition, today's meeting with RSVP, assigned tasks, gated approvals, blockers |
 | 05 / C1 | Calendar · Plan | Month grid of labelled entries, repeating meetings expanded on read, task due dates, agenda, season timeline derived from the team's own competition dates, `.ics` export with `RRULE` and `EXDATE` |
 | 06 | Event detail | RSVP, attendance forecast, who can't make it *by name*, cached attachments |
@@ -67,7 +67,7 @@ Nineteen screens, all backed by real state rather than fixtures.
 | 01–03 | Guest onboarding · Parts · Team identity | No-account hub, your own bill of materials with CSV import/export, FTCScout lookup |
 | — | Help | How it works: the five tabs, where numbers come from, what your role can do |
 | 13 | Chat | Team, subteam and group channels, unread per device, offline-queued |
-| A6–A7 | Cloud sign-in · Waiting for a coach | Email, magic link, Google, GitHub; a join request a coach accepts |
+| A6–A7 | Cloud sign-in · Waiting for a coach | Email, magic link, Google, GitHub, Microsoft; a join request a coach accepts |
 | — | Settings | Five tabs: You, Team (who can see what), Data, Sync, App |
 
 ### Beyond the prototype
@@ -79,7 +79,14 @@ Nineteen screens, all backed by real state rather than fixtures.
   imports cleanly), roster and budget to CSV, calendar to `.ics` (folded, escaped, with `RRULE`),
   weekly dashboard to markdown, whole season to JSON and back.
 - **Match alerts** — Web Notifications at the lead time, at one minute, and at zero, fired off the
-  real schedule. Never repeat; an alert you learn to swipe away is worse than none.
+  real schedule, from **any screen** including Competition Mode on the pit display. Never repeat;
+  an alert you learn to swipe away is worse than none.
+- **Deadline alerts** — the same rule for the other half of a season: open, dated things inside the
+  next 48 hours, announced once each and remembered across reloads. A build session is not a
+  deadline and a finished task is not a warning, so neither is announced.
+- **Awards** — what the team has actually won this season, from FTCScout, on the competition card.
+  Upstream's own name for each award is what is shown; individual awards like Dean's List belong to
+  a person rather than the team and are left out.
 - **Desktop layouts** — the tab bar becomes a 240px rail, Today goes three columns, the weekly
   dashboard goes masonry, and the countdown leaves the bottom edge for a sticky top bar.
 - **Print stylesheet** — the weekly dashboard is the one thing teams hand to sponsors, so it inverts
@@ -100,8 +107,8 @@ Nineteen screens, all backed by real state rather than fixtures.
 - **CAD viewer** — STL (binary and ASCII) and OBJ render in a WebGL viewer written directly against
   the GL API, lazy-loaded into its own 6 kB chunk. `.f3d`/`.f3z` and STEP say plainly why they
   cannot be drawn and what to export instead, rather than showing an empty canvas.
-- **Real accounts, and a coach in the loop** — email and password, an emailed link, Google or
-  GitHub, all through Supabase Auth. Signing in proves who you are; a coach decides who is on the
+- **Real accounts, and a coach in the loop** — email and password, an emailed link, Google, GitHub
+  or Microsoft, all through Supabase Auth. Signing in proves who you are; a coach decides who is on the
   roster, so a public sign-up page is not also a way onto every team. There is **no shared team
   password**: it protected nothing that individual passwords and an approval did not already cover,
   and a device that has never synced holds an empty season anyway. A team with no Supabase project
@@ -192,7 +199,15 @@ document per entity, so the app model can move without a Postgres migration ever
 **Conflict resolution is last-write-wins per record on `updatedAt`.** Chosen over CRDTs deliberately:
 the conflicting case here is two people editing the same task on the same evening, where the later
 edit is the one you want, and a merge algorithm nobody can explain is worse than a rule everybody
-can. [`sync.test.ts`](src/lib/sync.test.ts) pins the two cases that lose data if this is wrong.
+can. The one exception is the subteam list, which is a single record and so merges by union — two
+coaches inventing a subteam on the same evening should end with both, and nothing in the app deletes
+one for a union to lose. [`sync.test.ts`](src/lib/sync.test.ts) pins the cases that lose data if any
+of this is wrong.
+
+**The pull watermark is the server's clock, never the device's.** It is the `updated_at` of the
+newest row actually received, kept separate from the "last synced" time shown on screen. A phone
+running two minutes fast would otherwise stamp a watermark into the future and skip every row
+written inside the skew — permanently, since the next pull starts from the same mark.
 
 ---
 
@@ -210,8 +225,10 @@ Full step-by-step walkthrough, including where each of the three values lives in
 dashboard: [**docs/SETUP.md**](docs/SETUP.md).
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — CLI `supabase db push`,
-   or paste it into **SQL → New query**.
+2. Run **every** file in [`supabase/migrations/`](supabase/migrations/) in order, `0001` through
+   `0005` — CLI `supabase db push`, or paste each into **SQL → New query**. Accounts, invites and
+   live updates each live in one of the later files, so a project with only `0001` applied has sync
+   and nothing else. All of them are safe to run twice.
 3. Mint a team secret:
    ```sql
    select * from public.provision_team('11138', 'Robo Eclipse');
@@ -242,6 +259,8 @@ Routes were verified against the upstream source
 - `GET /rest/v1/teams/:number/events/:season` — registered events, with per-event rank and record
 - `GET /rest/v1/teams/:number/quick-stats?season=` — season OPR split auto / teleop / endgame, ranked
   against every team that season
+- `GET /rest/v1/teams/:number/awards?season=` — awards won, with placement and the event each was
+  won at
 - `GET /rest/v1/events/search/:season?region=` — events near you
 - `POST /graphql` — one query for an event's rankings *with team names* plus the full match schedule,
   which the REST routes would need N+1 requests to assemble
@@ -327,7 +346,9 @@ node scripts/generate-icons.mjs   # re-rasterise app icons from the vector mark
 - **Settings → Clear season data** wipes the roster, tasks, budget and media but keeps the team's
   FTCScout identity and schedule, which is almost always what you want between seasons.
 - Seasons run 2019–2025 (`Decode`). The API rejects anything outside that, so the picker only offers
-  what it accepts.
+  what it accepts; adding next year's game is one line in
+  [`ftcScout.ts`](src/lib/ftcScout.ts), and the default season then rolls over to it by itself on
+  kickoff rather than needing a second edit.
 - The uploaded logo raster could not be retrieved from the design project intact — its file-read API
   caps at 256 KiB and the PNG exceeds it. The drawn vector mark that the same source specifies is
   used instead, which also gives real favicons and PWA icons. To use the raster, drop it at

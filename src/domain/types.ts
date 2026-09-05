@@ -80,6 +80,15 @@ export interface Team extends Syncable {
   region: string
   /** Season-wide performance from FTCScout, with world ranks. Null before any match. */
   seasonStats: TeamSeasonStats | null
+  /**
+   * Awards won this season, as filed with FIRST and published by FTCScout.
+   *
+   * Kept on the team record rather than fetched per screen, for the same
+   * reason as `seasonStats`: it is a fact about the season, it has to survive
+   * a gym with no signal, and a screen that fetches is a screen that is blank
+   * when the network is.
+   */
+  awards: TeamAward[]
   /** When the identity above was last pulled. Null means never — not yet set up. */
   syncedAt: string | null
 
@@ -173,6 +182,23 @@ export const AUTH_PROVIDER_LABEL: Record<AuthProvider, string> = {
   github: 'GitHub',
   azure: 'Microsoft',
   device: 'Team code on this device',
+}
+
+/**
+ * One award, exactly as upstream reports it.
+ *
+ * `type` is passed through rather than mapped to a friendly name: the app does
+ * not author facts about a team, and a label table would be a guess that goes
+ * stale the season FIRST renames an award. The UI tidies the casing and
+ * nothing else.
+ */
+export interface TeamAward {
+  /** Upstream's own name for the award, e.g. `Inspire` or `INSPIRE_AWARD`. */
+  type: string
+  /** 1 for the win, 2 for second, and so on. 0 when upstream does not say. */
+  placement: number
+  /** The competition it was won at. */
+  eventCode: string
 }
 
 /** FTCScout "quick stats": average contribution, with a rank among all teams. */
@@ -553,7 +579,18 @@ export interface Settings {
   eventCode: string
   /** Forces the offline treatment on, for checking those screens on a good connection. */
   simulateOffline: boolean
+  /** When this device last completed a sync. Shown to the user; not a watermark. */
   lastSyncAt: string | null
+  /**
+   * The server's own `updated_at` for the newest row this device has pulled.
+   *
+   * Separate from `lastSyncAt` because they answer different questions and
+   * conflating them lost data: the watermark used to be stamped with this
+   * device's clock, so a phone running two minutes fast skipped every row
+   * written in that window, permanently. Absent means "pull everything",
+   * which is how a device upgraded from that version repairs itself.
+   */
+  pullWatermark?: string | null
   /** Last successful pull from FTCScout. */
   lastScoutSyncAt: string | null
 }
@@ -674,6 +711,14 @@ export type SyncTable =
   | 'scouting_notes'
   | 'competition_events'
   | 'parts_state'
+  /**
+   * The team's own subteam names, as one record.
+   *
+   * A list rather than a table: a team invents four or five of these all
+   * season, and a row each would be a table that is empty for most teams.
+   * Merged by union on pull — see applyRemote.
+   */
+  | 'subteams'
 
 export interface SeasonData {
   team: Team

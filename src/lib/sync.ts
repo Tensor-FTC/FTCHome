@@ -2,7 +2,7 @@ import { dequeue, listOutbox, queueWrite } from './idb'
 import { getSupabase, isSupabaseConfigured, readConfig } from './supabase'
 import { ensureMembership } from './membership'
 import { now, uid } from './id'
-import type { OutboxEntry, SeasonData, Syncable, SyncTable } from '@/domain/types'
+import type { OutboxEntry, SeasonData, SubteamDef, Syncable, SyncTable } from '@/domain/types'
 
 /**
  * The outbox. Every mutation the app makes is written to IndexedDB first and
@@ -23,6 +23,16 @@ export interface SyncResult {
   claimed?: boolean
   /** The database has this account on the team, but not yet accepted. */
   awaitingApproval?: boolean
+  /**
+   * Rows the pull returned, for the caller to merge.
+   *
+   * Deliberately not merged here. A sync takes seconds, and somebody typing
+   * during one used to lose the edit: this module was handed a copy of the
+   * season before the round trip and handed it back after, overwriting
+   * whatever had been committed meanwhile. Returning the rows lets the store
+   * apply them to whatever the season is *now*.
+   */
+  rows: RemoteRow[]
 }
 
 /** Rough wire size, so the queue can show "248 MB" without holding the blob. */
@@ -79,8 +89,12 @@ export function sync(season: SeasonData, displayName = ''): Promise<SyncResult> 
   return inFlight
 }
 
+/** One page of the pull. Bounded so a first sync cannot hold the tab. */
+const PULL_PAGE = 1000
+const PULL_MAX_PAGES = 20
+
 async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult> {
-  const result: SyncResult = { pushed: 0, pulled: 0, failed: 0, skipped: false }
+  const result: SyncResult = { pushed: 0, pulled: 0, failed: 0, skipped: false, rows: [] }
 
   if (!isSupabaseConfigured()) {
     result.skipped = true
@@ -145,18 +159,34 @@ async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult
     }
   }
 
+  /*
+   * Pull everything written since the last row we actually received.
+   *
+   * The watermark is the server's own `updated_at`, never this device's clock.
+   * A phone whose clock runs two minutes fast used to stamp the watermark into
+   * the future and skip every row written in that window — permanently, since
+   * the next pull started from the same bad mark. Paging on what came back
+   * also makes a truncated page safe: the next page picks up exactly where
+   * this one stopped.
+   */
   try {
-    const since = season.settings.lastSyncAt ?? '1970-01-01T00:00:00.000Z'
-    const { data, error } = await sb
-      .from('records')
-      .select('id, table_name, data, deleted, updated_at')
-      .eq('team_number', teamNumber)
-      .gt('updated_at', since)
-      .order('updated_at', { ascending: true })
-      .limit(2000)
-    if (error) throw new Error(error.message)
-    result.pulled = data?.length ?? 0
-    if (data?.length) applyRemote(season, data as RemoteRow[])
+    let since = season.settings.pullWatermark ?? '1970-01-01T00:00:00.000Z'
+    for (let page = 0; page < PULL_MAX_PAGES; page++) {
+      const { data, error } = await sb
+        .from('records')
+        .select('id, table_name, data, deleted, updated_at')
+        .eq('team_number', teamNumber)
+        .gt('updated_at', since)
+        .order('updated_at', { ascending: true })
+        .limit(PULL_PAGE)
+      if (error) throw new Error(error.message)
+      const rows = (data ?? []) as RemoteRow[]
+      if (!rows.length) break
+      result.rows.push(...rows)
+      result.pulled += rows.length
+      since = rows[rows.length - 1].updated_at
+      if (rows.length < PULL_PAGE) break
+    }
   } catch (err) {
     result.error = err instanceof Error ? err.message : String(err)
   }
@@ -164,7 +194,7 @@ async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult
   return result
 }
 
-interface RemoteRow {
+export interface RemoteRow {
   id: string
   table_name: SyncTable
   data: Syncable
@@ -184,6 +214,16 @@ const COLLECTION_FOR: Partial<Record<SyncTable, keyof SeasonData>> = {
   weekly_reports: 'weekly',
   scouting_notes: 'scouting',
   parts_state: 'parts',
+  // Chat used to push and never pull: a message left this device, reached the
+  // database, and was dropped on the way back in because these two lines were
+  // missing. Team chat only ever worked for the person typing.
+  channels: 'channels',
+  messages: 'messages',
+}
+
+/** The subteam list rides one record, so a team's own names reach every device. */
+interface SubteamsRecord extends Syncable {
+  items?: SubteamDef[]
 }
 
 /**
@@ -196,6 +236,10 @@ const COLLECTION_FOR: Partial<Record<SyncTable, keyof SeasonData>> = {
  */
 export function applyRemote(season: SeasonData, rows: RemoteRow[]): void {
   for (const row of rows) {
+    if (row.table_name === 'subteams') {
+      mergeSubteams(season, row)
+      continue
+    }
     const key = COLLECTION_FOR[row.table_name]
     if (key) {
       const list = season[key] as unknown as Syncable[]
@@ -215,7 +259,52 @@ export function applyRemote(season: SeasonData, rows: RemoteRow[]): void {
       season.competition = row.data as SeasonData['competition']
     }
   }
-  season.settings.lastSyncAt = now()
+
+  const mark = highestWatermark(rows)
+  // Only ever forwards. The query already asks for newer rows, but a watermark
+  // that can move back would re-pull the same page for the rest of the season.
+  if (mark && isNewer(mark, season.settings.pullWatermark)) season.settings.pullWatermark = mark
+}
+
+function isNewer(candidate: string, current: string | null | undefined): boolean {
+  if (!current) return true
+  const a = Date.parse(candidate)
+  const b = Date.parse(current)
+  if (Number.isNaN(a)) return false
+  if (Number.isNaN(b)) return true
+  return a > b
+}
+
+/**
+ * Subteams merge by union rather than last-write-wins.
+ *
+ * They are one list on one record, so the newest write would otherwise erase a
+ * subteam somebody else added the same evening — and nothing in the app deletes
+ * one, so there is no removal for a union to lose.
+ */
+function mergeSubteams(season: SeasonData, row: RemoteRow): void {
+  if (row.deleted) return
+  const incoming = (row.data as SubteamsRecord).items ?? []
+  const known = new Set(season.subteams.map((s) => s.id))
+  for (const subteam of incoming) {
+    if (subteam?.id && !known.has(subteam.id)) {
+      season.subteams.push(subteam)
+      known.add(subteam.id)
+    }
+  }
+}
+
+/** The newest server timestamp in a batch, so the next pull resumes from it. */
+function highestWatermark(rows: RemoteRow[]): string | null {
+  let best: string | null = null
+  let bestMs = -Infinity
+  for (const row of rows) {
+    const ms = Date.parse(row.updated_at)
+    if (Number.isNaN(ms) || ms <= bestMs) continue
+    bestMs = ms
+    best = row.updated_at
+  }
+  return best
 }
 
 /** True when the browser reports a connection *and* a project is set up. */

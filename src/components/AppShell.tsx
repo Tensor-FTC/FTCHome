@@ -7,7 +7,6 @@ import { useStore, currentMember } from '@/store/useStore'
 import { isHoldingAdmin } from '@/domain/founder'
 import { watchTeamRecords } from '@/lib/realtime'
 import { ago } from '@/lib/format'
-import { matchAlerts } from '@/lib/notifications'
 import { canSync } from '@/lib/sync'
 import { matchClock } from '@/domain/matchClock'
 import { useNow } from '@/lib/useNow'
@@ -44,18 +43,6 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false)
   useSearchHotkey(useCallback(() => setSearchOpen(true), []))
 
-  // Alerts fire off the real countdown, so a team with no match is never paged.
-  useEffect(() => {
-    if (!settings.notificationsEnabled || !clock) return
-    matchAlerts.tick(
-      clock.match.label,
-      clock.match.field,
-      clock.alliance,
-      clock.secondsUntil,
-      settings.notifyLeadSeconds,
-    )
-  }, [settings.notificationsEnabled, settings.notifyLeadSeconds, clock])
-
   /*
    * Live updates, with a slow timer behind them.
    *
@@ -69,9 +56,17 @@ export function AppShell() {
     if (!canSync() || offline) return
     void sync()
 
+    /*
+     * Subscribing is async, so the effect can be torn down before the channel
+     * exists — a quick offline/online flip, or a team number changing. Without
+     * the flag the unsubscribe ran against nothing and the channel that
+     * arrived a moment later was never closed, leaking one socket per flip.
+     */
+    let live = true
     let stop: (() => void) | undefined
     void watchTeamRecords(season.team.number, () => void sync()).then((fn) => {
-      stop = fn
+      if (live) stop = fn
+      else fn()
     })
 
     const id = setInterval(() => {
@@ -79,6 +74,7 @@ export function AppShell() {
     }, 2 * 60_000)
 
     return () => {
+      live = false
       stop?.()
       clearInterval(id)
     }
