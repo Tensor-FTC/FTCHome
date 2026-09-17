@@ -64,7 +64,11 @@ with the right base path, and deploys.
 Your URL is `https://<your-username>.github.io/<repo-name>/`. Watch the run under the **Actions**
 tab; a green tick means it is live.
 
-The workflow copies `index.html` to `404.html`, which is how Pages does the fallback.
+Pages cannot rewrite unknown paths, so the workflow runs `scripts/spa-fallback.mjs`, which gives
+every screen its own copy of `index.html` — a link to `/roster` answers **200**, not a 404 that
+happens to render. Screens with an id in the URL (`/events/…`, `/chat/…`) still fall through to
+`404.html`, which works in a browser but reports 404 to link previews. A host with real rewrites
+(Option B or C) has neither limitation.
 
 ### Option B — Netlify, Vercel or Cloudflare Pages
 
