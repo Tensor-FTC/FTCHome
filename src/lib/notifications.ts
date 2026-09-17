@@ -24,24 +24,61 @@ export async function requestPermission(): Promise<NotifyPermission> {
   }
 }
 
+/**
+ * The app's icon, from wherever the app is served.
+ *
+ * A bare `/brand/icon-192.png` resolves against the domain root, and on GitHub
+ * Pages the app lives under `/FTCHome/` — so every notification asked for an
+ * icon that 404'd and showed the browser's generic bell instead.
+ */
+const ICON = `${import.meta.env.BASE_URL}brand/icon-192.png`
+
 function show(title: string, body: string, tag: string): void {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  void deliver(title, {
+    body,
+    tag,
+    icon: ICON,
+    badge: ICON,
+    requireInteraction: false,
+    silent: false,
+  })
+}
+
+/**
+ * Through the service worker whenever there is one.
+ *
+ * This used to call `new Notification()` directly, which only desktop browsers
+ * allow. Android Chrome refuses it outright ("Illegal constructor — use
+ * ServiceWorkerRegistration.showNotification"), and an iPhone app installed to
+ * the home screen only supports the worker route too. The error was caught and
+ * ignored, so match alerts had never once fired on a phone — the one device the
+ * drive team actually carries.
+ *
+ * The page constructor is kept as the fallback for a desktop browser with no
+ * worker, which includes `npm run dev`, where the worker is switched off.
+ * Tapping a worker notification is handled in `public/sw-notify.js`.
+ */
+export async function deliver(title: string, options: NotificationOptions): Promise<'worker' | 'page' | 'none'> {
   try {
-    const n = new Notification(title, {
-      body,
-      tag,
-      icon: '/brand/icon-192.png',
-      badge: '/brand/icon-192.png',
-      // Renotify with the same tag replaces rather than stacks.
-      requireInteraction: false,
-      silent: false,
-    })
+    const registration = await globalThis.navigator?.serviceWorker?.getRegistration()
+    if (registration) {
+      await registration.showNotification(title, options)
+      return 'worker'
+    }
+  } catch {
+    // A worker that refuses is no reason not to try the page route.
+  }
+  try {
+    const n = new Notification(title, options)
     n.onclick = () => {
       globalThis.focus?.()
       n.close()
     }
+    return 'page'
   } catch {
-    /* Notification constructor throws on some mobile browsers; the in-app countdown still works. */
+    // Some browsers have neither route. The in-app countdown still works.
+    return 'none'
   }
 }
 

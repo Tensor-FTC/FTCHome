@@ -41,6 +41,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Tapping an alert opens the app. Relative, so it resolves next to the
+        // worker under whatever base path the site is served from.
+        importScripts: ['sw-notify.js'],
         // The gym case: never let a failed network call blank a screen.
         navigateFallback: 'index.html',
         runtimeCaching: [
