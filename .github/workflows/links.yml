@@ -1,0 +1,32 @@
+name: Links
+
+# Pages the app links to move without telling anyone.
+#
+# FIRST reorganised its site in 2025 and three buttons in the getting-started
+# guide started returning 404 — including team registration — and nothing
+# noticed until somebody tapped one. A build cannot catch this: a URL compiles
+# the same whether or not the page behind it still exists.
+#
+# Weekly and on demand, rather than on every pull request. The sites are other
+# people's, and a merge should not be blocked because FIRST's server had a bad
+# afternoon. A failed scheduled run emails the repository's owners.
+on:
+  schedule:
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No install: the checker uses only Node's own fetch and fs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: node scripts/check-links.mjs
