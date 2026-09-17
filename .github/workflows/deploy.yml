@@ -46,10 +46,10 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
 
-      - name: Single-page-app fallback
-        # Pages has no rewrite rules; a copy of index.html as 404.html makes a
-        # deep link like /live resolve instead of 404ing.
-        run: cp dist/index.html dist/404.html
+      - name: Single-page-app routes
+        # Pages has no rewrite rules. Every static screen gets a real page so a
+        # shared link returns 200, and 404.html catches the rest. See the script.
+        run: node scripts/spa-fallback.mjs
 
       - uses: actions/upload-pages-artifact@v3
         with:
