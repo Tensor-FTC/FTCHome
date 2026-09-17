@@ -93,6 +93,28 @@ export function sync(season: SeasonData, displayName = ''): Promise<SyncResult> 
 const PULL_PAGE = 1000
 const PULL_MAX_PAGES = 20
 
+const EPOCH = '1970-01-01T00:00:00.000Z'
+
+/**
+ * How far behind the last row received each pull reaches back.
+ *
+ * The server stamps a row as it is written and commits it a moment later, so
+ * two writes landing together can commit in the opposite order to their
+ * stamps. A device that happened to pull the later one first would put its
+ * mark past the earlier one and never ask for it again. Reaching back a couple
+ * of seconds covers that; re-reading a row already applied changes nothing,
+ * because merging compares timestamps.
+ */
+export const PULL_OVERLAP_MS = 2000
+
+/** Where a pull starts: a little before the newest row this device has seen. */
+export function pullFrom(watermark: string | null | undefined, overlapMs = PULL_OVERLAP_MS): string {
+  if (!watermark) return EPOCH
+  const ms = Date.parse(watermark)
+  if (Number.isNaN(ms)) return EPOCH
+  return new Date(Math.max(0, ms - overlapMs)).toISOString()
+}
+
 async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult> {
   const result: SyncResult = { pushed: 0, pulled: 0, failed: 0, skipped: false, rows: [] }
 
@@ -168,9 +190,16 @@ async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult
    * the next pull started from the same bad mark. Paging on what came back
    * also makes a truncated page safe: the next page picks up exactly where
    * this one stopped.
+   *
+   * That only holds if `updated_at` really is the server's clock, which until
+   * 0006 it was not: the trigger kept whichever was later, the server's time
+   * or the one the device sent. One fast phone could still stamp rows in the
+   * future, and every device that pulled one skipped what everybody else wrote
+   * in the meantime. 0006 makes the column pure server time.
    */
+  const watermark = season.settings.pullWatermark
   try {
-    let since = season.settings.pullWatermark ?? '1970-01-01T00:00:00.000Z'
+    let since = pullFrom(watermark)
     for (let page = 0; page < PULL_MAX_PAGES; page++) {
       const { data, error } = await sb
         .from('records')
@@ -183,7 +212,9 @@ async function runSync(season: SeasonData, displayName = ''): Promise<SyncResult
       const rows = (data ?? []) as RemoteRow[]
       if (!rows.length) break
       result.rows.push(...rows)
-      result.pulled += rows.length
+      // Rows re-read from the overlap were almost always applied already, and
+      // counting them would announce changes that did not happen.
+      result.pulled += rows.filter((r) => isNewer(r.updated_at, watermark)).length
       since = rows[rows.length - 1].updated_at
       if (rows.length < PULL_PAGE) break
     }

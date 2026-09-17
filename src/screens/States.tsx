@@ -82,7 +82,7 @@ export function StatesScreen() {
                       key={entry.id}
                       style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '4px 0' }}
                     >
-                      <span style={{ font: '400 11.5px var(--font-sans)', color: '#9ba5a9', minWidth: 0 }}>
+                      <span style={{ font: '400 11.5px var(--font-sans)', color: 'var(--ink-3)', minWidth: 0 }}>
                         {entry.label}
                       </span>
                       <span
@@ -111,7 +111,36 @@ export function StatesScreen() {
                     Set up cloud sync
                   </Button>
                 )}
+                {/*
+                 * The recovery for "something is on their phone and not mine".
+                 *
+                 * A device only ever asks for rows newer than the last one it
+                 * received. If that mark was ever pushed too far forward — a
+                 * teammate's phone with a fast clock could do it before the
+                 * server stamped rows itself — rows written in between were
+                 * never asked for. Starting from the beginning fetches them.
+                 * Nothing local is lost: a row is only replaced by a newer one.
+                 */}
+                {isSupabaseConfigured() && (
+                  <Button
+                    size="sm"
+                    variant="quiet"
+                    disabled={syncing}
+                    onClick={() => {
+                      updateSettings({ pullWatermark: null })
+                      void sync({ announce: true })
+                    }}
+                  >
+                    Pull everything again
+                  </Button>
+                )}
               </div>
+              {isSupabaseConfigured() && (
+                <p className="field-note" style={{ marginTop: 8 }}>
+                  If something a teammate added never showed up here, pull everything again. It
+                  re-reads the whole season and keeps any newer changes you have made.
+                </p>
+              )}
 
               {lastResult?.error && (
                 <div className="meta" style={{ marginTop: 10, color: 'var(--pressure-ink)' }}>

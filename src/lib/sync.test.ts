@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyRemote } from './sync'
+import { applyRemote, pullFrom, PULL_OVERLAP_MS } from './sync'
 import { fixtureSeason } from '@/test/fixtures'
 import type { SeasonData, SyncTable } from '@/domain/types'
 
@@ -151,5 +151,38 @@ describe('applyRemote', () => {
       applyRemote(s, [row('tasks', 'task-a', { name: 'a', due: '' }, '2026-02-01T09:00:00.000Z')])
       expect(s.settings.pullWatermark).toBe('2026-03-01T12:00:00.000Z')
     })
+  })
+})
+
+/**
+ * Where a pull starts.
+ *
+ * Two writes can commit in the opposite order to their server stamps. Starting
+ * exactly at the newest row seen would skip the one that committed second, so
+ * each pull reaches back a little. These pin that it does, and that a missing
+ * or unreadable mark means "from the beginning" rather than "from now".
+ */
+describe('pullFrom', () => {
+  it('starts from the beginning on a device that has never pulled', () => {
+    expect(pullFrom(null)).toBe('1970-01-01T00:00:00.000Z')
+    expect(pullFrom(undefined)).toBe('1970-01-01T00:00:00.000Z')
+  })
+
+  it('reaches back behind the newest row, so a late commit is not skipped', () => {
+    const mark = '2026-09-16T12:00:10.000Z'
+    const start = pullFrom(mark)
+    expect(Date.parse(mark) - Date.parse(start)).toBe(PULL_OVERLAP_MS)
+
+    // A row stamped just before the mark, committed just after it.
+    const lateCommit = '2026-09-16T12:00:09.500Z'
+    expect(Date.parse(lateCommit)).toBeGreaterThan(Date.parse(start))
+  })
+
+  it('reads the microsecond timestamps the server actually returns', () => {
+    expect(pullFrom('2026-09-16T12:00:00.123456+00:00', 2000)).toBe('2026-09-16T11:59:58.123Z')
+  })
+
+  it('treats an unreadable mark as never having pulled, rather than guessing', () => {
+    expect(pullFrom('not a date')).toBe('1970-01-01T00:00:00.000Z')
   })
 })
