@@ -184,6 +184,10 @@ It does **not** change where your data lives. That is part 3.
 
 ## Part 3 · The database
 
+> The complete database and sign-in reference — health check, admin SQL,
+> limits, troubleshooting — is **[SUPABASE.md](SUPABASE.md)**. This part is the
+> short version.
+
 **Read this first, because it decides whether you need it at all.**
 
 FTC Home keeps your whole season in your browser's own database (IndexedDB) on each device. That is
@@ -215,10 +219,10 @@ notes, or you want the season to survive a lost phone.
 That creates one `records` table, the row-level security policies that keep one team's rows away
 from another's, and a `provision_team` helper.
 
-This is the first of five migration files. The other four are in
-[step 4.1](#41-run-the-remaining-migrations) — accounts, invites and live
-updates each live in one of them, so a project with only this file applied has
-sync and nothing else.
+This is the first of six migration files. The other five are in
+[step 4.1](#41-run-the-remaining-migrations) — accounts, invites, live updates
+and correct timestamps each live in one of them, so a project with only this
+file applied has sync and little else.
 
 (If you use the Supabase CLI, `supabase db push` does the same thing.)
 
@@ -227,7 +231,7 @@ sync and nothing else.
 In the same SQL editor, run this with **your** team number and name:
 
 ```sql
-select * from public.provision_team('11138', 'Robo Raiders');
+select * from public.provision_team('26022', 'Your Team Name');
 ```
 
 It returns a long random string. **That is your team secret.** Copy it somewhere safe — it is
@@ -271,9 +275,10 @@ everything for your team whether or not you ever accepted them, and removing the
 does not take it back. An account you can revoke — set their status away from active and their
 access stops.
 
-Sync runs on load, on reconnect, every five minutes, and whenever you press sync. **Settings → Sync
-→ See the queue** shows exactly what is waiting to go out, which is worth looking at once so you
-trust it.
+Sync runs by itself: about a second after any change on this device, about a second after a
+change on anybody else's (with `0004` run), when a phone wakes, and every two minutes as a safety
+net. **Settings → Sync → See the queue** shows exactly what is waiting to go out, which is worth
+looking at once so you trust it.
 
 ### How conflicts are handled
 
@@ -326,9 +331,10 @@ Redirect URLs, exactly, including any subpath. Add both the deployed URL and
 `http://localhost:5173` if you develop locally.
 
 **Changes are not reaching the other devices.**
-Open **Settings → Sync → See the queue**. If items are stuck there, the device has no signal or the
-secret is wrong. If the queue is empty and the other device still looks stale, that device has not
-pulled yet — open it and it syncs on load.
+Open **Settings → Sync → See the queue**. If items are stuck there, the device has no signal or is
+not accepted onto the team yet. If changes arrive only every couple of minutes, `0004` has not been
+run. If one device is missing something the others have, however long you wait, run `0006` and
+then **States & sync → Pull everything again** on that device.
 
 **The team number or city is wrong.**
 That comes from FTCScout, not from anything typed here. **Settings → Data → Refresh team &
@@ -362,8 +368,9 @@ between devices, and a coach controls who is on the roster.
 | [`0003_invites.sql`](../supabase/migrations/0003_invites.sql) | Invites — `accept_invite` is the only path that makes somebody active without a coach pressing approve, and an email-bound invite is claimable only by the matching account. |
 | [`0004_realtime.sql`](../supabase/migrations/0004_realtime.sql) | Live updates. Puts `records` on the realtime publication so a change on one device reaches the others in about a second, rather than on the next timer. |
 | [`0005_fix_invite_digest.sql`](../supabase/migrations/0005_fix_invite_digest.sql) | Points the invite functions at the schema Supabase installs pgcrypto into. Without it, **creating an invite fails** with `function digest(text, unknown) does not exist`. |
+| [`0006_server_timestamps.sql`](../supabase/migrations/0006_server_timestamps.sql) | Stamps every synced row with the server's clock. Without it, one device with a wrong clock can make other devices silently skip rows. |
 
-Run all five (`0001` through `0005`) even if you are not using invites yet.
+Run all six (`0001` through `0006`) even if you are not using invites yet.
 Skipping one leaves functions the app calls missing, and the failure shows up
 later as a sign-in that half works rather than as an obvious error. Every file
 is safe to run twice, so if you are unsure whether one went through, run it
@@ -388,6 +395,14 @@ again.
   and secret back into Supabase.
 - **GitHub**: Settings → Developer settings → OAuth Apps → New. Same idea — the
   callback URL comes from Supabase.
+- **Microsoft**: an app registration in Microsoft Entra, allowing *any
+  organisational directory and personal accounts*, so students can use school
+  accounts. Supabase lists it as **Azure**.
+
+**Publish the Google consent screen**, or only accounts you list by hand can
+sign in. And know that Supabase's built-in email sender only manages a few
+emails an hour — fine for testing, not for a team. Step-by-step for all of this,
+including setting up your own sender: [SUPABASE.md § 6](SUPABASE.md#6--sign-in).
 
 ### 4.3 Set the redirect URLs
 
@@ -396,11 +411,14 @@ every address it is reachable at to Redirect URLs — the deployed one, and
 `http://localhost:5173` if you develop locally. A missing entry here is the
 single most common reason a Google sign-in lands on an error.
 
-### 4.4 The first coach
+### 4.4 The first person
 
-Sign in with your own account, then in the app choose **Set up my team**. That
-calls `claim_team`, which makes you a coach of a team that has no members yet
-and refuses on a team that already does.
+In the app choose **Start a new team with FTC Home**, pick your team, and sign
+in. You choose your own role. The app calls `claim_team`, which makes you the
+team's first member and refuses on a team that already has one.
+
+If you are not a coach or mentor, you still run the team until one joins — then
+it hands over by itself and you stay what you said you were.
 
 ### 4.5 Everyone else
 

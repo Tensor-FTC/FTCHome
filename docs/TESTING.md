@@ -40,12 +40,15 @@ where table_schema = 'public' order by table_name;
 Expect `records`, `team_invites`, `team_members`, `teams`.
 
 If any are missing, the migrations did not all run. Run them in order —
-`0001` through `0005` — and re-check. All five are safe to run twice, so run
+`0001` through `0006` — and re-check. All six are safe to run twice, so run
 any you are unsure about again.
 
-`0005` is the one that is easy to miss and does not show up here: it is a
-two-line fix to the invite functions, and without it **§4b below fails** with
-`function digest(text, unknown) does not exist`.
+`0005` and `0006` do not show up in this list, because they change functions
+rather than add tables. Run the one-query
+[health check in SUPABASE.md](SUPABASE.md#8--health-check) instead — it checks
+all six. Without `0005`, **§4b below fails** with
+`function digest(text, unknown) does not exist`; without `0006`, a device with
+a wrong clock can make others silently miss rows.
 
 ---
 
@@ -82,9 +85,11 @@ catch.
 Still on the laptop:
 
 1. Add a calendar event, a task, and a sponsor.
-2. Go to **States & sync** → **Sync now**.
+2. Go to **States & sync**. The queue should already be empty — sync runs about
+   a second after each change, without any button.
+3. Press **Sync now** anyway.
 
-**Expect:** "Synced · N sent". No red text.
+**Expect:** "Already up to date" or "Everything sent". No red text.
 
 ❌ If you see `new row violates row-level security policy for table "records"`,
 stop. It means step 2 did not create a `team_members` row. Re-check the
@@ -145,15 +150,20 @@ Try the same code again with a fourth account.
 
 ## 5 · Two devices agree
 
+Open Today on both devices, side by side. **Do not press anything to sync.**
+
 1. **Phone:** add a task called `from-phone`.
-2. **Laptop:** States & sync → **Sync now** → Today.
 
-**Expect:** `from-phone` appears.
+**Expect:** it appears on the laptop within a few seconds.
 
-3. **Laptop:** tick it done, sync.
-4. **Phone:** pull to refresh.
+2. **Laptop:** tick it done.
 
-**Expect:** it shows as done.
+**Expect:** it shows as done on the phone within a few seconds.
+
+If either takes a couple of minutes instead, `0004` has not been run — the
+two-minute safety net is doing the work that live updates should. If
+something *never* arrives on one device, run `0006` and then
+**States & sync → Pull everything again** on that device.
 
 ### 5b · Chat crosses devices
 
@@ -195,7 +205,8 @@ On the **phone**, with the app open:
 2. Add a task, write a chat message, mark a part owned. Open Calendar, Budget,
    Build — every screen must render.
 3. **States & sync** shows the queue with sizes and "nothing is lost".
-4. Turn Airplane mode off, wait, then **Sync now**.
+4. Turn Airplane mode off and wait a few seconds — it sends by itself when the
+   connection comes back.
 
 **Expect:** the queue empties and the changes appear on the laptop.
 
@@ -283,6 +294,14 @@ Settings → App → **Match alerts** → allow notifications.
 deadline sits in its window for two days and the app gets opened a dozen times
 in that period; an alert on every open is one people learn to swipe away.
 
+**Do this on a phone, not just the laptop.** Alerts go through the service
+worker, which is the only route Android Chrome and installed iPhone apps allow.
+Tapping the notification should bring the app forward. On iPhone this needs
+iOS 16.4 or newer and the app installed to the home screen.
+
+Alerts only fire while the app is open or was used recently. With the app
+fully closed, nothing arrives — that needs Web Push, which is not built yet.
+
 At a competition with a loaded event, the match alert fires at your lead time,
 at one minute and at zero — **from any screen**, including Competition Mode on
 the pit display, which is the one most likely to be up.
@@ -296,6 +315,11 @@ the pit display, which is the one most likely to be up.
   last-write-wins. Fine in practice, not tested adversarially.
 - **Invites at scale.** One code, one use, tested by hand. Multi-use codes and
   expiry are enforced by the database and have not been exercised.
+- **Photos on a second device.** Only the build-log *entry* syncs; the image
+  file stays on the device that took it. See [ROADMAP.md](ROADMAP.md).
+- **A determined student.** The app hides budget figures and contact details
+  from students, but the database does not yet. See
+  [SUPABASE.md § 12](SUPABASE.md#12--security-what-is-and-is-not-enforced).
 
 ---
 
