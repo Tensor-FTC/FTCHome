@@ -1,0 +1,44 @@
+name: Keep Supabase awake
+
+# Free Supabase projects are paused after one week with no activity. For a team
+# that goes quiet over a school break, that means the first person back finds
+# sync refusing everything until somebody signs into the dashboard and restores
+# the project — and the app, being offline-first, keeps working locally, so
+# nobody notices until two phones disagree.
+#
+# One real query every third day keeps the project in use. It reads `teams` as
+# an anonymous caller, which row-level security answers with an empty list: the
+# database does the work, and nothing is exposed. A paid plan never pauses and
+# makes this unnecessary.
+#
+# GitHub stops running scheduled workflows in a repository with no commits for
+# 60 days. Over a long summer, push something or run this by hand.
+on:
+  schedule:
+    - cron: '17 9 */3 * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Touch the database
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::notice::No Supabase secrets on this repository, so there is nothing to keep awake."
+            exit 0
+          fi
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+            -H "apikey: $KEY" "$URL/rest/v1/teams?select=team_number&limit=1")
+          echo "Supabase answered $status"
+          # Anything but success is worth a red run. A paused project answers
+          # with an error, and that is exactly what somebody needs to hear about.
+          case "$status" in
+            2*) ;;
+            *) echo "::error::Supabase answered $status. The project may be paused — restore it from the dashboard."; exit 1 ;;
+          esac
