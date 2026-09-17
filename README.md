@@ -359,5 +359,9 @@ node scripts/generate-icons.mjs   # re-rasterise app icons from the vector mark
 ## Design notes
 
 - [**docs/SETUP.md**](docs/SETUP.md) — website, app install and database, end to end.
+- [**docs/SUPABASE.md**](docs/SUPABASE.md) — the database and sign-in in full: providers, a health
+  check, admin SQL, plan limits, troubleshooting, and what the database does and does not enforce.
+- [**docs/TESTING.md**](docs/TESTING.md) — checking it on real devices before a team relies on it.
+- [**docs/ROADMAP.md**](docs/ROADMAP.md) — what is left, what to build next, and in what order.
 - [**docs/team-identity.md**](docs/team-identity.md) — what happens if a team sets up under someone
   else's number, why it cannot currently happen, and what to build first if this is ever hosted.
