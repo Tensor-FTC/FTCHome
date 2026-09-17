@@ -66,7 +66,7 @@ const STEPS: Step[] = [
     body:
       'A team needs adults. FIRST requires screened adult mentors, and events expect a coach present. This is usually the real bottleneck for a student-founded team, so start asking early — a teacher, a parent, an engineer at a local firm.',
     note: 'Adults working with youth teams complete Youth Protection Program screening. Budget time for it; it is not instant.',
-    link: { label: 'Youth Protection Program', href: 'https://www.firstinspires.org/resource-library/youth-protection-policy' },
+    link: { label: 'Youth Protection Program', href: 'https://www.firstinspires.org/programs/youth-protection-program' },
   },
   {
     id: 'dashboard',
@@ -74,7 +74,7 @@ const STEPS: Step[] = [
     who: 'A lead mentor or coach',
     body:
       'Everything official happens in the FIRST Dashboard. An adult creates an account, starts a team registration for FIRST Tech Challenge, and pays the season registration fee. You are issued a team number at the end of this — that number is what the rest of this app runs on.',
-    link: { label: 'FIRST team registration', href: 'https://www.firstinspires.org/robotics/ftc/team-registration' },
+    link: { label: 'FIRST team registration', href: 'https://www.firstinspires.org/programs/cost-and-registration' },
   },
   {
     id: 'grants',
@@ -83,7 +83,7 @@ const STEPS: Step[] = [
     body:
       'Rookie teams are often eligible for grants that cover a large share of registration and the kit — but they have deadlines, and several close before the season starts. Check what is open for your region now rather than after you have paid.',
     note: 'Grant programmes and deadlines vary by region and change yearly, which is why none are listed here.',
-    link: { label: 'FIRST grants and funding', href: 'https://www.firstinspires.org/resource-library/team-management-resources' },
+    link: { label: 'FIRST grants and funding', href: 'https://www.firstinspires.org/programs/team-grant-opportunities' },
   },
   {
     id: 'kit',
