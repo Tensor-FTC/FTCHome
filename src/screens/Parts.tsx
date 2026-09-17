@@ -185,7 +185,7 @@ export function PartsScreen() {
               <div className="label" style={{ fontSize: 9 }}>
                 Have / total
               </div>
-              <div className="num" style={{ font: '500 15px/1.6 var(--font-mono)', color: '#9ba5a9' }}>
+              <div className="num" style={{ font: '500 15px/1.6 var(--font-mono)', color: 'var(--ink-3)' }}>
                 {haveCount} / {allCount} · {money(all)}
               </div>
             </div>
@@ -262,7 +262,7 @@ export function PartsScreen() {
                       )}
                     </div>
                     <div style={{ textAlign: 'right', flex: 'none', whiteSpace: 'nowrap' }}>
-                      <div className="num" style={{ font: '500 13px/1.2 var(--font-mono)', color: '#d6dcde' }}>
+                      <div className="num" style={{ font: '500 13px/1.2 var(--font-mono)', color: 'var(--ink-2)' }}>
                         {money(partLineTotal(item))}
                       </div>
                       <div className="meta-mono">

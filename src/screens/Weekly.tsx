@@ -154,7 +154,7 @@ export function WeeklyScreen() {
               subteams.map((t) => (
                 <div key={t.id} style={{ marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ font: '500 12px var(--font-sans)', color: '#d6dcde' }}>{SUBTEAM_LABEL[t.id]}</span>
+                    <span style={{ font: '500 12px var(--font-sans)', color: 'var(--ink-2)' }}>{SUBTEAM_LABEL[t.id]}</span>
                     <span className="num" style={{ font: '500 11.5px var(--font-mono)', color: 'var(--ink-3)' }}>
                       {t.done}/{t.total}
                     </span>
@@ -223,7 +223,7 @@ export function WeeklyScreen() {
               {weekMedia.slice(1).map((item) => (
                 <div key={item.id} className="card" style={{ overflow: 'hidden', borderRadius: 12 }}>
                   <MediaThumb item={item} height={96} />
-                  <div style={{ padding: '9px 11px', font: '400 11px/1.4 var(--font-sans)', color: '#b7c0c3' }}>
+                  <div style={{ padding: '9px 11px', font: '400 11px/1.4 var(--font-sans)', color: 'var(--ink-2)' }}>
                     {item.caption || item.name}
                   </div>
                 </div>

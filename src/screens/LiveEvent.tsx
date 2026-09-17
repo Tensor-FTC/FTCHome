@@ -249,7 +249,7 @@ export function LiveEventScreen() {
                       <div className="num" style={{ font: '500 11.5px/1.4 var(--font-mono)', color: 'var(--ink-2)' }}>
                         with {partners.join(' · ') || '—'}
                       </div>
-                      <div className="num" style={{ font: '400 10.5px/1.4 var(--font-mono)', color: '#7c8589' }}>
+                      <div className="num" style={{ font: '400 10.5px/1.4 var(--font-mono)', color: 'var(--ink-4)' }}>
                         vs {opponents.join(' · ')}
                       </div>
                     </div>
@@ -340,7 +340,7 @@ export function LiveEventScreen() {
                     <span className="num" style={{ font: '600 14px var(--font-mono)', color: 'var(--ink)' }}>
                       {target.teamNumber}
                     </span>
-                    <span style={{ font: '500 12px var(--font-sans)', color: '#9ba5a9', flex: 1, minWidth: 0 }}>
+                    <span style={{ font: '500 12px var(--font-sans)', color: 'var(--ink-3)', flex: 1, minWidth: 0 }}>
                       {ranking?.teamName ?? note?.teamName ?? ''}
                     </span>
                   </div>
@@ -424,7 +424,7 @@ function Micro({ label, value }: { label: string; value: string }) {
       >
         {label}
       </div>
-      <div className="num" style={{ font: '500 13px var(--font-mono)', color: '#d6dcde' }}>
+      <div className="num" style={{ font: '500 13px var(--font-mono)', color: 'var(--ink-2)' }}>
         {value}
       </div>
     </div>

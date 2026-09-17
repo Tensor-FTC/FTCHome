@@ -138,7 +138,7 @@ export function Wordmark({ animate = true, size = 44 }: { animate?: boolean; siz
       <span
         style={{
           font: `600 ${size}px/1 var(--font-sans)`,
-          color: '#F2F0E9',
+          color: 'var(--ink)',
           letterSpacing: '-0.02em',
           animation: animate ? 'wordIn .5s cubic-bezier(.2,.8,.3,1) .42s both' : undefined,
         }}
@@ -148,7 +148,7 @@ export function Wordmark({ animate = true, size = 44 }: { animate?: boolean; siz
       <span
         style={{
           font: `400 ${size}px/1 var(--font-sans)`,
-          color: '#8B9490',
+          color: 'var(--ink-3)',
           letterSpacing: '-0.02em',
           marginLeft: size * 0.09,
           animation: animate ? 'wordIn .5s cubic-bezier(.2,.8,.3,1) .56s both' : undefined,

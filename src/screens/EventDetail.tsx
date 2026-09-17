@@ -185,7 +185,7 @@ export function EventDetailScreen() {
                 cantMake.map((m) => (
                   <div key={m.id} className="row" style={{ padding: '7px 0' }}>
                     <Avatar name={m.name} size="sm" color={m.avatarColor} src={m.avatarUrl} />
-                    <span style={{ flex: 1, font: '500 12.5px var(--font-sans)', color: '#d6dcde' }}>{m.name}</span>
+                    <span style={{ flex: 1, font: '500 12.5px var(--font-sans)', color: 'var(--ink-2)' }}>{m.name}</span>
                     <span className="meta">{describeSubteams(season, m) || ROLE_LABEL[m.role].toLowerCase()}</span>
                   </div>
                 ))
@@ -236,7 +236,7 @@ export function EventDetailScreen() {
                       display: 'grid',
                       placeItems: 'center',
                       font: '500 8.5px var(--font-mono)',
-                      color: '#9ba5a9',
+                      color: 'var(--ink-3)',
                     }}
                   >
                     {a.ext}

@@ -210,7 +210,7 @@ function ScoutRow({
         <span
           style={{
             font: '500 12px var(--font-sans)',
-            color: '#9ba5a9',
+            color: 'var(--ink-3)',
             flex: 1,
             minWidth: 0,
             overflow: 'hidden',

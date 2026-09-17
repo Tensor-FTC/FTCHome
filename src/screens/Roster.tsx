@@ -116,7 +116,7 @@ export function RosterScreen() {
             }}
           >
             <span className="dot dot-live" />
-            <span style={{ flex: 1, font: '400 12px/1.5 var(--font-sans)', color: '#d5e3ae' }}>
+            <span style={{ flex: 1, font: '400 12px/1.5 var(--font-sans)', color: 'var(--signal-tint)' }}>
               Coach tools on. You can add members, set roles and read contact details.
             </span>
           </div>

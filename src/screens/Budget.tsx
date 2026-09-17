@@ -220,7 +220,7 @@ export function BudgetScreen() {
                 return (
                   <div key={a.id} style={{ marginBottom: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, gap: 8 }}>
-                      <span style={{ font: '500 12px var(--font-sans)', color: '#d6dcde' }}>{a.name}</span>
+                      <span style={{ font: '500 12px var(--font-sans)', color: 'var(--ink-2)' }}>{a.name}</span>
                       <span className="num" style={{ font: '500 11.5px var(--font-mono)', color: over ? 'var(--pressure)' : 'var(--ink-3)' }}>
                         {money(a.spent)} / {money(a.cap)}
                       </span>
